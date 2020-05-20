@@ -38,9 +38,9 @@ const (
 	AppEngineFailFast = "X-AppEngine-FailFast"
 )
 
-// AppEngineHeader is App Engine task handlers
+// Header is App Engine task handlers
 // plz see https://cloud.google.com/tasks/docs/creating-appengine-handlers
-type AppEngineHeader struct {
+type Header struct {
 
 	// QueueName is The name of the queue.
 	// Always there
@@ -80,9 +80,9 @@ type AppEngineHeader struct {
 	FailFast bool
 }
 
-// GetAppEngineHeader return App Engine task header
-func GetAppEngineHeader(r *http.Request) (*AppEngineHeader, error) {
-	var ret AppEngineHeader
+// GetHeader return App Engine task header
+func GetHeader(r *http.Request) (*Header, error) {
+	var ret Header
 
 	v, ok := r.Header[AppEngineTaskName]
 	if ok {
