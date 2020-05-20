@@ -84,57 +84,57 @@ type Header struct {
 func GetHeader(r *http.Request) (*Header, error) {
 	var ret Header
 
-	v, ok := r.Header[AppEngineTaskName]
-	if ok {
-		ret.TaskName = v[0]
+	v := r.Header.Get(AppEngineTaskName)
+	if len(v) > 0 {
+		ret.TaskName = v
 	} else {
 		return nil, ErrNotFoundHeader
 	}
 
-	v, ok = r.Header[AppEngineQueueName]
-	if ok {
-		ret.QueueName = v[0]
+	v = r.Header.Get(AppEngineQueueName)
+	if len(v) > 0 {
+		ret.QueueName = v
 	}
 
-	v, ok = r.Header[AppEngineTaskRetryCount]
-	if ok {
-		i, err := strconv.ParseInt(v[0], 10, 64)
+	v = r.Header.Get(AppEngineTaskRetryCount)
+	if len(v) > 0 {
+		i, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid %s. v=%v", AppEngineTaskRetryCount, v)
 		}
 		ret.TaskRetryCount = i
 	}
 
-	v, ok = r.Header[AppEngineTaskExecutionCount]
-	if ok {
-		i, err := strconv.ParseInt(v[0], 10, 64)
+	v = r.Header.Get(AppEngineTaskExecutionCount)
+	if len(v) > 0 {
+		i, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid %s. v=%v", AppEngineTaskExecutionCount, v)
 		}
 		ret.TaskExecutionCount = i
 	}
 
-	v, ok = r.Header[AppEngineTaskETA]
-	if ok {
-		i, err := strconv.ParseInt(v[0], 10, 64)
+	v = r.Header.Get(AppEngineTaskETA)
+	if len(v) > 0 {
+		i, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid %s. v=%v", AppEngineTaskETA, v)
 		}
 		ret.TaskETA = time.Unix(i, 0)
 	}
 
-	v, ok = r.Header[AppEngineTaskPreviousResponse]
-	if ok {
-		ret.TaskPreviousResponse = v[0]
+	v = r.Header.Get(AppEngineTaskPreviousResponse)
+	if len(v) > 0 {
+		ret.TaskPreviousResponse = v
 	}
 
-	v, ok = r.Header[AppEngineTaskRetryReason]
-	if ok {
-		ret.TaskRetryReason = v[0]
+	v = r.Header.Get(AppEngineTaskRetryReason)
+	if len(v) > 0 {
+		ret.TaskRetryReason = v
 	}
 
-	v, ok = r.Header[AppEngineFailFast]
-	if ok {
+	v = r.Header.Get(AppEngineFailFast)
+	if len(v) > 0 {
 		ret.FailFast = true
 	}
 
