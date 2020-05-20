@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -116,11 +117,19 @@ func GetHeader(r *http.Request) (*Header, error) {
 
 	v = r.Header.Get(AppEngineTaskETA)
 	if len(v) > 0 {
-		i, err := strconv.ParseInt(v, 10, 64)
+		l := strings.Split(v, ".")
+		if len(l) < 2 {
+			return nil, fmt.Errorf("invalid %s. v=%v", AppEngineTaskETA, v)
+		}
+		sec, err := strconv.ParseInt(l[0], 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("invalid %s. v=%v", AppEngineTaskETA, v)
 		}
-		ret.TaskETA = time.Unix(i, 0)
+		microsec, err := strconv.ParseInt(l[1], 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid %s. v=%v", AppEngineTaskETA, v)
+		}
+		ret.TaskETA = time.Unix(sec, microsec*1000)
 	}
 
 	v = r.Header.Get(AppEngineTaskPreviousResponse)
