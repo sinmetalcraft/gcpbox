@@ -31,9 +31,9 @@ func NewStorageService(ctx context.Context, serviceAccountName string, serviceAc
 	}
 }
 
-// PutObjectSignedURL is ObjectをPutするSignedURLを発行する
+// CreateSignedURLForPutObject is ObjectをPutするSignedURLを発行する
 // https://cloud.google.com/blog/ja/products/gcp/uploading-images-directly-to-cloud-storage-by-using-signed-url を参考に作られている
-func (s *StorageService) PutObjectSignedURL(ctx context.Context, bucket string, object string, expires time.Time) (string, error) {
+func (s *StorageService) CreateSignedURLForPutObject(ctx context.Context, bucket string, object string, expires time.Time) (string, error) {
 	url, err := storage.SignedURL(bucket, object, &storage.SignedURLOptions{
 		GoogleAccessID: s.serviceAccountName,
 		Method:         "PUT",

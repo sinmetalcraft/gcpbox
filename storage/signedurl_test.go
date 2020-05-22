@@ -16,7 +16,7 @@ func TestStorageService_SignedURL(t *testing.T) {
 
 	s := newStorageService(t)
 
-	_, err := s.PutObjectSignedURL(ctx, "sinmetal-ci-storage", "hoge", time.Now().Add(600*time.Second))
+	_, err := s.CreateSignedURLForPutObject(ctx, "sinmetal-ci-storage", "hoge", time.Now().Add(600*time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
