@@ -21,4 +21,5 @@ GCPとLocalで同じロジックを使いつつ、設定値を持ち回るため
 
 ## storage
 
-SignedURLを作るのを書くのがめんどうなので、うまれた。
+* Create [SignedURL](https://cloud.google.com/storage/docs/access-control/signed-urls?hl=en)
+* [PubSubNotify](https://cloud.google.com/storage/docs/pubsub-notifications?hl=en) Body Reader
