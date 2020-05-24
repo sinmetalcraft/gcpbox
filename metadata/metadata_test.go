@@ -2,10 +2,14 @@ package metadata_test
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	metadatabox "github.com/sinmetal/gcpbox/metadata"
 )
+
+const ProjectID = "sinmetal-ci"
+const ServiceAccountEmail = "401580979819@cloudbuild.gserviceaccount.com"
 
 func TestOnGCP(t *testing.T) {
 	v := metadatabox.OnGCP()
@@ -13,23 +17,39 @@ func TestOnGCP(t *testing.T) {
 }
 
 func TestGetProjectID(t *testing.T) {
-	onGCP := metadatabox.OnGCP()
+	setTestEnvValue(t)
 
 	p, err := metadatabox.ProjectID()
-	if onGCP {
-		if err != nil {
-			t.Fatal(err)
-		}
-	} else {
-		if err != nil {
-			if !metadatabox.Is(err, metadatabox.ErrNotFoundCode) {
-				t.Fatal(err)
-			}
-			fmt.Println("GetProjectID is NotFound")
-			return
-		}
+	if err != nil {
+		t.Fatal(err)
 	}
-	fmt.Printf("GetProjectID is %v\n", p)
+	if e, g := ProjectID, p; e != g {
+		t.Errorf("want project id %s but got %s", e, g)
+	}
+}
+
+func TestServiceAccountID(t *testing.T) {
+	setTestEnvValue(t)
+
+	saID, err := metadatabox.ServiceAccountID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e, g := fmt.Sprintf("projects/%s/serviceAccounts/%s", ProjectID, ServiceAccountEmail), saID; e != g {
+		t.Errorf("want service account id %s but got %s", e, g)
+	}
+}
+
+func TestServiceAccountName(t *testing.T) {
+	setTestEnvValue(t)
+
+	saName, err := metadatabox.ServiceAccountName()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e, g := "401580979819", saName; e != g {
+		t.Errorf("want service account name %s but got %s", e, g)
+	}
 }
 
 func TestExtractionRegion(t *testing.T) {
@@ -89,5 +109,16 @@ func TestExtractionZone(t *testing.T) {
 				t.Errorf("want result %v but got %v", tt.wantResult, got)
 			}
 		})
+	}
+}
+
+func setTestEnvValue(t *testing.T) {
+	if !metadatabox.OnGCP() {
+		if err := os.Setenv("GOOGLE_CLOUD_PROJECT", ProjectID); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Setenv("GCLOUD_SERVICE_ACCOUNT", ServiceAccountEmail); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
