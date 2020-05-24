@@ -81,7 +81,7 @@ func TestReadPubSubBody(t *testing.T) {
 	if msg.Message.Data.TimeStorageClassUpdated.IsZero() {
 		t.Fatalf("Message.Data.TimeStorageClassUpdated is Zero")
 	}
-	if e, g := 138042, msg.Message.Data.Size; e != g {
+	if e, g := int64(138042), msg.Message.Data.Size; e != g {
 		t.Fatalf("expected Message.Data.Size = %d; got %d", e, g)
 	}
 	if e, g := "2ENasor8WyhvCWViP7kyXg==", msg.Message.Data.MD5Hash; e != g {

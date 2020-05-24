@@ -73,7 +73,7 @@ type MessageData struct {
 	Updated                 time.Time        `json:"updated"`
 	StorageClass            StorageClassType `json:"storageClass"`
 	TimeStorageClassUpdated time.Time        `json:"timeStorageClassUpdated"`
-	Size                    int              `json:"size"`
+	Size                    int64            `json:"size"`
 	MD5Hash                 string           `json:"md5hash"`
 	MediaLink               string           `json:"mediaLink"`
 	CRC32C                  string           `json:"crc32c"`
@@ -148,7 +148,7 @@ func ReadPubSubNotifyBody(body io.Reader) (*MessageBody, error) {
 	}
 	psmd.StorageClass = sct
 
-	size, err := strconv.Atoi(md.Size)
+	size, err := strconv.ParseInt(md.Size, 10, 64)
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed Size ParseInt. Size = %s", md.Size))
 	}
