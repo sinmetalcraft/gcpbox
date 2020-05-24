@@ -58,6 +58,35 @@ func ServiceAccountEmail() (string, error) {
 	return string(sa), nil
 }
 
+// ServiceAccountName is Return current Service Account Name
+// ServiceAccountEmailの@より前の部分を返す
+func ServiceAccountName() (string, error) {
+	sa, err := ServiceAccountEmail()
+	if err != nil {
+		return "", err
+	}
+	l := strings.Split(string(sa), "@")
+	if len(l) != 2 {
+		return "", fmt.Errorf("invalid ServiceAccountEmail. email=%s", sa)
+	}
+	return l[0], nil
+}
+
+// ServiceAccountID is Return current Service Account ID
+// fmt "projects/$PROJECT_ID/serviceAccounts/$SERVICE_ACCOUNT_EMAIL"
+func ServiceAccountID() (string, error) {
+	sa, err := ServiceAccountEmail()
+	if err != nil {
+		return "", err
+	}
+	pID, err := ProjectID()
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("projects/%s/serviceAccounts/%s", pID, sa), nil
+}
+
 // Region is Appが動いているRegionを取得する
 func Region() (string, error) {
 	if !metadata.OnGCE() {
