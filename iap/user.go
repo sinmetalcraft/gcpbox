@@ -21,15 +21,15 @@ const (
 	AppEngineUserNicknameKey = "X-Appengine-User-Nickname"
 
 	// AppEngineUserIsAdmin is App Engine User Is Admin Key
-	AppEngineUserIsAdmin = "X-Appengine-User-Is-Admin"
+	AppEngineUserIsAdminKey = "X-Appengine-User-Is-Admin"
 )
 
 const (
 	// AuthenticatedUserId is IAP User ID Header Key
-	AuthenticatedUserId = "X-Goog-Authenticated-User-Id"
+	AuthenticatedUserIDKey = "X-Goog-Authenticated-User-Id"
 
 	// AuthenticatedUserEmail is IAP User Email Header Key
-	AuthenticatedUserEmail = "X-Goog-Authenticated-User-Email"
+	AuthenticatedUserEmailKey = "X-Goog-Authenticated-User-Email"
 )
 
 // ErrNotLogin is Loginしてない時に返す
@@ -54,7 +54,7 @@ func GetUserForAppEngine(r *http.Request) (*UserForAppEngine, error) {
 	id := r.Header.Get(AppEngineUserIDKey)
 	email := r.Header.Get(AppEngineUserEmailKey)
 	nickname := r.Header.Get(AppEngineUserNicknameKey)
-	isAdmin := r.Header.Get(AppEngineUserIsAdmin)
+	isAdmin := r.Header.Get(AppEngineUserIsAdminKey)
 
 	if id == "" {
 		return nil, ErrNotLogin
@@ -79,22 +79,29 @@ type User struct {
 }
 
 // GetUser is IAPを通してログインしているUserを取得する
+//
+// accounts.google.com:XXXXXX という値が入っているはずなので、後ろ側の部分を取って設定している
+// https://cloud.google.com/iap/docs/identity-howto?hl=en#getting_the_users_identity_with_signed_headers
 func GetUser(r *http.Request) (*User, error) {
-	id := r.Header.Get(AuthenticatedUserId)
-	email := r.Header.Get(AuthenticatedUserEmail)
+	id := r.Header.Get(AuthenticatedUserIDKey)
+	email := r.Header.Get(AuthenticatedUserEmailKey)
 
 	if id == "" {
 		return nil, ErrNotLogin
 	}
 
-	p := strings.Split(id, ":")
-	if len(p) < 2 {
+	idSplits := strings.Split(id, ":")
+	if len(idSplits) < 2 {
+		return nil, ErrNotLogin
+	}
+	emailSplits := strings.Split(email, ":")
+	if len(emailSplits) < 2 {
 		return nil, ErrNotLogin
 	}
 
 	return &User{
-		ID:    p[1],
-		Email: email,
+		ID:    idSplits[1],
+		Email: emailSplits[1],
 	}, nil
 }
 

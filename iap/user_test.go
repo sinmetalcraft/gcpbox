@@ -2,6 +2,7 @@ package iap_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -17,8 +18,8 @@ func TestGetUser(t *testing.T) {
 	}
 	const id = "11111"
 	const email = "sinmetal@sinmetalcraft.jp"
-	r.Header.Set(iap.AuthenticatedUserId, id)
-	r.Header.Set(iap.AuthenticatedUserEmail, email)
+	r.Header.Set(iap.AuthenticatedUserIDKey, fmt.Sprintf("accounts.google.com:%s", id))
+	r.Header.Set(iap.AuthenticatedUserEmailKey, fmt.Sprintf("accounts.google.com:%s", email))
 
 	u, err := iap.GetUser(r)
 	if err != nil {
@@ -67,7 +68,7 @@ func TestGetUserForAppEngine(t *testing.T) {
 			r.Header.Set(iap.AppEngineUserIDKey, id)
 			r.Header.Set(iap.AppEngineUserEmailKey, email)
 			r.Header.Set(iap.AppEngineUserNicknameKey, nickname)
-			r.Header.Set(iap.AppEngineUserIsAdmin, tt.admin)
+			r.Header.Set(iap.AppEngineUserIsAdminKey, tt.admin)
 
 			u, err := iap.GetUserForAppEngine(r)
 			if err != nil {
