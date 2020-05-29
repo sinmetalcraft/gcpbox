@@ -119,6 +119,7 @@ func NewUserService(ctx context.Context, crmService *cloudresourcemanager.Resour
 
 // IsAdminForAppEngine is App Engine User ServiceのようにProjectの権限を持っているかどうかを返す
 // Cloud Resource Manager Serviceを利用して、実行ProjectのIAMを見るので、実行するクライアントがIAMを閲覧できる権限を持っている必要がある。
+// inherited されてる 権限は見ていない
 //
 // need resourcemanager.projects.getIamPolicy
 // resourcemanager.projects.getIamPolicy を持っている規定済みIAMは以下辺り
