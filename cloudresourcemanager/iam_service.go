@@ -36,15 +36,15 @@ func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, p
 	p, err := s.crm.Projects.GetIamPolicy(projectID, &cloudresourcemanager.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
-			return false, fmt.Errorf("CloudResourceManager.Projects.GetIamPolicy response 404. projectID=%v", projectID)
+			return false, fmt.Errorf("CloudResourceManager.Projects.GetIamPolicy response 404. projectID=%v,err=%v", projectID, err)
 		}
 		if status.Code(err) == codes.PermissionDenied {
-			return false, fmt.Errorf("CloudResourceManager.Projects.GetIamPolicy response 403. projectID=%v,roles=%+v", projectID, roles)
+			return false, fmt.Errorf("CloudResourceManager.Projects.GetIamPolicy response 403. projectID=%v,roles=%+v,err=%v", projectID, roles, err)
 		}
 		v, ok := err.(*googleapi.Error)
 		if ok {
 			if v.Code == http.StatusForbidden {
-				return false, fmt.Errorf("CloudResourceManager.Projects.GetIamPolicy(Google APIs) response 403. projectID=%v,roles=%+v", projectID, roles)
+				return false, fmt.Errorf("CloudResourceManager.Projects.GetIamPolicy(Google APIs) response 403. projectID=%v,roles=%+v,err=%v", projectID, roles, err)
 			}
 		}
 
