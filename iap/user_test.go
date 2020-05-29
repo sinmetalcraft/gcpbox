@@ -121,7 +121,7 @@ func TestUserService_IsAdmin(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			u := &iap.User{
-				Email: "sinmetal@sinmetalcraft.jp",
+				Email: tt.mail,
 			}
 			got, err := us.IsAdmin(ctx, u)
 			if err != nil {
