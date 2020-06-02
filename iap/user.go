@@ -11,20 +11,6 @@ import (
 )
 
 const (
-	// AppEngineUserIDKey is App Engine User ID Header Key
-	AppEngineUserIDKey = "X-Appengine-User-Id"
-
-	// AppEngineUserEmailKey is App Engine User Email Header Key
-	AppEngineUserEmailKey = "X-Appengine-User-Email"
-
-	// AppEngineUserNicknameKey is App Engine User Nickname Header Key
-	AppEngineUserNicknameKey = "X-Appengine-User-Nickname"
-
-	// AppEngineUserIsAdmin is App Engine User Is Admin Key
-	AppEngineUserIsAdminKey = "X-Appengine-User-Is-Admin"
-)
-
-const (
 	// AuthenticatedUserId is IAP User ID Header Key
 	AuthenticatedUserIDKey = "X-Goog-Authenticated-User-Id"
 
@@ -32,41 +18,10 @@ const (
 	AuthenticatedUserEmailKey = "X-Goog-Authenticated-User-Email"
 )
 
+type contextUser struct{}
+
 // ErrNotLogin is Loginしてない時に返す
 var ErrNotLogin = errors.New("not login")
-
-// UserForAppEngine is IAPを通してログインしているUser
-// App Engine 用
-//
-// note: Every user has the same user ID for all App Engine applications.
-// If your app uses the user ID in public data, such as by including it in a URL parameter, you should use a hash algorithm with a "salt" value added to obscure the ID.
-// Exposing raw IDs could allow someone to associate a user's activity in one app with that in another, or get the user's email address by coercing the user to sign in to another app.
-type UserForAppEngine struct {
-	ID       string
-	Email    string
-	Nickname string
-	Admin    bool
-}
-
-// GetUserForAppEngine is IAPを通してログインしているUserを取得する
-// App Engine 用
-func GetUserForAppEngine(r *http.Request) (*UserForAppEngine, error) {
-	id := r.Header.Get(AppEngineUserIDKey)
-	email := r.Header.Get(AppEngineUserEmailKey)
-	nickname := r.Header.Get(AppEngineUserNicknameKey)
-	isAdmin := r.Header.Get(AppEngineUserIsAdminKey)
-
-	if id == "" {
-		return nil, ErrNotLogin
-	}
-
-	return &UserForAppEngine{
-		ID:       id,
-		Email:    email,
-		Nickname: nickname,
-		Admin:    (isAdmin == "1"),
-	}, nil
-}
 
 // User is IAPを通してログインしているUser
 //
@@ -103,6 +58,22 @@ func GetUser(r *http.Request) (*User, error) {
 		ID:    idSplits[1],
 		Email: emailSplits[1],
 	}, nil
+}
+
+// WithContextValue is context に user をセットする
+func WithContextValue(ctx context.Context, user *User) context.Context {
+	return context.WithValue(ctx, contextUser{}, user)
+}
+
+// CurrentUser is context からUserを取得する
+//
+// 先に WithContextValue() でセットされていることが前提
+func CurrentUser(ctx context.Context) (*User, bool) {
+	user, ok := ctx.Value(contextUser{}).(*User)
+	if ok {
+		return user, true
+	}
+	return nil, false
 }
 
 // UserService is App Engine User Serviceっぽいものを実装している

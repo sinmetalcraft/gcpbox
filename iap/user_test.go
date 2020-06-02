@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	crmbox "github.com/sinmetal/gcpbox/cloudresourcemanager"
-	"github.com/sinmetal/gcpbox/iap"
+	iapbox "github.com/sinmetal/gcpbox/iap"
 	"google.golang.org/api/cloudresourcemanager/v1"
 )
 
@@ -18,10 +18,10 @@ func TestGetUser(t *testing.T) {
 	}
 	const id = "11111"
 	const email = "sinmetal@sinmetalcraft.jp"
-	r.Header.Set(iap.AuthenticatedUserIDKey, fmt.Sprintf("accounts.google.com:%s", id))
-	r.Header.Set(iap.AuthenticatedUserEmailKey, fmt.Sprintf("accounts.google.com:%s", email))
+	r.Header.Set(iapbox.AuthenticatedUserIDKey, fmt.Sprintf("accounts.google.com:%s", id))
+	r.Header.Set(iapbox.AuthenticatedUserEmailKey, fmt.Sprintf("accounts.google.com:%s", email))
 
-	u, err := iap.GetUser(r)
+	u, err := iapbox.GetUser(r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,66 +39,34 @@ func TestGetUserNotLogin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = iap.GetUser(r)
-	if err != iap.ErrNotLogin {
+	_, err = iapbox.GetUser(r)
+	if err != iapbox.ErrNotLogin {
 		t.Errorf("got err is %v", err)
 	}
 }
 
-func TestGetUserForAppEngine(t *testing.T) {
-	cases := []struct {
-		name      string
-		admin     string
-		wantAdmin bool
-	}{
-		{"admin", "1", true},
-		{"non-admin", "0", false},
-	}
-
-	for _, tt := range cases {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			r, err := http.NewRequest(http.MethodGet, "/", nil)
-			if err != nil {
-				t.Fatal(err)
-			}
-			const id = "11111"
-			const email = "sinmetal@sinmetalcraft.jp"
-			const nickname = "sinmetal"
-			r.Header.Set(iap.AppEngineUserIDKey, id)
-			r.Header.Set(iap.AppEngineUserEmailKey, email)
-			r.Header.Set(iap.AppEngineUserNicknameKey, nickname)
-			r.Header.Set(iap.AppEngineUserIsAdminKey, tt.admin)
-
-			u, err := iap.GetUserForAppEngine(r)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if e, g := id, u.ID; e != g {
-				t.Errorf("id want %v but got %v", e, g)
-			}
-			if e, g := email, u.Email; e != g {
-				t.Errorf("email want %v but got %v", e, g)
-			}
-			if e, g := nickname, u.Nickname; e != g {
-				t.Errorf("nickname want %v but got %v", e, g)
-			}
-			if e, g := tt.wantAdmin, u.Admin; e != g {
-				t.Errorf("admin want %v but got %v", e, g)
-			}
-		})
-	}
-}
-
-func TestGetUserForAppEngineNotLogin(t *testing.T) {
+func TestWithContextValue(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	const id = "11111"
+	const email = "sinmetal@sinmetalcraft.jp"
+	r.Header.Set(iapbox.AuthenticatedUserIDKey, fmt.Sprintf("accounts.google.com:%s", id))
+	r.Header.Set(iapbox.AuthenticatedUserEmailKey, fmt.Sprintf("accounts.google.com:%s", email))
 
-	_, err = iap.GetUserForAppEngine(r)
-	if err != iap.ErrNotLogin {
-		t.Errorf("got err is %v", err)
+	u, err := iapbox.GetUser(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := iapbox.WithContextValue(context.Background(), u)
+	got, ok := iapbox.CurrentUser(ctx)
+	if !ok {
+		t.Errorf("user not found")
+	}
+	if e, g := id, got.ID; e != g {
+		t.Errorf("id want %v but got %v", e, g)
 	}
 }
 
@@ -120,7 +88,7 @@ func TestUserService_IsAdmin(t *testing.T) {
 	for _, tt := range cases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			u := &iap.User{
+			u := &iapbox.User{
 				Email: tt.mail,
 			}
 			got, err := us.IsAdmin(ctx, u)
@@ -134,7 +102,7 @@ func TestUserService_IsAdmin(t *testing.T) {
 	}
 }
 
-func newTestUserService(t *testing.T) *iap.UserService {
+func newTestUserService(t *testing.T) *iapbox.UserService {
 	ctx := context.Background()
 
 	crmService, err := cloudresourcemanager.NewService(ctx)
@@ -145,7 +113,7 @@ func newTestUserService(t *testing.T) *iap.UserService {
 	if err != nil {
 		t.Fatal(err)
 	}
-	us, err := iap.NewUserService(ctx, rmService)
+	us, err := iapbox.NewUserService(ctx, rmService)
 	if err != nil {
 		t.Fatal(err)
 	}
