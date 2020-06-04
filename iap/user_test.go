@@ -11,7 +11,7 @@ import (
 	"google.golang.org/api/cloudresourcemanager/v1"
 )
 
-func TestGetUser(t *testing.T) {
+func TestCurrentUserWithContext(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -21,9 +21,10 @@ func TestGetUser(t *testing.T) {
 	r.Header.Set(iapbox.AuthenticatedUserIDKey, fmt.Sprintf("accounts.google.com:%s", id))
 	r.Header.Set(iapbox.AuthenticatedUserEmailKey, fmt.Sprintf("accounts.google.com:%s", email))
 
-	u, err := iapbox.GetUser(r)
-	if err != nil {
-		t.Fatal(err)
+	ctx := context.Background()
+	ctx, u := iapbox.CurrentUserWithContext(ctx, r)
+	if u == nil {
+		t.Fatal("not login")
 	}
 	if e, g := id, u.ID; e != g {
 		t.Errorf("id want %v but got %v", e, g)
@@ -33,19 +34,20 @@ func TestGetUser(t *testing.T) {
 	}
 }
 
-func TestGetUserNotLogin(t *testing.T) {
+func TestCurrentUserWithContextNotLogin(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = iapbox.GetUser(r)
-	if err != iapbox.ErrNotLogin {
-		t.Errorf("got err is %v", err)
+	ctx := context.Background()
+	ctx, user := iapbox.CurrentUserWithContext(ctx, r)
+	if user != nil {
+		t.Errorf("user login")
 	}
 }
 
-func TestWithContextValue(t *testing.T) {
+func TestCurrentUser(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -55,15 +57,15 @@ func TestWithContextValue(t *testing.T) {
 	r.Header.Set(iapbox.AuthenticatedUserIDKey, fmt.Sprintf("accounts.google.com:%s", id))
 	r.Header.Set(iapbox.AuthenticatedUserEmailKey, fmt.Sprintf("accounts.google.com:%s", email))
 
-	u, err := iapbox.GetUser(r)
-	if err != nil {
-		t.Fatal(err)
+	ctx := context.Background()
+	ctx, u := iapbox.CurrentUserWithContext(ctx, r)
+	if u == nil {
+		t.Fatal("not login")
 	}
 
-	ctx := iapbox.WithContextValue(context.Background(), u)
-	got, ok := iapbox.CurrentUser(ctx)
-	if !ok {
-		t.Errorf("user not found")
+	got := iapbox.CurrentUser(ctx)
+	if got == nil {
+		t.Fatal("not login")
 	}
 	if e, g := id, got.ID; e != g {
 		t.Errorf("id want %v but got %v", e, g)
@@ -88,10 +90,17 @@ func TestUserService_IsAdmin(t *testing.T) {
 	for _, tt := range cases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			u := &iapbox.User{
-				Email: tt.mail,
+			const id = "11111"
+
+			r, err := http.NewRequest(http.MethodGet, "/", nil)
+			if err != nil {
+				t.Fatal(err)
 			}
-			got, err := us.IsAdmin(ctx, u)
+			r.Header.Set(iapbox.AuthenticatedUserIDKey, fmt.Sprintf("accounts.google.com:%s", id))
+			r.Header.Set(iapbox.AuthenticatedUserEmailKey, fmt.Sprintf("accounts.google.com:%s", tt.mail))
+
+			ctx, _ := iapbox.CurrentUserWithContext(ctx, r)
+			got, err := us.IsAdmin(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
