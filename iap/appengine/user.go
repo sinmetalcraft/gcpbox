@@ -2,7 +2,6 @@ package appengine
 
 import (
 	"context"
-	"errors"
 	"net/http"
 )
 
@@ -22,9 +21,6 @@ const (
 
 type contextUser struct{}
 
-// ErrNotLogin is Loginしてない時に返す
-var ErrNotLogin = errors.New("not login")
-
 // User is IAPを通してログインしているUser
 // App Engine 用
 //
@@ -38,37 +34,34 @@ type User struct {
 	Admin    bool
 }
 
-// GetUser is IAPを通してログインしているUserを取得する
-func GetUser(r *http.Request) (*User, error) {
+// CurrentUserWithContext is IAPを通してログインしているUserを取得する
+func CurrentUserWithContext(ctx context.Context, r *http.Request) (context.Context, *User) {
 	id := r.Header.Get(UserIDKey)
 	email := r.Header.Get(UserEmailKey)
 	nickname := r.Header.Get(UserNicknameKey)
 	isAdmin := r.Header.Get(UserIsAdminKey)
 
 	if id == "" {
-		return nil, ErrNotLogin
+		return ctx, nil
 	}
 
-	return &User{
+	user := &User{
 		ID:       id,
 		Email:    email,
 		Nickname: nickname,
 		Admin:    (isAdmin == "1"),
-	}, nil
-}
+	}
 
-// WithContextValue is context に user をセットする
-func WithContextValue(ctx context.Context, user *User) context.Context {
-	return context.WithValue(ctx, contextUser{}, user)
+	return context.WithValue(ctx, contextUser{}, user), user
 }
 
 // CurrentUser is context からUserを取得する
 //
-// 先に WithContextValue() でセットされていることが前提
-func CurrentUser(ctx context.Context) (*User, bool) {
+// CurrentUserWithContext()で返ってきたcontextを渡すと、その中からuserを取り出す
+func CurrentUser(ctx context.Context) *User {
 	user, ok := ctx.Value(contextUser{}).(*User)
 	if ok {
-		return user, true
+		return user
 	}
-	return nil, false
+	return nil
 }

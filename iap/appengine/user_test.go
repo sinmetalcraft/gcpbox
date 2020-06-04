@@ -8,7 +8,7 @@ import (
 	iapbox "github.com/sinmetal/gcpbox/iap/appengine"
 )
 
-func TestGetUser(t *testing.T) {
+func TestCurrentUserWithContext(t *testing.T) {
 	cases := []struct {
 		name      string
 		admin     string
@@ -21,6 +21,7 @@ func TestGetUser(t *testing.T) {
 	for _, tt := range cases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			r, err := http.NewRequest(http.MethodGet, "/", nil)
 			if err != nil {
 				t.Fatal(err)
@@ -33,9 +34,9 @@ func TestGetUser(t *testing.T) {
 			r.Header.Set(iapbox.UserNicknameKey, nickname)
 			r.Header.Set(iapbox.UserIsAdminKey, tt.admin)
 
-			u, err := iapbox.GetUser(r)
-			if err != nil {
-				t.Fatal(err)
+			ctx, u := iapbox.CurrentUserWithContext(ctx, r)
+			if u == nil {
+				t.Fatal("not login")
 			}
 			if e, g := id, u.ID; e != g {
 				t.Errorf("id want %v but got %v", e, g)
@@ -53,19 +54,20 @@ func TestGetUser(t *testing.T) {
 	}
 }
 
-func TestGetUserNotLogin(t *testing.T) {
+func TestCurrentUserWithContextNotLogin(t *testing.T) {
+	ctx := context.Background()
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = iapbox.GetUser(r)
-	if err != iapbox.ErrNotLogin {
-		t.Errorf("got err is %v", err)
+	ctx, u := iapbox.CurrentUserWithContext(ctx, r)
+	if u != nil {
+		t.Errorf("user login")
 	}
 }
 
-func TestWithContextValue(t *testing.T) {
+func TestCurrentUser(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -78,15 +80,15 @@ func TestWithContextValue(t *testing.T) {
 	r.Header.Set(iapbox.UserNicknameKey, nickname)
 	r.Header.Set(iapbox.UserIsAdminKey, "1")
 
-	u, err := iapbox.GetUser(r)
-	if err != nil {
-		t.Fatal(err)
+	ctx := context.Background()
+	ctx, u := iapbox.CurrentUserWithContext(ctx, r)
+	if u == nil {
+		t.Fatal("user not login")
 	}
 
-	ctx := iapbox.WithContextValue(context.Background(), u)
-	got, ok := iapbox.CurrentUser(ctx)
-	if !ok {
-		t.Errorf("user not found")
+	got := iapbox.CurrentUser(ctx)
+	if got == nil {
+		t.Fatal("user not found")
 	}
 	if e, g := id, got.ID; e != g {
 		t.Errorf("id want %v but got %v", e, g)
