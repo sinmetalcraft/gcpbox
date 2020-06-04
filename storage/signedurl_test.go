@@ -14,15 +14,15 @@ import (
 func TestStorageService_SignedURL(t *testing.T) {
 	ctx := context.Background()
 
-	s := newStorageService(t)
+	s := newStorageSignedURLService(t)
 
-	_, err := s.CreateSignedURLForPutObject(ctx, "sinmetal-ci-storage", "hoge", time.Now().Add(600*time.Second))
+	_, err := s.CreatePutObjectURL(ctx, "sinmetal-ci-storage", "hoge", time.Now().Add(600*time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func newStorageService(t *testing.T) *StorageService {
+func newStorageSignedURLService(t *testing.T) *StorageSignedURLService {
 	ctx := context.Background()
 
 	iamService, err := iam.NewService(ctx)
@@ -31,5 +31,9 @@ func newStorageService(t *testing.T) *StorageService {
 	}
 	const projectID = "sinmetal-ci"
 	saID := fmt.Sprintf("projects/%s/serviceAccounts/%s", projectID, "storage@sinmetal-ci.iam.gserviceaccount.com")
-	return NewStorageService(ctx, "storage", saID, iamService)
+	s, err := NewStorageSignedURLService(ctx, "storage", saID, iamService)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }
