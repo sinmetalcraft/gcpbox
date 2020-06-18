@@ -12,7 +12,15 @@ import (
 func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
 	ctx := context.Background()
 
-	spannerClient, err := spanner.NewClient(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", "gcpug-public-spanner", "merpay-sponsored-instance", "sinmetal"))
+	spannerClient, err := spanner.NewClientWithConfig(ctx,
+		fmt.Sprintf("projects/%s/instances/%s/databases/%s", "gcpug-public-spanner", "merpay-sponsored-instance", "sinmetal"),
+		spanner.ClientConfig{
+			SessionPoolConfig: spanner.SessionPoolConfig{
+				MinOpened:     1,  // 基本的に同時に投げるのは 1 query
+				MaxOpened:     10, // 基本的に同時に投げるのは 1 query なので、そんなに開くことはない
+				WriteSessions: 0,  // Readしかしないので、WriteSessionsをPoolする必要はない
+			},
+		})
 	if err != nil {
 		t.Fatal(err)
 	}
