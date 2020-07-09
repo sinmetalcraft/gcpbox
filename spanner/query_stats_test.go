@@ -1,15 +1,80 @@
-package spanner
+package spanner_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/spanner"
+	"google.golang.org/api/googleapi"
+
+	. "github.com/sinmetal/gcpbox/spanner"
+)
+
+const (
+	projectID = "sinmetal-ci"
 )
 
 func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
+	ctx := context.Background()
+
+	s := newQueryStatsCopyService(t)
+	_, err := s.GetQueryStats(ctx, QueryStatsTopMinuteTable)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestQueryStatsCopyService_Copy(t *testing.T) {
+	ctx := context.Background()
+
+	s := newQueryStatsCopyService(t)
+
+	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_query_stats"}
+	table := "minutes"
+	if err := s.CreateTable(ctx, dataset, table); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 409 {
+				// noop
+			} else {
+				t.Fatal(ae)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	if err := s.Copy(ctx, dataset, table, QueryStatsTop10MinuteTable); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestQueryStatsCopyService_Copy_TableCreate(t *testing.T) {
+	ctx := context.Background()
+
+	s := newQueryStatsCopyService(t)
+
+	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_query_stats"}
+	table := "not_found"
+	if err := s.Copy(ctx, dataset, table, QueryStatsTop10MinuteTable); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 404 {
+				if err := s.CreateTable(ctx, dataset, table); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				t.Fatal(err)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+}
+
+func newQueryStatsCopyService(t *testing.T) *QueryStatsCopyService {
 	ctx := context.Background()
 
 	spannerClient, err := spanner.NewClientWithConfig(ctx,
@@ -24,7 +89,7 @@ func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bqClient, err := bigquery.NewClient(ctx, "sinmetal-lab")
+	bqClient, err := bigquery.NewClient(ctx, projectID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,12 +98,5 @@ func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	qss, err := s.GetQueryStats(ctx, queryStatsTopMinuteTable)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := s.ToBigQuery(ctx, &bigquery.Dataset{ProjectID: "sinmetal-lab", DatasetID: "spanner_query_stats"}, "minutes", qss); err != nil {
-		t.Fatal(err)
-	}
+	return s
 }

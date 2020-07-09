@@ -28,10 +28,12 @@ SELECT
 FROM {{.Table}}
 `
 
+type QueryStatsTopTable string
+
 const (
-	queryStatsTopMinuteTable   = "spanner_sys.query_stats_top_minute"
-	queryStatsTop10MinuteTable = "spanner_sys.query_stats_top_10minute"
-	queryStatsTopHourTable     = "spanner_sys.query_stats_top_hour"
+	QueryStatsTopMinuteTable   QueryStatsTopTable = "spanner_sys.query_stats_top_minute"
+	QueryStatsTop10MinuteTable QueryStatsTopTable = "spanner_sys.query_stats_top_10minute"
+	QueryStatsTopHourTable     QueryStatsTopTable = "spanner_sys.query_stats_top_hour"
 )
 
 type QueryStatsParam struct {
@@ -71,14 +73,16 @@ type QueryStat struct {
 	AvgCPUSeconds     float64   `spanner:"avg_cpu_seconds"`     // Average number of seconds of CPU time Cloud Spanner spent on all operations to execute the query.
 }
 
+// ToInsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *QueryStat) ToInsertID() string {
 	s.InsertID = fmt.Sprintf("%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint)
 	return s.InsertID
 }
 
-func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table string) ([]*QueryStat, error) {
+// GetQueryStats is SpannerからQueryStatsを取得する
+func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable) ([]*QueryStat, error) {
 	var tpl bytes.Buffer
-	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: table}); err != nil {
+	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(table)}); err != nil {
 		return nil, err
 	}
 	iter := s.spanner.Single().Query(ctx, spanner.NewStatement(tpl.String()))
@@ -117,6 +121,19 @@ var queryStatsBigQueryTableSchema = bigquery.Schema{
 	{Name: "AvgCPUSeconds", Required: true, Type: bigquery.FloatFieldType},
 }
 
+// ToBigQuery is QueryStatsをBigQueryにStreamingInsertでInsertする
+func (s *QueryStatsCopyService) CreateTable(ctx context.Context, dataset *bigquery.Dataset, table string) error {
+
+	return s.bq.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
+		Name: table,
+		Schema: queryStatsBigQueryTableSchema,
+		TimePartitioning: &bigquery.TimePartitioning{
+			Type: bigquery.DayPartitioningType,
+		},
+	})
+}
+
+// ToBigQuery is QueryStatsをBigQueryにStreamingInsertでInsertする
 func (s *QueryStatsCopyService) ToBigQuery(ctx context.Context, dataset *bigquery.Dataset, table string, qss []*QueryStat) error {
 	var sss []*bigquery.StructSaver
 	for _, qs := range qss {
@@ -131,5 +148,19 @@ func (s *QueryStatsCopyService) ToBigQuery(ctx context.Context, dataset *bigquer
 	if err := s.bq.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(table).Inserter().Put(ctx, sss); err != nil {
 		return err
 	}
+	return nil
+}
+
+// Copy is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyする一連の流れを実行する便利メソッド
+func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigqueryTable string, queryStatsTable QueryStatsTopTable) error {
+	qss, err := s.GetQueryStats(ctx, queryStatsTable)
+	if err != nil {
+		return errors.WithMessage(err, "failed spanner.GetQueryStats")
+	}
+
+	if err := s.ToBigQuery(ctx, dataset, bigqueryTable, qss); err != nil {
+		return errors.WithMessage(err, "failed bigquery.ToPut")
+	}
+
 	return nil
 }
