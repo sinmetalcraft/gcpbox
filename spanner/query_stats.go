@@ -125,7 +125,7 @@ var queryStatsBigQueryTableSchema = bigquery.Schema{
 func (s *QueryStatsCopyService) CreateTable(ctx context.Context, dataset *bigquery.Dataset, table string) error {
 
 	return s.bq.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
-		Name: table,
+		Name:   table,
 		Schema: queryStatsBigQueryTableSchema,
 		TimePartitioning: &bigquery.TimePartitioning{
 			Type: bigquery.DayPartitioningType,
