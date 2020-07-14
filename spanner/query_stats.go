@@ -89,6 +89,17 @@ func (s *QueryStat) ToInsertID() string {
 	return s.InsertID
 }
 
+func (s *QueryStatsCopyService) Close() error {
+	if s.spanner != nil {
+		s.spanner.Close()
+	}
+	if s.bq != nil {
+		return s.bq.Close()
+	}
+
+	return nil
+}
+
 // GetQueryStats is SpannerからQueryStatsを取得する
 func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable) ([]*QueryStat, error) {
 	if s.spanner == nil {
