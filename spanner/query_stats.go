@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"text/template"
 	"time"
 
@@ -66,6 +67,31 @@ func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqClient *bi
 		queryStatsTopQueryTemplate: tmpl,
 		spanner:                    spannerClient,
 		bq:                         bqClient,
+	}, nil
+}
+
+type Database struct {
+	ProjectID string
+	Instance  string
+	Database  string
+}
+
+// ToSpannerDatabaseName is Spanner Database Name として指定できる形式の文字列を返す
+func (d *Database) ToSpannerDatabaseName() string {
+	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", d.ProjectID, d.Instance, d.Database)
+}
+
+// SplitDatabaseName is projects/{PROJECT_ID}/instances/{INSTANCE}/databases/{DB} 形式の文字列をstructにして返す
+func SplitDatabaseName(database string) (*Database, error) {
+	l := strings.Split(database, "/")
+	if len(l) < 6 {
+		return nil, fmt.Errorf("invalid argument. The expected format is projects/{PROJECT_ID}/instances/{INSTANCE}/databases/{DB}. but get %s", database)
+	}
+
+	return &Database{
+		ProjectID: l[1],
+		Instance:  l[3],
+		Database:  l[5],
 	}, nil
 }
 
@@ -185,14 +211,14 @@ func (s *QueryStatsCopyService) ToBigQuery(ctx context.Context, dataset *bigquer
 }
 
 // Copy is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyする一連の流れを実行する便利メソッド
-func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigqueryTable string, queryStatsTable QueryStatsTopTable) error {
+func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable) error {
 	qss, err := s.GetQueryStats(ctx, queryStatsTable)
 	if err != nil {
 		return errors.WithMessage(err, "failed spanner.GetQueryStats")
 	}
 
-	if err := s.ToBigQuery(ctx, dataset, bigqueryTable, qss); err != nil {
-		return errors.WithMessage(err, "failed bigquery.ToPut")
+	if err := s.ToBigQuery(ctx, dataset, bigQueryTable, qss); err != nil {
+		return errors.WithMessage(err, "failed bigQuery.ToPut")
 	}
 
 	return nil
