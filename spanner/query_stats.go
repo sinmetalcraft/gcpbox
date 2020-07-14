@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"text/template"
 	"time"
 
@@ -28,6 +29,10 @@ SELECT
 FROM {{.Table}}
 `
 
+var (
+	ErrRequiredSpannerClient = errors.New("required spanner client.")
+)
+
 type QueryStatsTopTable string
 
 const (
@@ -46,7 +51,13 @@ type QueryStatsCopyService struct {
 	bq                         *bigquery.Client
 }
 
-func NewQueryStatsCopyService(ctx context.Context, spannerClient *spanner.Client, bqClient *bigquery.Client) (*QueryStatsCopyService, error) {
+// NewQueryStatsCopyService is QueryStatsCopyServiceを生成する
+func NewQueryStatsCopyService(ctx context.Context, bqClient *bigquery.Client) (*QueryStatsCopyService, error) {
+	return NewQueryStatsCopyServiceWithSpannerClient(ctx, bqClient, nil)
+}
+
+// NewQueryStatsCopyServiceWithSpannerClient is Statsを取得したいSpanner DBが1つしかないのであれば、Spanner Clientを設定して、QueryStatsCopyServiceを作成する
+func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqClient *bigquery.Client, spannerClient *spanner.Client) (*QueryStatsCopyService, error) {
 	tmpl, err := template.New("getQueryStatsTopQuery").Parse(queryStatsTopMinute)
 	if err != nil {
 		return nil, err
@@ -56,6 +67,31 @@ func NewQueryStatsCopyService(ctx context.Context, spannerClient *spanner.Client
 		queryStatsTopQueryTemplate: tmpl,
 		spanner:                    spannerClient,
 		bq:                         bqClient,
+	}, nil
+}
+
+type Database struct {
+	ProjectID string
+	Instance  string
+	Database  string
+}
+
+// ToSpannerDatabaseName is Spanner Database Name として指定できる形式の文字列を返す
+func (d *Database) ToSpannerDatabaseName() string {
+	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", d.ProjectID, d.Instance, d.Database)
+}
+
+// SplitDatabaseName is projects/{PROJECT_ID}/instances/{INSTANCE}/databases/{DB} 形式の文字列をstructにして返す
+func SplitDatabaseName(database string) (*Database, error) {
+	l := strings.Split(database, "/")
+	if len(l) < 6 {
+		return nil, fmt.Errorf("invalid argument. The expected format is projects/{PROJECT_ID}/instances/{INSTANCE}/databases/{DB}. but get %s", database)
+	}
+
+	return &Database{
+		ProjectID: l[1],
+		Instance:  l[3],
+		Database:  l[5],
 	}, nil
 }
 
@@ -79,13 +115,36 @@ func (s *QueryStat) ToInsertID() string {
 	return s.InsertID
 }
 
+func (s *QueryStatsCopyService) Close() error {
+	if s.spanner != nil {
+		s.spanner.Close()
+	}
+	if s.bq != nil {
+		return s.bq.Close()
+	}
+
+	return nil
+}
+
 // GetQueryStats is SpannerからQueryStatsを取得する
 func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable) ([]*QueryStat, error) {
+	if s.spanner == nil {
+		return nil, ErrRequiredSpannerClient
+	}
+	return s.GetQueryStatsWithSpannerClient(ctx, table, s.spanner)
+}
+
+// GetQueryStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからQueryStatsを取得する
+func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Context, table QueryStatsTopTable, spannerClient *spanner.Client) ([]*QueryStat, error) {
+	if spannerClient == nil {
+		return nil, ErrRequiredSpannerClient
+	}
+
 	var tpl bytes.Buffer
 	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(table)}); err != nil {
 		return nil, err
 	}
-	iter := s.spanner.Single().Query(ctx, spanner.NewStatement(tpl.String()))
+	iter := spannerClient.Single().Query(ctx, spanner.NewStatement(tpl.String()))
 	defer iter.Stop()
 
 	rets := []*QueryStat{}
@@ -152,14 +211,14 @@ func (s *QueryStatsCopyService) ToBigQuery(ctx context.Context, dataset *bigquer
 }
 
 // Copy is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyする一連の流れを実行する便利メソッド
-func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigqueryTable string, queryStatsTable QueryStatsTopTable) error {
+func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable) error {
 	qss, err := s.GetQueryStats(ctx, queryStatsTable)
 	if err != nil {
 		return errors.WithMessage(err, "failed spanner.GetQueryStats")
 	}
 
-	if err := s.ToBigQuery(ctx, dataset, bigqueryTable, qss); err != nil {
-		return errors.WithMessage(err, "failed bigquery.ToPut")
+	if err := s.ToBigQuery(ctx, dataset, bigQueryTable, qss); err != nil {
+		return errors.WithMessage(err, "failed bigQuery.ToPut")
 	}
 
 	return nil

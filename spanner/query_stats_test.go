@@ -17,6 +17,45 @@ const (
 	projectID = "sinmetal-ci"
 )
 
+func TestSplitDatabaseName(t *testing.T) {
+	const project = "gcpug-public-spanner"
+	const instance = "merpay-sponsored-instance"
+	const database = "sinmetal"
+	dbname := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
+
+	got, err := SplitDatabaseName(dbname)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e, g := project, got.ProjectID; e != g {
+		t.Errorf("project want %v but got %v", e, g)
+	}
+	if e, g := instance, got.Instance; e != g {
+		t.Errorf("instance want %v but got %v", e, g)
+	}
+	if e, g := database, got.Database; e != g {
+		t.Errorf("database want %v but got %v", e, g)
+	}
+}
+
+func TestSplitDatabaseName_Err(t *testing.T) {
+	_, err := SplitDatabaseName("projects/%s/instances/%s/databases")
+	if err == nil {
+		t.Fatal("want err....")
+	}
+}
+
+func TestDatabase_ToSpannerDatabaseName(t *testing.T) {
+	d := Database{
+		ProjectID: "gcpug-public-spanner",
+		Instance:  "merpay-sponsored-instance",
+		Database:  "sinmetal",
+	}
+	if e, g := "projects/gcpug-public-spanner/instances/merpay-sponsored-instance/databases/sinmetal", d.ToSpannerDatabaseName(); e != g {
+		t.Errorf("want %v but got %v", e, g)
+	}
+}
+
 func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
 	ctx := context.Background()
 
@@ -94,7 +133,7 @@ func newQueryStatsCopyService(t *testing.T) *QueryStatsCopyService {
 		t.Fatal(err)
 	}
 
-	s, err := NewQueryStatsCopyService(ctx, spannerClient, bqClient)
+	s, err := NewQueryStatsCopyServiceWithSpannerClient(ctx, bqClient, spannerClient)
 	if err != nil {
 		t.Fatal(err)
 	}
