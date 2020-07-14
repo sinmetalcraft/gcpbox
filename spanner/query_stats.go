@@ -28,6 +28,10 @@ SELECT
 FROM {{.Table}}
 `
 
+var (
+	ErrRequiredSpannerClient = errors.New("required spanner client.")
+)
+
 type QueryStatsTopTable string
 
 const (
@@ -46,7 +50,13 @@ type QueryStatsCopyService struct {
 	bq                         *bigquery.Client
 }
 
-func NewQueryStatsCopyService(ctx context.Context, spannerClient *spanner.Client, bqClient *bigquery.Client) (*QueryStatsCopyService, error) {
+// NewQueryStatsCopyService is QueryStatsCopyServiceを生成する
+func NewQueryStatsCopyService(ctx context.Context, bqClient *bigquery.Client) (*QueryStatsCopyService, error) {
+	return NewQueryStatsCopyServiceWithSpannerClient(ctx, bqClient, nil)
+}
+
+// NewQueryStatsCopyServiceWithSpannerClient is Statsを取得したいSpanner DBが1つしかないのであれば、Spanner Clientを設定して、QueryStatsCopyServiceを作成する
+func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqClient *bigquery.Client, spannerClient *spanner.Client) (*QueryStatsCopyService, error) {
 	tmpl, err := template.New("getQueryStatsTopQuery").Parse(queryStatsTopMinute)
 	if err != nil {
 		return nil, err
@@ -81,11 +91,23 @@ func (s *QueryStat) ToInsertID() string {
 
 // GetQueryStats is SpannerからQueryStatsを取得する
 func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable) ([]*QueryStat, error) {
+	if s.spanner == nil {
+		return nil, ErrRequiredSpannerClient
+	}
+	return s.GetQueryStatsWithSpannerClient(ctx, table, s.spanner)
+}
+
+// GetQueryStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからQueryStatsを取得する
+func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Context, table QueryStatsTopTable, spannerClient *spanner.Client) ([]*QueryStat, error) {
+	if spannerClient == nil {
+		return nil, ErrRequiredSpannerClient
+	}
+
 	var tpl bytes.Buffer
 	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(table)}); err != nil {
 		return nil, err
 	}
-	iter := s.spanner.Single().Query(ctx, spanner.NewStatement(tpl.String()))
+	iter := spannerClient.Single().Query(ctx, spanner.NewStatement(tpl.String()))
 	defer iter.Stop()
 
 	rets := []*QueryStat{}
