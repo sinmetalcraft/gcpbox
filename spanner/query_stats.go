@@ -167,7 +167,8 @@ func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Conte
 	return rets, nil
 }
 
-var queryStatsBigQueryTableSchema = bigquery.Schema{
+// QueryStatsBigQueryTableSchema is BigQuery Table Schema
+var QueryStatsBigQueryTableSchema = bigquery.Schema{
 	{Name: "IntervalEnd", Required: true, Type: bigquery.TimestampFieldType},
 	{Name: "Text", Required: true, Type: bigquery.StringFieldType},
 	{Name: "TextTruncated", Required: true, Type: bigquery.BooleanFieldType},
@@ -185,7 +186,7 @@ func (s *QueryStatsCopyService) CreateTable(ctx context.Context, dataset *bigque
 
 	return s.bq.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
 		Name:   table,
-		Schema: queryStatsBigQueryTableSchema,
+		Schema: QueryStatsBigQueryTableSchema,
 		TimePartitioning: &bigquery.TimePartitioning{
 			Type: bigquery.DayPartitioningType,
 		},
@@ -198,7 +199,7 @@ func (s *QueryStatsCopyService) ToBigQuery(ctx context.Context, dataset *bigquer
 	for _, qs := range qss {
 		insertID := qs.ToInsertID()
 		sss = append(sss, &bigquery.StructSaver{
-			Schema:   queryStatsBigQueryTableSchema,
+			Schema:   QueryStatsBigQueryTableSchema,
 			InsertID: insertID,
 			Struct:   qs,
 		})
