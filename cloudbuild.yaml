@@ -1,7 +1,12 @@
 steps:
   - name: gcr.io/cloud-builders/docker
+    id: cds-emulator
+    args: ['run', '-d', '--network=cloudbuild', '--name=cds-emulator', 'google/cloud-sdk:302.0.0', 'gcloud', 'beta', 'emulators', 'datastore', 'start', '--host-port=0.0.0.0:8081']
+  - name: gcr.io/cloud-builders/docker
     id: spanner-emulator
     args: ['run', '-d', '--network=cloudbuild', '--name=spanner-emulator', 'google/cloud-sdk:302.0.0', 'gcloud', 'beta', 'emulators', 'spanner', 'start', '--host-port=0.0.0.0:9010']
+  - name: jwilder/dockerize:0.6.1
+    args: ['dockerize', '-timeout=60s', '-wait=tcp://cds-emulator:8081']
   - name: 'golang:1.14-stretch'
     entrypoint: 'go'
     args: ['test', './...']
