@@ -96,7 +96,7 @@ func SplitDatabaseName(database string) (*Database, error) {
 }
 
 type QueryStat struct {
-	InsertID          string
+	InsertID          string    `spanner:"-"`
 	IntervalEnd       time.Time `spanner:"interval_end"` // End of the time interval that the included query executions occurred in.
 	Text              string    // SQL query text, truncated to approximately 64KB.
 	TextTruncated     bool      `spanner:"text_truncated"`      // Whether or not the query text was truncated.
