@@ -1,7 +1,7 @@
 steps:
   - name: gcr.io/cloud-builders/docker
     id: spanner-emulator
-    args: ['run', '-d', '-p' '9010:9010' '-p' '9020:9020', '--network=cloudbuild', '--name=spanner-emulator', 'gcr.io/cloud-spanner-emulator/emulator:0.8.0']
+    args: ['run', '-d', '-p', '9010:9010', '-p', '9020:9020', '--network=cloudbuild', '--name=spanner-emulator', 'gcr.io/cloud-spanner-emulator/emulator:0.8.0']
   - name: jwilder/dockerize:0.6.1
     args: ['dockerize', '-timeout=60s', '-wait=tcp://spanner-emulator:9010']
   - name: 'golang:1.14-stretch'
