@@ -11,6 +11,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/spanner"
 	"github.com/pkg/errors"
+	bqbox "github.com/sinmetal/gcpbox/bigquery"
 	"google.golang.org/api/iterator"
 )
 
@@ -47,17 +48,17 @@ type QueryStatsParam struct {
 
 type QueryStatsCopyService struct {
 	queryStatsTopQueryTemplate *template.Template
-	spanner                    *spanner.Client
-	bq                         *bigquery.Client
+	Spanner                    *spanner.Client
+	BQBox                      *bqbox.BigQueryService
 }
 
 // NewQueryStatsCopyService is QueryStatsCopyServiceを生成する
-func NewQueryStatsCopyService(ctx context.Context, bqClient *bigquery.Client) (*QueryStatsCopyService, error) {
-	return NewQueryStatsCopyServiceWithSpannerClient(ctx, bqClient, nil)
+func NewQueryStatsCopyService(ctx context.Context, bqboxService *bqbox.BigQueryService) (*QueryStatsCopyService, error) {
+	return NewQueryStatsCopyServiceWithSpannerClient(ctx, bqboxService, nil)
 }
 
 // NewQueryStatsCopyServiceWithSpannerClient is Statsを取得したいSpanner DBが1つしかないのであれば、Spanner Clientを設定して、QueryStatsCopyServiceを作成する
-func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqClient *bigquery.Client, spannerClient *spanner.Client) (*QueryStatsCopyService, error) {
+func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqboxService *bqbox.BigQueryService, spannerClient *spanner.Client) (*QueryStatsCopyService, error) {
 	tmpl, err := template.New("getQueryStatsTopQuery").Parse(queryStatsTopMinute)
 	if err != nil {
 		return nil, err
@@ -65,8 +66,8 @@ func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqClient *bi
 
 	return &QueryStatsCopyService{
 		queryStatsTopQueryTemplate: tmpl,
-		spanner:                    spannerClient,
-		bq:                         bqClient,
+		Spanner:                    spannerClient,
+		BQBox:                      bqboxService,
 	}, nil
 }
 
@@ -116,11 +117,11 @@ func (s *QueryStat) ToInsertID() string {
 }
 
 func (s *QueryStatsCopyService) Close() error {
-	if s.spanner != nil {
-		s.spanner.Close()
+	if s.Spanner != nil {
+		s.Spanner.Close()
 	}
-	if s.bq != nil {
-		return s.bq.Close()
+	if s.BQBox != nil {
+		return s.BQBox.Close()
 	}
 
 	return nil
@@ -128,10 +129,10 @@ func (s *QueryStatsCopyService) Close() error {
 
 // GetQueryStats is SpannerからQueryStatsを取得する
 func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable) ([]*QueryStat, error) {
-	if s.spanner == nil {
+	if s.Spanner == nil {
 		return nil, ErrRequiredSpannerClient
 	}
-	return s.GetQueryStatsWithSpannerClient(ctx, table, s.spanner)
+	return s.GetQueryStatsWithSpannerClient(ctx, table, s.Spanner)
 }
 
 // GetQueryStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからQueryStatsを取得する
@@ -184,7 +185,7 @@ var QueryStatsBigQueryTableSchema = bigquery.Schema{
 // ToBigQuery is QueryStatsをBigQueryにStreamingInsertでInsertする
 func (s *QueryStatsCopyService) CreateTable(ctx context.Context, dataset *bigquery.Dataset, table string) error {
 
-	return s.bq.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
+	return s.BQBox.BQ.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
 		Name:   table,
 		Schema: QueryStatsBigQueryTableSchema,
 		TimePartitioning: &bigquery.TimePartitioning{
@@ -193,8 +194,9 @@ func (s *QueryStatsCopyService) CreateTable(ctx context.Context, dataset *bigque
 	})
 }
 
-// ToBigQuery is QueryStatsをBigQueryにStreamingInsertでInsertする
-func (s *QueryStatsCopyService) ToBigQuery(ctx context.Context, dataset *bigquery.Dataset, table string, qss []*QueryStat) error {
+// InsertQueryStatsToBigQuery is QueryStatsをBigQueryにStreamingInsertでInsertする
+// Errorがある場合、github.com/sinmetal/gcpbox/errors.StreamingInsertErrors が返ってくる
+func (s *QueryStatsCopyService) InsertQueryStatsToBigQuery(ctx context.Context, dataset *bigquery.Dataset, table string, qss []*QueryStat) error {
 	var sss []*bigquery.StructSaver
 	for _, qs := range qss {
 		insertID := qs.ToInsertID()
@@ -205,7 +207,7 @@ func (s *QueryStatsCopyService) ToBigQuery(ctx context.Context, dataset *bigquer
 		})
 	}
 
-	if err := s.bq.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(table).Inserter().Put(ctx, sss); err != nil {
+	if err := s.BQBox.Insert(ctx, dataset, table, sss); err != nil {
 		return err
 	}
 	return nil
@@ -218,7 +220,7 @@ func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Data
 		return errors.WithMessage(err, "failed spanner.GetQueryStats")
 	}
 
-	if err := s.ToBigQuery(ctx, dataset, bigQueryTable, qss); err != nil {
+	if err := s.InsertQueryStatsToBigQuery(ctx, dataset, bigQueryTable, qss); err != nil {
 		return errors.WithMessage(err, "failed bigQuery.ToPut")
 	}
 

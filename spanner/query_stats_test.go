@@ -15,6 +15,7 @@ import (
 	sadDatabase "cloud.google.com/go/spanner/admin/database/apiv1"
 	sadInstance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/dgryski/go-farm"
+	bqbox "github.com/sinmetal/gcpbox/bigquery"
 	"google.golang.org/api/googleapi"
 	sdbproto "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	protoInstance "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
@@ -155,6 +156,35 @@ func TestQueryStatsCopyService_Copy_TableCreate(t *testing.T) {
 	}
 }
 
+func TestQueryStatsCopyService_InsertQueryStatsToBigQuery(t *testing.T) {
+	ctx := context.Background()
+
+	const project = "hoge"
+	const instance = "fuga"
+	database := fmt.Sprintf("test%d", rand.Intn(10000000))
+
+	s := newQueryStatsCopyService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
+	table := fmt.Sprintf("query_stats_test_%d", time.Now().Unix())
+	if err := s.CreateTable(ctx, dataset, table); err != nil {
+		t.Fatal(err)
+	}
+
+	var qss []*QueryStat
+	for i := 0; i < 30001; i++ {
+		qs := &QueryStat{
+			TextFingerprint: rand.Int63(),
+			IntervalEnd:     time.Now(),
+		}
+		qss = append(qss, qs)
+	}
+
+	if err := s.InsertQueryStatsToBigQuery(ctx, dataset, table, qss); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func newQueryStatsCopyService(t *testing.T, project string, instance string, database string) *QueryStatsCopyService {
 	ctx := context.Background()
 
@@ -174,8 +204,12 @@ func newQueryStatsCopyService(t *testing.T, project string, instance string, dat
 	if err != nil {
 		t.Fatal(err)
 	}
+	bqboxService, err := bqbox.NewBigQueryService(bqClient)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	s, err := NewQueryStatsCopyServiceWithSpannerClient(ctx, bqClient, spannerClient)
+	s, err := NewQueryStatsCopyServiceWithSpannerClient(ctx, bqboxService, spannerClient)
 	if err != nil {
 		t.Fatal(err)
 	}
