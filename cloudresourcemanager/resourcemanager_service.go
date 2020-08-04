@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
 	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/googleapi"
@@ -30,8 +30,10 @@ type ResourceManagerService struct {
 
 // IamMember is GCP IAMのMember struct
 type IamMember struct {
-	Type  string
-	Email string
+	Type    string
+	Email   string
+	Deleted bool
+	UID     string
 }
 
 // ExistsMemberInGCPProject is GCP Projectに指定したユーザが権限を持っているかを返す
@@ -52,7 +54,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, p
 			}
 		}
 
-		return false, errors.WithStack(err)
+		return false, xerrors.Errorf(": %w", err)
 	}
 	roleMap := map[string]bool{}
 	for _, role := range roles {
@@ -95,17 +97,43 @@ func (s *ResourceManagerService) existsIamMember(members []string, email string)
 }
 
 // ConvertIamMember is IAM RoleのAPIで取得できるMember文字列をIamMember structに変換して返す
+// 削除済みのメンバーのフォーマットは https://cloud.google.com/iam/docs/policies#handle-deleted-members
 func (s *ResourceManagerService) ConvertIamMember(member string) (*IamMember, error) {
 	l := strings.Split(member, ":")
-	if len(l) != 2 {
-		return nil, fmt.Errorf("invalid iam member text. text:%v", member)
+	if len(l) < 1 {
+		return nil, fmt.Errorf("invalid iam member format. text:%v", member)
 	}
 
 	switch l[0] {
 	case "user", "serviceAccount", "group", "domain":
-		return &IamMember{l[0], l[1]}, nil
+		if len(l) < 2 {
+			return nil, fmt.Errorf("invalid iam member account. text=%v", member)
+		}
+		return &IamMember{l[0], l[1], false, ""}, nil
+	case "deleted":
+		if len(l) < 3 {
+			return nil, fmt.Errorf("invalid deleted iam member format. text=%v", member)
+		}
+
+		accountTxts := strings.Split(l[2], "?")
+		if len(accountTxts) != 2 {
+			return nil, fmt.Errorf("invalid deleted iam member account txt format. text=%v", member)
+		}
+
+		// QueryStringのようなFormatでくっついている値がuidのみであると決め打ちしている
+		uids := strings.Split(accountTxts[1], "=")
+		if len(uids) != 2 {
+			return nil, fmt.Errorf("invalid deleted iam member uid txt format. text=%v", member)
+		}
+		im, err := s.ConvertIamMember(fmt.Sprintf("%s:%s", l[1], accountTxts[0]))
+		if err != nil {
+			return nil, xerrors.Errorf("invalid deleted iam member text. text=%v : %w", member, err)
+		}
+		im.Deleted = true
+		im.UID = uids[1]
+		return im, nil
 	default:
-		return nil, fmt.Errorf("invalid iam member type. type:%v", l[0])
+		return nil, fmt.Errorf("invalid iam member type. type:%v, text:%v", l[0], member)
 	}
 }
 
