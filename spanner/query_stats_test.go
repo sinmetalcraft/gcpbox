@@ -277,37 +277,35 @@ func newQueryStatsDummyData(t *testing.T, project string, instance string, datab
 		t.Fatal(err)
 	}
 
+	var mus []*spanner.Mutation
 	for i := 0; i < 10; i++ {
-		var mus []*spanner.Mutation
-		for j := 0; j < 30; j++ {
-			var list []string
-			for n := 0; n < 100000+rand.Intn(1000); n++ {
-				list = append(list, fmt.Sprintf("%d", n))
-			}
-			v := strings.Join(list, ",")
-			queryText := "SELECT " + v
-			stat := &QueryStat{
-				IntervalEnd:       time.Now(),
-				Text:              queryText,
-				TextTruncated:     false,
-				TextFingerprint:   int64(farm.Fingerprint64([]byte(queryText))),
-				ExecuteCount:      rand.Int63n(1000),
-				AvgLatencySeconds: rand.Float64(),
-				AvgRows:           rand.Float64(),
-				AvgBytes:          rand.Float64(),
-				AvgRowsScanned:    rand.Float64(),
-				AvgCPUSeconds:     rand.Float64(),
-			}
-			mu, err := spanner.InsertStruct("QUERY_STATS_DUMMY", stat)
-			if err != nil {
-				t.Fatal(err)
-			}
-			mus = append(mus, mu)
+		var list []string
+		for n := 0; n < 1+rand.Intn(30); n++ {
+			list = append(list, fmt.Sprintf("%d", n))
 		}
-		_, err := sc.Apply(ctx, mus)
+		v := strings.Join(list, ",")
+		queryText := "SELECT " + v
+		stat := &QueryStat{
+			IntervalEnd:       time.Now(),
+			Text:              queryText,
+			TextTruncated:     false,
+			TextFingerprint:   int64(farm.Fingerprint64([]byte(queryText))),
+			ExecuteCount:      rand.Int63n(1000),
+			AvgLatencySeconds: rand.Float64(),
+			AvgRows:           rand.Float64(),
+			AvgBytes:          rand.Float64(),
+			AvgRowsScanned:    rand.Float64(),
+			AvgCPUSeconds:     rand.Float64(),
+		}
+		mu, err := spanner.InsertStruct("QUERY_STATS_DUMMY", stat)
 		if err != nil {
 			t.Fatal(err)
 		}
+		mus = append(mus, mu)
+	}
+	_, err = sc.Apply(ctx, mus)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
