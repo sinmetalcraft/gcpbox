@@ -53,6 +53,7 @@ type QueryStatsCopyService struct {
 	queryStatsTopQueryTemplate *template.Template
 	Spanner                    *spanner.Client
 	BQBox                      *bqbox.BigQueryService
+	CacheService               StatsCacheService
 }
 
 // NewQueryStatsCopyService is QueryStatsCopyServiceを生成する
@@ -72,6 +73,11 @@ func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqboxService
 		Spanner:                    spannerClient,
 		BQBox:                      bqboxService,
 	}, nil
+}
+
+// SetCacheService is Cacheを行うServiceを設定する
+func (s *QueryStatsCopyService) SetCacheService(cacheService StatsCacheService) {
+	s.CacheService = cacheService
 }
 
 type Database struct {
@@ -115,7 +121,7 @@ type QueryStat struct {
 
 // ToInsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *QueryStat) ToInsertID() string {
-	s.InsertID = fmt.Sprintf("%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint)
+	s.InsertID = fmt.Sprintf("GCPBOX_SpannerQueryStat-_-%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint)
 	return s.InsertID
 }
 
@@ -254,6 +260,14 @@ func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, datas
 		}
 
 		insertID := qs.ToInsertID()
+		if s.CacheService != nil {
+			if err := s.CacheService.CheckSpannerStats(ctx, insertID); err == nil {
+				if err := s.CacheService.SetSpannerStats(ctx, insertID, 24*time.Hour); err != nil {
+					// noop
+				}
+				continue
+			}
+		}
 		sss = append(sss, &bigquery.StructSaver{
 			Schema:   QueryStatsBigQueryTableSchema,
 			InsertID: insertID,
@@ -265,6 +279,13 @@ func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, datas
 			}
 			insertCount += len(sss)
 			sss = []*bigquery.StructSaver{}
+			if s.CacheService != nil {
+				for _, ss := range sss {
+					if err := s.CacheService.SetSpannerStats(ctx, ss.InsertID, 24*time.Hour); err != nil {
+						// noop
+					}
+				}
+			}
 		}
 	}
 	if len(sss) > 0 {
@@ -273,6 +294,13 @@ func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, datas
 		}
 		insertCount += len(sss)
 		sss = []*bigquery.StructSaver{}
+		if s.CacheService != nil {
+			for _, ss := range sss {
+				if err := s.CacheService.SetSpannerStats(ctx, ss.InsertID, 24*time.Hour); err != nil {
+					// noop
+				}
+			}
+		}
 	}
 
 	return insertCount, nil

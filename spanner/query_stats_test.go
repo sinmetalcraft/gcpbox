@@ -136,8 +136,8 @@ func TestQueryStatsCopyService_Copy_Real(t *testing.T) {
 
 	ctx := context.Background()
 
-	const project = "souzoh-spanner-dev"
-	const instance = "souzoh-shared-instance"
+	const project = "gcpug-public-spanner"
+	const instance = "merpay-sponsored-instance"
 	const database = "sinmetal"
 
 	s := newQueryStatsCopyService(t, project, instance, database)
