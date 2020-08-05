@@ -10,8 +10,8 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/spanner"
-	"github.com/pkg/errors"
 	bqbox "github.com/sinmetal/gcpbox/bigquery"
+	"golang.org/x/xerrors"
 	"google.golang.org/api/iterator"
 )
 
@@ -28,10 +28,12 @@ SELECT
   avg_rows_scanned,
   avg_cpu_seconds
 FROM {{.Table}}
+ORDER BY interval_end DESC, text_fingerprint
+LIMIT {{.Limit}}
 `
 
 var (
-	ErrRequiredSpannerClient = errors.New("required spanner client.")
+	ErrRequiredSpannerClient = xerrors.New("required spanner client.")
 )
 
 type QueryStatsTopTable string
@@ -44,12 +46,14 @@ const (
 
 type QueryStatsParam struct {
 	Table string
+	Limit int64
 }
 
 type QueryStatsCopyService struct {
 	queryStatsTopQueryTemplate *template.Template
 	Spanner                    *spanner.Client
 	BQBox                      *bqbox.BigQueryService
+	CacheService               StatsCacheService
 }
 
 // NewQueryStatsCopyService is QueryStatsCopyServiceを生成する
@@ -69,6 +73,11 @@ func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqboxService
 		Spanner:                    spannerClient,
 		BQBox:                      bqboxService,
 	}, nil
+}
+
+// SetCacheService is Cacheを行うServiceを設定する
+func (s *QueryStatsCopyService) SetCacheService(cacheService StatsCacheService) {
+	s.CacheService = cacheService
 }
 
 type Database struct {
@@ -112,7 +121,7 @@ type QueryStat struct {
 
 // ToInsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *QueryStat) ToInsertID() string {
-	s.InsertID = fmt.Sprintf("%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint)
+	s.InsertID = fmt.Sprintf("GCPBOX_SpannerQueryStat-_-%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint)
 	return s.InsertID
 }
 
@@ -128,21 +137,21 @@ func (s *QueryStatsCopyService) Close() error {
 }
 
 // GetQueryStats is SpannerからQueryStatsを取得する
-func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable) ([]*QueryStat, error) {
+func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable, limit int64) ([]*QueryStat, error) {
 	if s.Spanner == nil {
 		return nil, ErrRequiredSpannerClient
 	}
-	return s.GetQueryStatsWithSpannerClient(ctx, table, s.Spanner)
+	return s.GetQueryStatsWithSpannerClient(ctx, table, s.Spanner, limit)
 }
 
 // GetQueryStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからQueryStatsを取得する
-func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Context, table QueryStatsTopTable, spannerClient *spanner.Client) ([]*QueryStat, error) {
+func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Context, table QueryStatsTopTable, spannerClient *spanner.Client, limit int64) ([]*QueryStat, error) {
 	if spannerClient == nil {
 		return nil, ErrRequiredSpannerClient
 	}
 
 	var tpl bytes.Buffer
-	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(table)}); err != nil {
+	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(table), Limit: limit}); err != nil {
 		return nil, err
 	}
 	iter := spannerClient.Single().Query(ctx, spanner.NewStatement(tpl.String()))
@@ -155,12 +164,12 @@ func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Conte
 			break
 		}
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, xerrors.Errorf(": %w", err)
 		}
 
 		var result QueryStat
 		if err := row.ToStruct(&result); err != nil {
-			return nil, errors.WithStack(err)
+			return nil, xerrors.Errorf(": %w", err)
 		}
 		rets = append(rets, &result)
 	}
@@ -213,16 +222,86 @@ func (s *QueryStatsCopyService) InsertQueryStatsToBigQuery(ctx context.Context, 
 	return nil
 }
 
-// Copy is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyする一連の流れを実行する便利メソッド
-func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable) error {
-	qss, err := s.GetQueryStats(ctx, queryStatsTable)
-	if err != nil {
-		return errors.WithMessage(err, "failed spanner.GetQueryStats")
+// Copy is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
+func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, limit int64) (int, error) {
+	if s.Spanner == nil {
+		return 0, ErrRequiredSpannerClient
+	}
+	return s.CopyWithSpannerClient(ctx, dataset, bigQueryTable, queryStatsTable, s.Spanner, limit)
+}
+
+// CopyWithSpannerClient is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
+func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, spannerClient *spanner.Client, limit int64) (int, error) {
+	if spannerClient == nil {
+		return 0, ErrRequiredSpannerClient
 	}
 
-	if err := s.InsertQueryStatsToBigQuery(ctx, dataset, bigQueryTable, qss); err != nil {
-		return errors.WithMessage(err, "failed bigQuery.ToPut")
+	var tpl bytes.Buffer
+	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(queryStatsTable), Limit: limit}); err != nil {
+		return 0, err
+	}
+	iter := spannerClient.Single().Query(ctx, spanner.NewStatement(tpl.String()))
+	defer iter.Stop()
+
+	var insertCount int
+	var sss []*bigquery.StructSaver
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return insertCount, xerrors.Errorf(": %w", err)
+		}
+
+		var qs QueryStat
+		if err := row.ToStruct(&qs); err != nil {
+			return insertCount, xerrors.Errorf(": %w", err)
+		}
+
+		insertID := qs.ToInsertID()
+		if s.CacheService != nil {
+			if err := s.CacheService.CheckSpannerStats(ctx, insertID); err == nil {
+				if err := s.CacheService.SetSpannerStats(ctx, insertID, 24*time.Hour); err != nil {
+					// noop
+				}
+				continue
+			}
+		}
+		sss = append(sss, &bigquery.StructSaver{
+			Schema:   QueryStatsBigQueryTableSchema,
+			InsertID: insertID,
+			Struct:   qs,
+		})
+		if len(sss) > 99 {
+			if err := s.BQBox.Insert(ctx, dataset, bigQueryTable, sss); err != nil {
+				return insertCount, xerrors.Errorf(": %w", err)
+			}
+			insertCount += len(sss)
+			sss = []*bigquery.StructSaver{}
+			if s.CacheService != nil {
+				for _, ss := range sss {
+					if err := s.CacheService.SetSpannerStats(ctx, ss.InsertID, 24*time.Hour); err != nil {
+						// noop
+					}
+				}
+			}
+		}
+	}
+	if len(sss) > 0 {
+		if err := s.BQBox.Insert(ctx, dataset, bigQueryTable, sss); err != nil {
+			return insertCount, xerrors.Errorf(": %w", err)
+		}
+		insertCount += len(sss)
+		sss = []*bigquery.StructSaver{}
+		if s.CacheService != nil {
+			for _, ss := range sss {
+				if err := s.CacheService.SetSpannerStats(ctx, ss.InsertID, 24*time.Hour); err != nil {
+					// noop
+				}
+			}
+		}
 	}
 
-	return nil
+	return insertCount, nil
 }

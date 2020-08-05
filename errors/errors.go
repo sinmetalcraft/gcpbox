@@ -10,7 +10,7 @@ var _ error = &BigQueryStreamingInsertErrors{}
 var _ error = &BigQueryStreamingInsertError{}
 
 type BigQueryStreamingInsertErrors struct {
-	mutex  *sync.Mutex
+	mutex  sync.Mutex
 	Errors []*BigQueryStreamingInsertError
 }
 

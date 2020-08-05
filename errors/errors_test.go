@@ -57,3 +57,14 @@ InsertID:sampleInsertID2 : hello sample error 2
 		}
 	}
 }
+
+func TestBigQueryStreamingInsertErrors_Append(t *testing.T) {
+	errs := &errbox.BigQueryStreamingInsertErrors{}
+	errs.Append(&errbox.BigQueryStreamingInsertError{
+		InsertID: "sampleInsertID1",
+		Err:      fmt.Errorf("hello sample error 1"),
+	})
+	if errs.ErrorOrNil() == nil {
+		t.Errorf("want err ! but not nil")
+	}
+}

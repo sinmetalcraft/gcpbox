@@ -92,7 +92,7 @@ func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
 	newQueryStatsDummyData(t, project, instance, database)
 
 	s := newQueryStatsCopyService(t, project, instance, database)
-	_, err := s.GetQueryStats(ctx, queryStatsDummyTable)
+	_, err := s.GetQueryStats(ctx, queryStatsDummyTable, 1000)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,8 +122,47 @@ func TestQueryStatsCopyService_Copy(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := s.Copy(ctx, dataset, table, queryStatsDummyTable); err != nil {
+	_, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, 1000)
+	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestQueryStatsCopyService_Copy_Real(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	const project = "gcpug-public-spanner"
+	const instance = "merpay-sponsored-instance"
+	const database = "sinmetal"
+
+	s := newQueryStatsCopyService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
+	table := "minutes"
+	if err := s.CreateTable(ctx, dataset, table); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 409 {
+				// noop
+			} else {
+				t.Fatal(ae)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	const limit = 333
+	count, err := s.Copy(ctx, dataset, table, QueryStatsTopMinuteTable, 333)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e, g := limit, count; e != g {
+		t.Errorf("want count %d but got %d", e, g)
 	}
 }
 
@@ -140,7 +179,8 @@ func TestQueryStatsCopyService_Copy_TableCreate(t *testing.T) {
 
 	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_query_stats"}
 	table := "not_found"
-	if err := s.Copy(ctx, dataset, table, queryStatsDummyTable); err != nil {
+	_, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, 30000)
+	if err != nil {
 		var ae *googleapi.Error
 		if ok := errors.As(err, &ae); ok {
 			if ae.Code == 404 {
@@ -237,37 +277,35 @@ func newQueryStatsDummyData(t *testing.T, project string, instance string, datab
 		t.Fatal(err)
 	}
 
+	var mus []*spanner.Mutation
 	for i := 0; i < 10; i++ {
-		var mus []*spanner.Mutation
-		for j := 0; j < 30; j++ {
-			var list []string
-			for n := 0; n < 100000+rand.Intn(1000); n++ {
-				list = append(list, fmt.Sprintf("%d", n))
-			}
-			v := strings.Join(list, ",")
-			queryText := "SELECT " + v
-			stat := &QueryStat{
-				IntervalEnd:       time.Now(),
-				Text:              queryText,
-				TextTruncated:     false,
-				TextFingerprint:   int64(farm.Fingerprint64([]byte(queryText))),
-				ExecuteCount:      rand.Int63n(1000),
-				AvgLatencySeconds: rand.Float64(),
-				AvgRows:           rand.Float64(),
-				AvgBytes:          rand.Float64(),
-				AvgRowsScanned:    rand.Float64(),
-				AvgCPUSeconds:     rand.Float64(),
-			}
-			mu, err := spanner.InsertStruct("QUERY_STATS_DUMMY", stat)
-			if err != nil {
-				t.Fatal(err)
-			}
-			mus = append(mus, mu)
+		var list []string
+		for n := 0; n < 1+rand.Intn(30); n++ {
+			list = append(list, fmt.Sprintf("%d", n))
 		}
-		_, err := sc.Apply(ctx, mus)
+		v := strings.Join(list, ",")
+		queryText := "SELECT " + v
+		stat := &QueryStat{
+			IntervalEnd:       time.Now(),
+			Text:              queryText,
+			TextTruncated:     false,
+			TextFingerprint:   int64(farm.Fingerprint64([]byte(queryText))),
+			ExecuteCount:      rand.Int63n(1000),
+			AvgLatencySeconds: rand.Float64(),
+			AvgRows:           rand.Float64(),
+			AvgBytes:          rand.Float64(),
+			AvgRowsScanned:    rand.Float64(),
+			AvgCPUSeconds:     rand.Float64(),
+		}
+		mu, err := spanner.InsertStruct("QUERY_STATS_DUMMY", stat)
 		if err != nil {
 			t.Fatal(err)
 		}
+		mus = append(mus, mu)
+	}
+	_, err = sc.Apply(ctx, mus)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
