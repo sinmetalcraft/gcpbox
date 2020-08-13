@@ -92,7 +92,8 @@ func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
 	newQueryStatsDummyData(t, project, instance, database)
 
 	s := newQueryStatsCopyService(t, project, instance, database)
-	_, err := s.GetQueryStats(ctx, queryStatsDummyTable, 1000)
+	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
+	_, err := s.GetQueryStats(ctx, queryStatsDummyTable, utc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +123,8 @@ func TestQueryStatsCopyService_Copy(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	_, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, 1000)
+	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
+	_, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, utc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,13 +158,17 @@ func TestQueryStatsCopyService_Copy_Real(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	const limit = 333
-	count, err := s.Copy(ctx, dataset, table, QueryStatsTopMinuteTable, 333)
+	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
+	_, err := s.Copy(ctx, dataset, table, QueryStatsTopMinuteTable, utc)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if e, g := limit, count; e != g {
-		t.Errorf("want count %d but got %d", e, g)
+}
+
+func TestTimestamp(t *testing.T) {
+	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
+	if e, g := "2020-08-13 01:01:00", utc.Format("2006-01-02 15:04:05"); e != g {
+		t.Errorf("want %v but got %v", e, g)
 	}
 }
 
@@ -179,7 +185,8 @@ func TestQueryStatsCopyService_Copy_TableCreate(t *testing.T) {
 
 	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_query_stats"}
 	table := "not_found"
-	_, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, 30000)
+	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
+	_, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, utc)
 	if err != nil {
 		var ae *googleapi.Error
 		if ok := errors.As(err, &ae); ok {
