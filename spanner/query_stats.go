@@ -28,8 +28,7 @@ SELECT
   avg_rows_scanned,
   avg_cpu_seconds
 FROM {{.Table}}
-ORDER BY interval_end DESC, text_fingerprint
-LIMIT {{.Limit}}
+WHERE interval_end = TIMESTAMP(@IntervalEnd, "UTC")
 `
 
 var (
@@ -46,7 +45,6 @@ const (
 
 type QueryStatsParam struct {
 	Table string
-	Limit int64
 }
 
 type QueryStatsCopyService struct {
@@ -137,24 +135,28 @@ func (s *QueryStatsCopyService) Close() error {
 }
 
 // GetQueryStats is SpannerからQueryStatsを取得する
-func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable, limit int64) ([]*QueryStat, error) {
+func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable, intervalEnd time.Time) ([]*QueryStat, error) {
 	if s.Spanner == nil {
 		return nil, ErrRequiredSpannerClient
 	}
-	return s.GetQueryStatsWithSpannerClient(ctx, table, s.Spanner, limit)
+	return s.GetQueryStatsWithSpannerClient(ctx, table, s.Spanner, intervalEnd)
 }
 
 // GetQueryStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからQueryStatsを取得する
-func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Context, table QueryStatsTopTable, spannerClient *spanner.Client, limit int64) ([]*QueryStat, error) {
+func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Context, table QueryStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*QueryStat, error) {
 	if spannerClient == nil {
 		return nil, ErrRequiredSpannerClient
 	}
 
 	var tpl bytes.Buffer
-	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(table), Limit: limit}); err != nil {
+	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(table)}); err != nil {
 		return nil, err
 	}
-	iter := spannerClient.Single().Query(ctx, spanner.NewStatement(tpl.String()))
+	statement := spanner.NewStatement(tpl.String())
+	statement.Params = map[string]interface{}{
+		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+	}
+	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
 
 	rets := []*QueryStat{}
@@ -223,24 +225,28 @@ func (s *QueryStatsCopyService) InsertQueryStatsToBigQuery(ctx context.Context, 
 }
 
 // Copy is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
-func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, limit int64) (int, error) {
+func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, intervalEnd time.Time) (int, error) {
 	if s.Spanner == nil {
 		return 0, ErrRequiredSpannerClient
 	}
-	return s.CopyWithSpannerClient(ctx, dataset, bigQueryTable, queryStatsTable, s.Spanner, limit)
+	return s.CopyWithSpannerClient(ctx, dataset, bigQueryTable, queryStatsTable, s.Spanner, intervalEnd)
 }
 
 // CopyWithSpannerClient is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
-func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, spannerClient *spanner.Client, limit int64) (int, error) {
+func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (int, error) {
 	if spannerClient == nil {
 		return 0, ErrRequiredSpannerClient
 	}
 
 	var tpl bytes.Buffer
-	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(queryStatsTable), Limit: limit}); err != nil {
+	if err := s.queryStatsTopQueryTemplate.Execute(&tpl, QueryStatsParam{Table: string(queryStatsTable)}); err != nil {
 		return 0, err
 	}
-	iter := spannerClient.Single().Query(ctx, spanner.NewStatement(tpl.String()))
+	statement := spanner.NewStatement(tpl.String())
+	statement.Params = map[string]interface{}{
+		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+	}
+	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
 
 	var insertCount int
