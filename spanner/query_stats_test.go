@@ -206,35 +206,6 @@ func TestQueryStatsCopyService_Copy_TableCreate(t *testing.T) {
 	}
 }
 
-func TestQueryStatsCopyService_InsertQueryStatsToBigQuery(t *testing.T) {
-	ctx := context.Background()
-
-	const project = "hoge"
-	const instance = "fuga"
-	database := fmt.Sprintf("test%d", rand.Intn(10000000))
-
-	s := newQueryStatsCopyService(t, project, instance, database)
-
-	dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
-	table := fmt.Sprintf("query_stats_test_%d", time.Now().Unix())
-	if err := s.CreateTable(ctx, dataset, table); err != nil {
-		t.Fatal(err)
-	}
-
-	var qss []*QueryStat
-	for i := 0; i < 30001; i++ {
-		qs := &QueryStat{
-			TextFingerprint: rand.Int63(),
-			IntervalEnd:     time.Now(),
-		}
-		qss = append(qss, qs)
-	}
-
-	if err := s.InsertQueryStatsToBigQuery(ctx, dataset, table, qss); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func newQueryStatsCopyService(t *testing.T, project string, instance string, database string) *QueryStatsCopyService {
 	ctx := context.Background()
 

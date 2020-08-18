@@ -224,15 +224,6 @@ func (s *QueryStatsCopyService) CreateTable(ctx context.Context, dataset *bigque
 	})
 }
 
-// InsertQueryStatsToBigQuery is QueryStatsをBigQueryにStreamingInsertでInsertする
-// Errorがある場合、github.com/sinmetal/gcpbox/errors.StreamingInsertErrors が返ってくる
-func (s *QueryStatsCopyService) InsertQueryStatsToBigQuery(ctx context.Context, dataset *bigquery.Dataset, table string, qss []*QueryStat) error {
-	if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(table).Inserter().Put(ctx, qss); err != nil {
-		return xerrors.Errorf(": %w", err)
-	}
-	return nil
-}
-
 // Copy is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
 func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, intervalEnd time.Time) (int, error) {
 	if s.Spanner == nil {
