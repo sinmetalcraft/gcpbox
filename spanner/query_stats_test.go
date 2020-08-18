@@ -15,7 +15,6 @@ import (
 	sadDatabase "cloud.google.com/go/spanner/admin/database/apiv1"
 	sadInstance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/dgryski/go-farm"
-	bqbox "github.com/sinmetal/gcpbox/bigquery"
 	"google.golang.org/api/googleapi"
 	sdbproto "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	protoInstance "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
@@ -88,12 +87,12 @@ func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
 	const project = "hoge"
 	const instance = "fuga"
 	database := fmt.Sprintf("test%d", rand.Intn(10000000))
+	intervalEnd := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
 
-	newQueryStatsDummyData(t, project, instance, database)
+	newQueryStatsDummyData(t, project, instance, database, intervalEnd)
 
 	s := newQueryStatsCopyService(t, project, instance, database)
-	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
-	_, err := s.GetQueryStats(ctx, queryStatsDummyTable, utc)
+	_, err := s.GetQueryStats(ctx, queryStatsDummyTable, intervalEnd)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,10 +101,13 @@ func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
 func TestQueryStatsCopyService_Copy(t *testing.T) {
 	ctx := context.Background()
 
-	const project = "hoge"
+	const project = "sinmetal-ci"
 	const instance = "fuga"
 	database := fmt.Sprintf("test%d", rand.Intn(10000000))
+	intervalEnd := time.Date(2020, 8, 20, 1, 1, 0, 0, time.UTC)
+
 	newSpannerDatabase(t, project, instance, fmt.Sprintf("CREATE DATABASE %s", database), []string{dummyQueryStatsTableCreateTable})
+	newQueryStatsDummyData(t, project, instance, database, intervalEnd)
 
 	s := newQueryStatsCopyService(t, project, instance, database)
 
@@ -123,11 +125,12 @@ func TestQueryStatsCopyService_Copy(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
-	_, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, utc)
+
+	count, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, intervalEnd)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("insert count is %d", count)
 }
 
 func TestQueryStatsCopyService_Copy_Real(t *testing.T) {
@@ -251,19 +254,15 @@ func newQueryStatsCopyService(t *testing.T, project string, instance string, dat
 	if err != nil {
 		t.Fatal(err)
 	}
-	bqboxService, err := bqbox.NewBigQueryService(bqClient)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	s, err := NewQueryStatsCopyServiceWithSpannerClient(ctx, bqboxService, spannerClient)
+	s, err := NewQueryStatsCopyServiceWithSpannerClient(ctx, bqClient, spannerClient)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return s
 }
 
-func newQueryStatsDummyData(t *testing.T, project string, instance string, database string) {
+func newQueryStatsDummyData(t *testing.T, project string, instance string, database string, intervalEnd time.Time) {
 	ctx := context.Background()
 
 	createStatement := fmt.Sprintf("CREATE DATABASE %s", database)
@@ -287,13 +286,14 @@ func newQueryStatsDummyData(t *testing.T, project string, instance string, datab
 	var mus []*spanner.Mutation
 	for i := 0; i < 10; i++ {
 		var list []string
+		list = append(list, fmt.Sprintf("%d,", i))
 		for n := 0; n < 1+rand.Intn(30); n++ {
 			list = append(list, fmt.Sprintf("%d", n))
 		}
 		v := strings.Join(list, ",")
 		queryText := "SELECT " + v
 		stat := &QueryStat{
-			IntervalEnd:       time.Now(),
+			IntervalEnd:       intervalEnd,
 			Text:              queryText,
 			TextTruncated:     false,
 			TextFingerprint:   int64(farm.Fingerprint64([]byte(queryText))),
