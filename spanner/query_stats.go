@@ -279,7 +279,6 @@ func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, datas
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
 		insertCount += len(qss)
-		qss = []*QueryStat{}
 	}
 
 	return insertCount, nil
