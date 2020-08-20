@@ -34,7 +34,7 @@ func TestCurrentUserWithContext(t *testing.T) {
 			r.Header.Set(iapbox.UserNicknameKey, nickname)
 			r.Header.Set(iapbox.UserIsAdminKey, tt.admin)
 
-			ctx, u := iapbox.CurrentUserWithContext(ctx, r)
+			_, u := iapbox.CurrentUserWithContext(ctx, r)
 			if u == nil {
 				t.Fatal("not login")
 			}
@@ -61,7 +61,7 @@ func TestCurrentUserWithContextNotLogin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ctx, u := iapbox.CurrentUserWithContext(ctx, r)
+	_, u := iapbox.CurrentUserWithContext(ctx, r)
 	if u != nil {
 		t.Errorf("user login")
 	}
