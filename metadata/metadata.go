@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"cloud.google.com/go/compute/metadata"
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 )
 
 // OnGCP is GCP上で動いているかどうかを返す
@@ -53,7 +53,7 @@ func ServiceAccountEmail() (string, error) {
 	}
 	sa, err := getMetadata("service-accounts/default/email")
 	if err != nil {
-		return "", errors.Wrap(err, "failed get ServiceAccountEmail")
+		return "", xerrors.Errorf("failed get ServiceAccountEmail : %w", err)
 	}
 	return string(sa), nil
 }
@@ -94,7 +94,7 @@ func Region() (string, error) {
 	}
 	zone, err := getMetadata("zone")
 	if err != nil {
-		return "", errors.Wrap(err, "failed get Zone")
+		return "", xerrors.Errorf("failed get Zone : %w", err)
 	}
 
 	return ExtractionRegion(string(zone))
@@ -107,7 +107,7 @@ func Zone() (string, error) {
 	}
 	zone, err := getMetadata("zone")
 	if err != nil {
-		return "", errors.Wrap(err, "failed get Zone")
+		return "", xerrors.Errorf("failed get Zone : %w", err)
 	}
 
 	return ExtractionZone(string(zone))
@@ -167,19 +167,19 @@ func GetProjectAttribute(key string) (string, error) {
 func getMetadata(path string) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://metadata.google.internal/computeMetadata/v1/instance/%s", path), nil)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed http.NewRequest. path=%s", path))
+		return nil, xerrors.Errorf("failed http.NewRequest. path=%s : %w", path, err)
 	}
 	req.Header.Set("Metadata-Flavor", "Google")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed http.SendReq. path=%s", path))
+		return nil, xerrors.Errorf("failed http.SendReq. path=%s : %w", path, err)
 	}
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed read response.Body. path=%s", path))
+		return nil, xerrors.Errorf("failed read response.Body. path=%s : %w", path, err)
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("metadata server response is %v:%v", res.StatusCode, string(b))
+		return nil, xerrors.Errorf("metadata server response is %v:%v", res.StatusCode, string(b))
 	}
 
 	return b, nil
