@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 	"google.golang.org/api/iam/v1"
 )
 
@@ -54,7 +54,7 @@ func (s *StorageSignedURLService) CreatePutObjectURL(ctx context.Context, bucket
 		},
 	})
 	if err != nil {
-		return "", errors.WithMessagef(err, "failed PutObjectSignedURL: saName=%s,saID=%s,bucket=%s,object=%s", s.ServiceAccountName, s.ServiceAccountID, bucket, object)
+		return "", xerrors.Errorf("failed PutObjectSignedURL: saName=%s,saID=%s,bucket=%s,object=%s : %w", s.ServiceAccountName, s.ServiceAccountID, bucket, object, err)
 	}
 	return url, nil
 }

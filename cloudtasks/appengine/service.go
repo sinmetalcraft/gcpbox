@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
-	"github.com/pkg/errors"
+	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 )
 
@@ -105,7 +105,7 @@ type JsonPostTask struct {
 func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask) (string, error) {
 	body, err := json.Marshal(task.Body)
 	if err != nil {
-		return "", errors.Wrap(err, fmt.Sprintf("failed json.Marshal(). body=%+v", task.Body))
+		return "", xerrors.Errorf("failed json.Marshal(). body=%+v : %w", task.Body, err)
 	}
 	return s.CreateTask(ctx, queue, &Task{
 		Routing:     task.Routing,

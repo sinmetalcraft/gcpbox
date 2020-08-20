@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/pkg/errors"
 	errbox "github.com/sinmetal/gcpbox/errors"
+	"golang.org/x/xerrors"
 )
 
 func TestStreamingInsertError_Error(t *testing.T) {
@@ -17,7 +17,7 @@ func TestStreamingInsertError_Error(t *testing.T) {
 	err = org
 
 	var sierr *errbox.BigQueryStreamingInsertError
-	if !errors.As(err, &sierr) {
+	if !xerrors.As(err, &sierr) {
 		t.Error("err is not StreamingInsertError")
 	} else {
 		if e, g := org.InsertID, sierr.InsertID; e != g {
@@ -43,7 +43,7 @@ func TestStreamingInsertErrors_Error(t *testing.T) {
 	err = org
 
 	var sierr *errbox.BigQueryStreamingInsertErrors
-	if !errors.As(err, &sierr) {
+	if !xerrors.As(err, &sierr) {
 		t.Error("err is not StreamingInsertErrors")
 	} else {
 		if e, g := 2, len(sierr.Errors); e != g {
