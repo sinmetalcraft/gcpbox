@@ -10,7 +10,6 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/spanner"
-	bqbox "github.com/sinmetal/gcpbox/bigquery"
 	"golang.org/x/xerrors"
 	"google.golang.org/api/iterator"
 )
@@ -50,17 +49,16 @@ type QueryStatsParam struct {
 type QueryStatsCopyService struct {
 	queryStatsTopQueryTemplate *template.Template
 	Spanner                    *spanner.Client
-	BQBox                      *bqbox.BigQueryService
-	CacheService               StatsCacheService
+	BQ                         *bigquery.Client
 }
 
 // NewQueryStatsCopyService is QueryStatsCopyServiceを生成する
-func NewQueryStatsCopyService(ctx context.Context, bqboxService *bqbox.BigQueryService) (*QueryStatsCopyService, error) {
-	return NewQueryStatsCopyServiceWithSpannerClient(ctx, bqboxService, nil)
+func NewQueryStatsCopyService(ctx context.Context, bq *bigquery.Client) (*QueryStatsCopyService, error) {
+	return NewQueryStatsCopyServiceWithSpannerClient(ctx, bq, nil)
 }
 
 // NewQueryStatsCopyServiceWithSpannerClient is Statsを取得したいSpanner DBが1つしかないのであれば、Spanner Clientを設定して、QueryStatsCopyServiceを作成する
-func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqboxService *bqbox.BigQueryService, spannerClient *spanner.Client) (*QueryStatsCopyService, error) {
+func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bq *bigquery.Client, spannerClient *spanner.Client) (*QueryStatsCopyService, error) {
 	tmpl, err := template.New("getQueryStatsTopQuery").Parse(queryStatsTopMinute)
 	if err != nil {
 		return nil, err
@@ -69,13 +67,8 @@ func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bqboxService
 	return &QueryStatsCopyService{
 		queryStatsTopQueryTemplate: tmpl,
 		Spanner:                    spannerClient,
-		BQBox:                      bqboxService,
+		BQ:                         bq,
 	}, nil
-}
-
-// SetCacheService is Cacheを行うServiceを設定する
-func (s *QueryStatsCopyService) SetCacheService(cacheService StatsCacheService) {
-	s.CacheService = cacheService
 }
 
 type Database struct {
@@ -103,8 +96,9 @@ func SplitDatabaseName(database string) (*Database, error) {
 	}, nil
 }
 
+var _ bigquery.ValueSaver = &QueryStat{}
+
 type QueryStat struct {
-	InsertID          string    `spanner:"-"`
 	IntervalEnd       time.Time `spanner:"interval_end"` // End of the time interval that the included query executions occurred in.
 	Text              string    // SQL query text, truncated to approximately 64KB.
 	TextTruncated     bool      `spanner:"text_truncated"`      // Whether or not the query text was truncated.
@@ -117,18 +111,43 @@ type QueryStat struct {
 	AvgCPUSeconds     float64   `spanner:"avg_cpu_seconds"`     // Average number of seconds of CPU time Cloud Spanner spent on all operations to execute the query.
 }
 
-// ToInsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
-func (s *QueryStat) ToInsertID() string {
-	s.InsertID = fmt.Sprintf("GCPBOX_SpannerQueryStat-_-%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint)
-	return s.InsertID
+// Save is bigquery.ValueSaver interface
+func (s *QueryStat) Save() (map[string]bigquery.Value, string, error) {
+	insertID, err := s.InsertID()
+	if err != nil {
+		return nil, "", xerrors.Errorf("failed InsertID() : %w", err)
+	}
+	return map[string]bigquery.Value{
+		"interval_end":        s.IntervalEnd,
+		"text":                s.Text,
+		"text_truncated":      s.TextTruncated,
+		"text_fingerprint":    s.TextFingerprint,
+		"execution_count":     s.ExecuteCount,
+		"avg_latency_seconds": s.AvgLatencySeconds,
+		"avg_rows":            s.AvgRows,
+		"avg_bytes":           s.AvgBytes,
+		"avg_rows_scanned":    s.AvgRowsScanned,
+		"avg_cpu_seconds":     s.AvgCPUSeconds,
+	}, insertID, nil
+}
+
+// InsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
+func (s *QueryStat) InsertID() (string, error) {
+	if s.IntervalEnd.IsZero() {
+		return "", xerrors.New("IntervalEnd is required.")
+	}
+	if s.TextFingerprint == 0 {
+		return "", xerrors.New("TextFingerprint is required.")
+	}
+	return fmt.Sprintf("GCPBOX_SpannerQueryStat-_-%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint), nil
 }
 
 func (s *QueryStatsCopyService) Close() error {
 	if s.Spanner != nil {
 		s.Spanner.Close()
 	}
-	if s.BQBox != nil {
-		return s.BQBox.Close()
+	if s.BQ != nil {
+		return s.BQ.Close()
 	}
 
 	return nil
@@ -181,47 +200,28 @@ func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Conte
 
 // QueryStatsBigQueryTableSchema is BigQuery Table Schema
 var QueryStatsBigQueryTableSchema = bigquery.Schema{
-	{Name: "IntervalEnd", Required: true, Type: bigquery.TimestampFieldType},
-	{Name: "Text", Required: true, Type: bigquery.StringFieldType},
-	{Name: "TextTruncated", Required: true, Type: bigquery.BooleanFieldType},
-	{Name: "TextFingerprint", Required: true, Type: bigquery.IntegerFieldType},
-	{Name: "ExecuteCount", Required: true, Type: bigquery.IntegerFieldType},
-	{Name: "AvgLatencySeconds", Required: true, Type: bigquery.FloatFieldType},
-	{Name: "AvgRows", Required: true, Type: bigquery.FloatFieldType},
-	{Name: "AvgBytes", Required: true, Type: bigquery.FloatFieldType},
-	{Name: "AvgRowsScanned", Required: true, Type: bigquery.FloatFieldType},
-	{Name: "AvgCPUSeconds", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "interval_end", Required: true, Type: bigquery.TimestampFieldType},
+	{Name: "text", Required: true, Type: bigquery.StringFieldType},
+	{Name: "text_truncated", Required: true, Type: bigquery.BooleanFieldType},
+	{Name: "text_fingerprint", Required: true, Type: bigquery.IntegerFieldType},
+	{Name: "execution_count", Required: true, Type: bigquery.IntegerFieldType},
+	{Name: "avg_latency_seconds", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "avg_rows", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "avg_bytes", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "avg_rows_scanned", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "avg_cpu_seconds", Required: true, Type: bigquery.FloatFieldType},
 }
 
 // ToBigQuery is QueryStatsをBigQueryにStreamingInsertでInsertする
 func (s *QueryStatsCopyService) CreateTable(ctx context.Context, dataset *bigquery.Dataset, table string) error {
 
-	return s.BQBox.BQ.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
+	return s.BQ.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
 		Name:   table,
 		Schema: QueryStatsBigQueryTableSchema,
 		TimePartitioning: &bigquery.TimePartitioning{
 			Type: bigquery.DayPartitioningType,
 		},
 	})
-}
-
-// InsertQueryStatsToBigQuery is QueryStatsをBigQueryにStreamingInsertでInsertする
-// Errorがある場合、github.com/sinmetal/gcpbox/errors.StreamingInsertErrors が返ってくる
-func (s *QueryStatsCopyService) InsertQueryStatsToBigQuery(ctx context.Context, dataset *bigquery.Dataset, table string, qss []*QueryStat) error {
-	var sss []*bigquery.StructSaver
-	for _, qs := range qss {
-		insertID := qs.ToInsertID()
-		sss = append(sss, &bigquery.StructSaver{
-			Schema:   QueryStatsBigQueryTableSchema,
-			InsertID: insertID,
-			Struct:   qs,
-		})
-	}
-
-	if err := s.BQBox.Insert(ctx, dataset, table, sss); err != nil {
-		return err
-	}
-	return nil
 }
 
 // Copy is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
@@ -250,7 +250,7 @@ func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, datas
 	defer iter.Stop()
 
 	var insertCount int
-	var sss []*bigquery.StructSaver
+	var qss []*QueryStat
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
@@ -265,48 +265,20 @@ func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, datas
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
 
-		insertID := qs.ToInsertID()
-		if s.CacheService != nil {
-			if err := s.CacheService.CheckSpannerStats(ctx, insertID); err == nil {
-				if err := s.CacheService.SetSpannerStats(ctx, insertID, 24*time.Hour); err != nil {
-					// noop
-				}
-				continue
-			}
-		}
-		sss = append(sss, &bigquery.StructSaver{
-			Schema:   QueryStatsBigQueryTableSchema,
-			InsertID: insertID,
-			Struct:   qs,
-		})
-		if len(sss) > 99 {
-			if err := s.BQBox.Insert(ctx, dataset, bigQueryTable, sss); err != nil {
+		qss = append(qss, &qs)
+		if len(qss) > 99 {
+			if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, qss); err != nil {
 				return insertCount, xerrors.Errorf(": %w", err)
 			}
-			insertCount += len(sss)
-			sss = []*bigquery.StructSaver{}
-			if s.CacheService != nil {
-				for _, ss := range sss {
-					if err := s.CacheService.SetSpannerStats(ctx, ss.InsertID, 24*time.Hour); err != nil {
-						// noop
-					}
-				}
-			}
+			insertCount += len(qss)
+			qss = []*QueryStat{}
 		}
 	}
-	if len(sss) > 0 {
-		if err := s.BQBox.Insert(ctx, dataset, bigQueryTable, sss); err != nil {
+	if len(qss) > 0 {
+		if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, qss); err != nil {
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
-		insertCount += len(sss)
-		sss = []*bigquery.StructSaver{}
-		if s.CacheService != nil {
-			for _, ss := range sss {
-				if err := s.CacheService.SetSpannerStats(ctx, ss.InsertID, 24*time.Hour); err != nil {
-					// noop
-				}
-			}
-		}
+		insertCount += len(qss)
 	}
 
 	return insertCount, nil
