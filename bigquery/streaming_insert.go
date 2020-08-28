@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"cloud.google.com/go/bigquery"
-	errbox "github.com/sinmetal/gcpbox/errors"
 )
 
 type BigQueryService struct {
@@ -35,7 +34,7 @@ func (s *BigQueryService) Insert(ctx context.Context, dataset *bigquery.Dataset,
 	}
 
 	const size = 100
-	errResult := &errbox.BigQueryStreamingInsertErrors{}
+	errResult := &StreamingInsertErrors{}
 	wg := &sync.WaitGroup{}
 	for i := 0; i < len(sss); i += size {
 		end := i + size
@@ -47,7 +46,7 @@ func (s *BigQueryService) Insert(ctx context.Context, dataset *bigquery.Dataset,
 			defer wg.Done()
 			if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(table).Inserter().Put(ctx, list); err != nil {
 				for _, v := range list {
-					errResult.Append(&errbox.BigQueryStreamingInsertError{
+					errResult.Append(&StreamingInsertError{
 						InsertID: v.InsertID,
 						Err:      err,
 					})

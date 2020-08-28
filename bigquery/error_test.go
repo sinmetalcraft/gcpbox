@@ -1,22 +1,23 @@
-package errors_test
+package bigquery_test
 
 import (
 	"fmt"
 	"testing"
 
-	errbox "github.com/sinmetal/gcpbox/errors"
 	"golang.org/x/xerrors"
+
+	. "github.com/sinmetal/gcpbox/bigquery"
 )
 
 func TestStreamingInsertError_Error(t *testing.T) {
-	org := &errbox.BigQueryStreamingInsertError{
+	org := &StreamingInsertError{
 		InsertID: "sampleInsertID",
 		Err:      fmt.Errorf("hello sample error"),
 	}
 	var err error
 	err = org
 
-	var sierr *errbox.BigQueryStreamingInsertError
+	var sierr *StreamingInsertError
 	if !xerrors.As(err, &sierr) {
 		t.Error("err is not StreamingInsertError")
 	} else {
@@ -27,22 +28,22 @@ func TestStreamingInsertError_Error(t *testing.T) {
 }
 
 func TestStreamingInsertErrors_Error(t *testing.T) {
-	org1 := &errbox.BigQueryStreamingInsertError{
+	org1 := &StreamingInsertError{
 		InsertID: "sampleInsertID1",
 		Err:      fmt.Errorf("hello sample error 1"),
 	}
-	org2 := &errbox.BigQueryStreamingInsertError{
+	org2 := &StreamingInsertError{
 		InsertID: "sampleInsertID2",
 		Err:      fmt.Errorf("hello sample error 2"),
 	}
 
-	org := &errbox.BigQueryStreamingInsertErrors{}
+	org := &StreamingInsertErrors{}
 	org.Errors = append(org.Errors, org1, org2)
 
 	var err error
 	err = org
 
-	var sierr *errbox.BigQueryStreamingInsertErrors
+	var sierr *StreamingInsertErrors
 	if !xerrors.As(err, &sierr) {
 		t.Error("err is not StreamingInsertErrors")
 	} else {
@@ -59,8 +60,8 @@ InsertID:sampleInsertID2 : hello sample error 2
 }
 
 func TestBigQueryStreamingInsertErrors_Append(t *testing.T) {
-	errs := &errbox.BigQueryStreamingInsertErrors{}
-	errs.Append(&errbox.BigQueryStreamingInsertError{
+	errs := &StreamingInsertErrors{}
+	errs.Append(&StreamingInsertError{
 		InsertID: "sampleInsertID1",
 		Err:      fmt.Errorf("hello sample error 1"),
 	})
