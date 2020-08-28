@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	metadatabox "github.com/sinmetal/gcpbox/metadata"
+	"golang.org/x/xerrors"
 )
 
 const ProjectID = "sinmetal-ci"
@@ -57,12 +58,12 @@ func TestExtractionRegion(t *testing.T) {
 		name       string
 		metaZone   string
 		wantResult string
-		wantErr    metadatabox.ErrCode
+		wantErr    error
 	}{
-		{"normal", "projects/999999999999/zones/asia-northeast1-1", "asia-northeast1", 0},
-		{"invalid text pattern 1", "1", "", metadatabox.ErrInvalidArgumentCode},
-		{"invalid text pattern 2", "////", "", metadatabox.ErrInvalidArgumentCode},
-		{"empty", "", "", metadatabox.ErrInvalidArgumentCode},
+		{"normal", "projects/999999999999/zones/asia-northeast1-1", "asia-northeast1", nil},
+		{"invalid text pattern 1", "1", "", metadatabox.ErrInvalidArgument},
+		{"invalid text pattern 2", "////", "", metadatabox.ErrInvalidArgument},
+		{"empty", "", "", metadatabox.ErrInvalidArgument},
 	}
 
 	for _, tt := range cases {
@@ -70,7 +71,7 @@ func TestExtractionRegion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := metadatabox.ExtractionRegion(tt.metaZone)
 			if err != nil {
-				if !metadatabox.Is(err, tt.wantErr) {
+				if !xerrors.Is(err, tt.wantErr) {
 					t.Errorf("want error %v but got %v", tt.wantErr, err)
 				}
 				return
@@ -87,12 +88,12 @@ func TestExtractionZone(t *testing.T) {
 		name       string
 		metaZone   string
 		wantResult string
-		wantErr    metadatabox.ErrCode
+		wantErr    error
 	}{
-		{"normal", "projects/999999999999/zones/asia-northeast1-a", "asia-northeast1-a", 0},
-		{"invalid text pattern 1", "1", "1", 0},   // Zone名としてValidかがなんともいい難いので、そのまま返ってきちゃう
-		{"invalid text pattern 2", "////", "", 0}, // Zone名としてValidかがなんともいい難いので、そのまま返ってきちゃう
-		{"empty", "", "", metadatabox.ErrInvalidArgumentCode},
+		{"normal", "projects/999999999999/zones/asia-northeast1-a", "asia-northeast1-a", nil},
+		{"invalid text pattern 1", "1", "1", nil},   // Zone名としてValidかがなんともいい難いので、そのまま返ってきちゃう
+		{"invalid text pattern 2", "////", "", nil}, // Zone名としてValidかがなんともいい難いので、そのまま返ってきちゃう
+		{"empty", "", "", metadatabox.ErrInvalidArgument},
 	}
 
 	for _, tt := range cases {
@@ -100,7 +101,7 @@ func TestExtractionZone(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := metadatabox.ExtractionZone(tt.metaZone)
 			if err != nil {
-				if !metadatabox.Is(err, tt.wantErr) {
+				if !xerrors.Is(err, tt.wantErr) {
 					t.Errorf("want error %v but got %v", tt.wantErr, err)
 				}
 				return

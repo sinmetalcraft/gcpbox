@@ -39,7 +39,7 @@ func TestResourceManagerService_Folders(t *testing.T) {
 				}
 				var errPermissionDenied *Error
 				if xerrors.As(err, &errPermissionDenied) {
-					if errPermissionDenied.Target == "" {
+					if errPermissionDenied.KV["parent"] == "" {
 						t.Errorf("ErrPermissionDenied.Target is empty...")
 					}
 				}
@@ -120,8 +120,8 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 				}
 				var errPermissionDenied *Error
 				if xerrors.As(err, &errPermissionDenied) {
-					if errPermissionDenied.Target == "" {
-						t.Errorf("ErrPermissionDenied.Target is empty...")
+					if errPermissionDenied.KV["input_project"] == "" {
+						t.Errorf("ErrPermissionDenied.input_project is empty...")
 					}
 				}
 

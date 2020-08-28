@@ -32,15 +32,15 @@ func ProjectID() (string, error) {
 		if p != "" {
 			return p, nil
 		}
-		return "", errNotFound("project id environment valiable is not found. plz set $GOOGLE_CLOUD_PROJECT")
+		return "", NewErrNotFound("project id environment valiable is not found. plz set $GOOGLE_CLOUD_PROJECT", nil, nil)
 	}
 
 	projectID, err := metadata.ProjectID()
 	if err != nil {
-		return "", err
+		return "", xerrors.Errorf("failed get project id from metadata server: %w", err)
 	}
 	if projectID == "" {
-		return "", errNotFound("project id is not found")
+		return "", NewErrNotFound("project id is not found", nil, nil)
 	}
 	return projectID, nil
 }
@@ -117,11 +117,11 @@ func Zone() (string, error) {
 func ExtractionRegion(metaZone string) (string, error) {
 	l := strings.Split(string(metaZone), "/")
 	if len(l) < 1 {
-		return "", errInvalidArgument("projects/[NUMERIC_PROJECT_ID]/zones/[ZONE]", metaZone)
+		return "", NewErrInvalidArgument("required format : projects/[NUMERIC_PROJECT_ID]/zones/[ZONE]", map[string]interface{}{"input_argument": metaZone}, nil)
 	}
 	v := l[len(l)-1]
 	if len(v) < 3 {
-		return "", errInvalidArgument("projects/[NUMERIC_PROJECT_ID]/zones/[ZONE]", metaZone)
+		return "", NewErrInvalidArgument("required format : projects/[NUMERIC_PROJECT_ID]/zones/[ZONE]", map[string]interface{}{"input_argument": metaZone}, nil)
 	}
 	v = v[:len(v)-2]
 	return v, nil
@@ -131,7 +131,7 @@ func ExtractionRegion(metaZone string) (string, error) {
 func ExtractionZone(metaZone string) (string, error) {
 	l := strings.Split(string(metaZone), "/")
 	if len(l) < 1 {
-		return "", errInvalidArgument("projects/[NUMERIC_PROJECT_ID]/zones/[ZONE]", metaZone)
+		return "", NewErrInvalidArgument("required format : projects/[NUMERIC_PROJECT_ID]/zones/[ZONE]", map[string]interface{}{"input_argument": metaZone}, nil)
 	}
 	return l[len(l)-1], nil
 }

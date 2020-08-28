@@ -41,7 +41,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, p
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
-				return false, NewErrPermissionDenied(projectID, "failed Projects.GetIamPolicy", err)
+				return false, NewErrPermissionDenied("failed Projects.GetIamPolicy", map[string]interface{}{"input_project": projectID}, err)
 			}
 		}
 
@@ -298,7 +298,7 @@ func (s *ResourceManagerService) Folders(ctx context.Context, parent string) ([]
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
-				return nil, NewErrPermissionDenied(parent, "failed get folders", err)
+				return nil, NewErrPermissionDenied("failed get folders", map[string]interface{}{"parent": parent}, err)
 			}
 		}
 		return nil, xerrors.Errorf("failed get folders : %w", err)

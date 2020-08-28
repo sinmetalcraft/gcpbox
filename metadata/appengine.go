@@ -31,7 +31,7 @@ func AppEngineService() (string, error) {
 	if v != "" {
 		return v, nil
 	}
-	return "", errNotFound("AppEngine Service id environment valiable is not found. plz set $GAE_SERVICE")
+	return "", NewErrNotFound("AppEngine Service id environment valiable is not found. plz set $GAE_SERVICE", nil, nil)
 }
 
 // AppEngineVersion is return version id
@@ -42,7 +42,7 @@ func AppEngineVersion() (string, error) {
 	if v != "" {
 		return v, nil
 	}
-	return "", errNotFound("AppEngine Version id environment valiable is not found. plz set $GAE_VERSION")
+	return "", NewErrNotFound("AppEngine Version id environment valiable is not found. plz set $GAE_VERSION", nil, nil)
 }
 
 // AppEngineInstance is return version id
@@ -53,7 +53,7 @@ func AppEngineInstance() (string, error) {
 	if v != "" {
 		return v, nil
 	}
-	return "", errNotFound("AppEngine Instance id environment valiable is not found. plz set $GAE_INSTANCE")
+	return "", NewErrNotFound("AppEngine Instance id environment valiable is not found. plz set $GAE_INSTANCE", nil, nil)
 }
 
 // AppEngineRuntime is return runtime
@@ -64,7 +64,7 @@ func AppEngineRuntime() (string, error) {
 	if v != "" {
 		return v, nil
 	}
-	return "", errNotFound("AppEngine Runtime id environment valiable is not found. plz set $GAE_RUNTIME")
+	return "", NewErrNotFound("AppEngine Runtime id environment valiable is not found. plz set $GAE_RUNTIME", nil, nil)
 }
 
 // AppEngineMemoryMB is return MemoryMB
@@ -75,7 +75,7 @@ func AppEngineMemoryMB() (string, error) {
 	if v != "" {
 		return v, nil
 	}
-	return "", errNotFound("AppEngine MemoryMB id environment valiable is not found. plz set $GAE_MEMORY_MB")
+	return "", NewErrNotFound("AppEngine MemoryMB id environment valiable is not found. plz set $GAE_MEMORY_MB", nil, nil)
 }
 
 // AppEngineDeploymentID is return deployment id
@@ -86,7 +86,7 @@ func AppEngineDeploymentID() (string, error) {
 	if v != "" {
 		return v, nil
 	}
-	return "", errNotFound("AppEngine Deployment id environment valiable is not found. plz set $GAE_DEPLOYMENT_ID")
+	return "", NewErrNotFound("AppEngine Deployment id environment valiable is not found. plz set $GAE_DEPLOYMENT_ID", nil, nil)
 }
 
 // AppEngineEnv is return env
@@ -97,5 +97,5 @@ func AppEngineEnv() (string, error) {
 	if v != "" {
 		return v, nil
 	}
-	return "", errNotFound("AppEngine Deployment id environment valiable is not found. plz set $GAE_ENV")
+	return "", NewErrNotFound("AppEngine Deployment id environment valiable is not found. plz set $GAE_ENV", nil, nil)
 }
