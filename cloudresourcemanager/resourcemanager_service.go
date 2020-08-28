@@ -3,7 +3,6 @@ package cloudresourcemanager
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 
@@ -11,8 +10,6 @@ import (
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
 	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/googleapi"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // NewResourceManagerService is return ResourceManagerService
@@ -41,20 +38,14 @@ type IamMember struct {
 func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
 	p, err := s.crmv1.Projects.GetIamPolicy(projectID, &crmv1.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return false, fmt.Errorf("CloudResourceManager.Projects.GetIamPolicy response 404. projectID=%v,err=%v", projectID, err)
-		}
-		if status.Code(err) == codes.PermissionDenied {
-			return false, fmt.Errorf("CloudResourceManager.Projects.GetIamPolicy response 403. projectID=%v,roles=%+v,err=%v", projectID, roles, err)
-		}
-		v, ok := err.(*googleapi.Error)
-		if ok {
-			if v.Code == http.StatusForbidden {
-				return false, fmt.Errorf("CloudResourceManager.Projects.GetIamPolicy(Google APIs) response 403. projectID=%v,roles=%+v,err=%v", projectID, roles, err)
+		var errGoogleAPI *googleapi.Error
+		if xerrors.As(err, &errGoogleAPI) {
+			if errGoogleAPI.Code == http.StatusForbidden {
+				return false, NewErrPermissionDenied(projectID, "failed Projects.GetIamPolicy", err)
 			}
 		}
 
-		return false, xerrors.Errorf(": %w", err)
+		return false, xerrors.Errorf("failed Projects.GetIamPolicy: projectID=%s, : %w", projectID, err)
 	}
 	roleMap := map[string]bool{}
 	for _, role := range roles {
@@ -304,7 +295,13 @@ func (s *ResourceManagerService) Folders(ctx context.Context, parent string) ([]
 	var err error
 	folders, err = s.folders(ctx, parent, folders)
 	if err != nil {
-		return nil, err
+		var errGoogleAPI *googleapi.Error
+		if xerrors.As(err, &errGoogleAPI) {
+			if errGoogleAPI.Code == http.StatusForbidden {
+				return nil, NewErrPermissionDenied(parent, "failed get folders", err)
+			}
+		}
+		return nil, xerrors.Errorf("failed get folders : %w", err)
 	}
 	return folders, nil
 }
@@ -334,6 +331,7 @@ func (s *ResourceManagerService) folders(ctx context.Context, parent string, dst
 }
 
 // Projects is 指定したリソース以下のProject一覧を返す
+// 権限がない (存在しない) parentID を指定しても 空のList を返す
 func (s *ResourceManagerService) Projects(ctx context.Context, parentID string) ([]*Project, error) {
 	req := s.crmv1.Projects.List()
 	if len(parentID) > 0 {
@@ -362,7 +360,7 @@ func (s *ResourceManagerService) Projects(ctx context.Context, parentID string) 
 		}
 		return nil
 	}); err != nil {
-		log.Fatal(err)
+		return nil, xerrors.Errorf("failed get projects : %w", err)
 	}
 
 	return list, nil
