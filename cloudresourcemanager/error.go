@@ -1,4 +1,4 @@
-package metadata
+package cloudresourcemanager
 
 import (
 	"fmt"
@@ -6,17 +6,10 @@ import (
 	"golang.org/x/xerrors"
 )
 
-// ErrNotFound is 見つからなかった時に返す
-var ErrNotFound = &Error{
-	Code:    "NotFound",
-	Message: "not found",
-	KV:      map[string]interface{}{},
-}
-
-// ErrInvalidArgument is 引数がおかしい時に返す
-var ErrInvalidArgument = &Error{
-	Code:    "InvalidArgument",
-	Message: "invalid argument",
+// ErrPermissionDenied is 権限エラーの時に返す
+var ErrPermissionDenied = &Error{
+	Code:    "PermissionDenied",
+	Message: "permission denied",
 	KV:      map[string]interface{}{},
 }
 
@@ -50,20 +43,10 @@ func (e *Error) Unwrap() error {
 	return e.err
 }
 
-// NewErrNotFound is return ErrNotFound
-func NewErrNotFound(message string, kv map[string]interface{}, err error) error {
+// NewErrPermissionDenied is return ErrPermissionDenied
+func NewErrPermissionDenied(message string, kv map[string]interface{}, err error) error {
 	return &Error{
-		Code:    ErrNotFound.Code,
-		Message: message,
-		KV:      kv,
-		err:     err,
-	}
-}
-
-// NewErrInvalidArgument is return ErrInvalidArgument
-func NewErrInvalidArgument(message string, kv map[string]interface{}, err error) error {
-	return &Error{
-		Code:    ErrInvalidArgument.Code,
+		Code:    ErrPermissionDenied.Code,
 		Message: message,
 		KV:      kv,
 		err:     err,
