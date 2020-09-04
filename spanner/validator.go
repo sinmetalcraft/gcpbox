@@ -65,7 +65,7 @@ func ValidateDatabaseIDFormat(projectID string) bool {
 }
 
 func validateInstanceIDFirstRune(v rune) bool {
-	chars := []rune("abcdefghijklmnopqrstuvwxyz")
+	const chars = "abcdefghijklmnopqrstuvwxyz"
 	for _, c := range chars {
 		if c == v {
 			return true
@@ -75,7 +75,7 @@ func validateInstanceIDFirstRune(v rune) bool {
 }
 
 func validateInstanceIDRune(v rune) bool {
-	chars := []rune("abcdefghijklmnopqrstuvwxyz0123456789-")
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789-"
 	for _, c := range chars {
 		if c == v {
 			return true
@@ -85,7 +85,7 @@ func validateInstanceIDRune(v rune) bool {
 }
 
 func validateDatabaseIDFirstRune(v rune) bool {
-	chars := []rune("abcdefghijklmnopqrstuvwxyz")
+	const chars = "abcdefghijklmnopqrstuvwxyz"
 	for _, c := range chars {
 		if c == v {
 			return true
@@ -95,7 +95,7 @@ func validateDatabaseIDFirstRune(v rune) bool {
 }
 
 func validateDatabaseIDRune(v rune) bool {
-	chars := []rune("abcdefghijklmnopqrstuvwxyz0123456789_-")
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789_-"
 	for _, c := range chars {
 		if c == v {
 			return true
