@@ -35,7 +35,7 @@ func ValidateProjectIDFormat(projectID string) bool {
 }
 
 func validateProjectIDFirstRune(v rune) bool {
-	chars := []rune("abcdefghijklmnopqrstuvwxyz")
+	const chars = "abcdefghijklmnopqrstuvwxyz"
 	for _, c := range chars {
 		if c == v {
 			return true
@@ -45,7 +45,7 @@ func validateProjectIDFirstRune(v rune) bool {
 }
 
 func validateProjectIDRune(v rune) bool {
-	chars := []rune("abcdefghijklmnopqrstuvwxyz0123456789-")
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789-"
 	for _, c := range chars {
 		if c == v {
 			return true
