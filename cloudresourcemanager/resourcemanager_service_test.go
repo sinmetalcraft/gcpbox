@@ -88,6 +88,46 @@ func TestResourceManagerService_Projects(t *testing.T) {
 	}
 }
 
+func TestResourceManagerService_WalkProjects(t *testing.T) {
+	ctx := context.Background()
+
+	s := newResourceManagerService(t)
+
+	cases := []struct {
+		name         string
+		parentType   string
+		parentID     string
+		wantCountMin int
+		wantErr      error
+	}{
+		{"正常系 folder", "folders", "1050500061186", 2, nil},
+		{"正常系 organization", "organizations", "190932998497", 10, nil},
+		{"権限がないparent", "folders", "105058807061166", 0, ErrPermissionDenied},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := s.WalkProjects(ctx, tt.parentType, tt.parentID)
+			if tt.wantErr != nil {
+				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
+					t.Errorf("want error %T but got %T", e, g)
+				}
+				var errPermissionDenied *Error
+				if xerrors.As(err, &errPermissionDenied) {
+					if errPermissionDenied.KV["parent"] == "" {
+						t.Errorf("ErrPermissionDenied.Target is empty...")
+					}
+				}
+			} else {
+				if e, g := tt.wantCountMin, len(got); e > g {
+					t.Errorf("want %d but got %d", e, g)
+				}
+			}
+		})
+	}
+}
+
 // TestResourceManagerService_ExistsMemberInGCPProject_ExistsMember is Memberが存在するかのテスト
 func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 	ctx := context.Background()
