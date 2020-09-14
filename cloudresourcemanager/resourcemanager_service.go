@@ -290,6 +290,7 @@ type ResourceID struct {
 // Folders 指定した parent の下にあるすべてのFolderを返す
 // 階層構造は保持せずにフラットにすべてのFolderを返す
 // parent は `folders/{folder_id}` or `organizations/{org_id}` の形式で指定する
+// 対象のparentの権限がない場合、 ErrPermissionDenied を返す
 func (s *ResourceManagerService) Folders(ctx context.Context, parent string) ([]*Folder, error) {
 	var folders []*Folder
 	var err error
@@ -364,4 +365,41 @@ func (s *ResourceManagerService) Projects(ctx context.Context, parentID string) 
 	}
 
 	return list, nil
+}
+
+// WalkProjects is 指定したParent配下のすべてのProjectを返す
+// parentType : folders or organizations
+// 対象のparentの権限がない場合、 ErrPermissionDenied を返す
+func (s *ResourceManagerService) WalkProjects(ctx context.Context, parentType string, parentID string) ([]*Project, error) {
+	var projects []*Project
+
+	// 直下のProjectを取得
+	{
+		ps, err := s.Projects(ctx, parentID)
+		if err != nil {
+			return nil, xerrors.Errorf("failed get projects. parent=%s: %w", parentID, err)
+		}
+
+		projects = append(projects, ps...)
+	}
+
+	// 配下の全Folderを取得して、その中のProjectを全部引っ張ってくる
+	folders, err := s.Folders(ctx, fmt.Sprintf("%s/%s", parentType, parentID))
+	if err != nil {
+		return nil, xerrors.Errorf("failed get folders. parent=%s: %w", parentID, err)
+	}
+
+	for _, folder := range folders {
+		fn := strings.Split(folder.Name, "/")
+		if len(fn) < 2 {
+			return nil, xerrors.Errorf("invalid folder.Name. name=%s", folder.Name)
+		}
+		ps, err := s.Projects(ctx, fn[1])
+		if err != nil {
+			return nil, xerrors.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
+		}
+		projects = append(projects, ps...)
+	}
+
+	return projects, nil
 }
