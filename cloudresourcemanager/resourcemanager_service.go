@@ -367,10 +367,10 @@ func (s *ResourceManagerService) Projects(ctx context.Context, parentID string) 
 	return list, nil
 }
 
-// WalkProjects is 指定したParent配下のすべてのProjectを返す
+// GetRelatedProject is 指定したParent配下のすべてのProjectを返す
 // parentType : folders or organizations
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
-func (s *ResourceManagerService) WalkProjects(ctx context.Context, parentType string, parentID string) ([]*Project, error) {
+func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parentType string, parentID string) ([]*Project, error) {
 	var projects []*Project
 
 	// 直下のProjectを取得
