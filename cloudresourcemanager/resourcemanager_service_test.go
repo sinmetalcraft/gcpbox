@@ -88,7 +88,7 @@ func TestResourceManagerService_Projects(t *testing.T) {
 	}
 }
 
-func TestResourceManagerService_WalkProjects(t *testing.T) {
+func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 	ctx := context.Background()
 
 	s := newResourceManagerService(t)
@@ -108,7 +108,7 @@ func TestResourceManagerService_WalkProjects(t *testing.T) {
 	for _, tt := range cases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.WalkProjects(ctx, tt.parentType, tt.parentID)
+			got, err := s.GetRelatedProject(ctx, tt.parentType, tt.parentID)
 			if tt.wantErr != nil {
 				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
 					t.Errorf("want error %T but got %T", e, g)
