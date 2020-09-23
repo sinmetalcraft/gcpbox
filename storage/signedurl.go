@@ -43,7 +43,7 @@ func NewStorageSignedURLService(ctx context.Context, serviceAccountName string, 
 // contentLength is optional
 // contentLengthを指定すると、HeaderにContent-Lengthが追加される
 func (s *StorageSignedURLService) CreatePutObjectURL(ctx context.Context, bucket string, object string, contentType string, expires time.Time) (string, error) {
-	u, err := s.createSignedURL(ctx, bucket, object, http.MethodPut, contentType, []string{}, url.Values{}, expires)
+	u, err := s.CreateSignedURL(ctx, bucket, object, http.MethodPut, contentType, []string{}, url.Values{}, expires)
 	if err != nil {
 		return "", xerrors.Errorf("failed CreatePutObjectURL: %w", err)
 	}
@@ -83,14 +83,15 @@ func (s *StorageSignedURLService) CreateDownloadURL(ctx context.Context, bucket 
 			qp.Set("response-content-type", param.DownloadContentType)
 		}
 	}
-	u, err := s.createSignedURL(ctx, bucket, object, http.MethodGet, "", []string{}, qp, expires)
+	u, err := s.CreateSignedURL(ctx, bucket, object, http.MethodGet, "", []string{}, qp, expires)
 	if err != nil {
 		return "", xerrors.Errorf("failed CreateDownloadURL: %w", err)
 	}
 	return u, nil
 }
 
-func (s *StorageSignedURLService) createSignedURL(ctx context.Context, bucket string, object string, method string, contentType string, headers []string, queryParameters url.Values, expires time.Time) (string, error) {
+// CreateSignedURL is 便利そうなレイヤーを挟まず、まるっと全部指定してSigned URLを生成する
+func (s *StorageSignedURLService) CreateSignedURL(ctx context.Context, bucket string, object string, method string, contentType string, headers []string, queryParameters url.Values, expires time.Time) (string, error) {
 	opt := &storage.SignedURLOptions{
 		GoogleAccessID:  s.ServiceAccountName,
 		Method:          method,
