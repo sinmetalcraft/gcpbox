@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
@@ -16,8 +17,7 @@ import (
 
 // StorageSignedURLService is Storage Signed URL Util Service
 type StorageSignedURLService struct {
-	ServiceAccountName   string
-	ServiceAccountID     string
+	ServiceAccountEmail  string
 	IAMService           *iam.Service
 	IAMCredentialsClient *credentials.IamCredentialsClient
 }
@@ -25,14 +25,16 @@ type StorageSignedURLService struct {
 // NewStorageSignedURLService is StorageServiceを生成する
 //
 // 利用するServiceAccountの roles/iam.serviceAccountTokenCreator https://cloud.google.com/iam/docs/service-accounts?hl=en#the_service_account_token_creator_role を持っている必要がある
-// serviceAccountName is SignedURLを発行するServiceAccountEmail
-// serviceAccountID is serviceAccountNameに指定したものと同じServiceAccountのID。format "projects/%s/serviceAccounts/%s"。
+// serviceAccountEmail is SignedURLを発行するServiceAccountEmail
 // iamService is iamService
 // iamCredentialsClient is iamCredentialsClient
-func NewStorageSignedURLService(ctx context.Context, serviceAccountName string, serviceAccountID string, iamService *iam.Service, iamCredentialsClient *credentials.IamCredentialsClient) (*StorageSignedURLService, error) {
+func NewStorageSignedURLService(ctx context.Context, serviceAccountEmail string, iamService *iam.Service, iamCredentialsClient *credentials.IamCredentialsClient) (*StorageSignedURLService, error) {
+	// だいたい `@` より前の値だけを入れてしまうケースが多いので、とりあえず `@` が入ってるかだけチェックしている
+	if !strings.Contains(serviceAccountEmail, "@") {
+		return nil, NewErrInvalidFormat("invalid ServiceAccountEmail.", map[string]interface{}{"serviceAccountEmail": serviceAccountEmail}, nil)
+	}
 	return &StorageSignedURLService{
-		ServiceAccountName:   serviceAccountName,
-		ServiceAccountID:     serviceAccountID,
+		ServiceAccountEmail:  serviceAccountEmail,
 		IAMService:           iamService,
 		IAMCredentialsClient: iamCredentialsClient,
 	}, nil
@@ -93,7 +95,7 @@ func (s *StorageSignedURLService) CreateDownloadURL(ctx context.Context, bucket 
 // CreateSignedURL is 便利そうなレイヤーを挟まず、まるっと全部指定してSigned URLを生成する
 func (s *StorageSignedURLService) CreateSignedURL(ctx context.Context, bucket string, object string, method string, contentType string, headers []string, queryParameters url.Values, expires time.Time) (string, error) {
 	opt := &storage.SignedURLOptions{
-		GoogleAccessID:  s.ServiceAccountName,
+		GoogleAccessID:  s.ServiceAccountEmail,
 		Method:          method,
 		Expires:         expires,
 		ContentType:     contentType,
@@ -102,7 +104,7 @@ func (s *StorageSignedURLService) CreateSignedURL(ctx context.Context, bucket st
 		Scheme:          storage.SigningSchemeV4,
 		SignBytes: func(b []byte) ([]byte, error) {
 			req := &credentialspb.SignBlobRequest{
-				Name:    fmt.Sprintf("projects/-/serviceAccounts/%s", s.ServiceAccountName),
+				Name:    fmt.Sprintf("projects/-/serviceAccounts/%s", s.ServiceAccountEmail),
 				Payload: b,
 			}
 			resp, err := s.IAMCredentialsClient.SignBlob(ctx, req)
@@ -114,7 +116,7 @@ func (s *StorageSignedURLService) CreateSignedURL(ctx context.Context, bucket st
 	}
 	u, err := storage.SignedURL(bucket, object, opt)
 	if err != nil {
-		return "", xerrors.Errorf("failed createSignedURL: saName=%s,saID=%s,bucket=%s,object=%s : %w", s.ServiceAccountName, s.ServiceAccountID, bucket, object, err)
+		return "", xerrors.Errorf("failed createSignedURL: sa=%s,bucket=%s,object=%s : %w", s.ServiceAccountEmail, bucket, object, err)
 	}
 	return u, nil
 }

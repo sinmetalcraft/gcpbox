@@ -105,8 +105,7 @@ func newStorageSignedURLService(t *testing.T) *StorageSignedURLService {
 
 	const projectID = "sinmetal-ci"
 	const sa = "signedurl@sinmetal-ci.iam.gserviceaccount.com"
-	saID := fmt.Sprintf("projects/%s/serviceAccounts/%s", projectID, sa)
-	s, err := NewStorageSignedURLService(ctx, sa, saID, iamService, iamCredentialsClient)
+	s, err := NewStorageSignedURLService(ctx, sa, iamService, iamCredentialsClient)
 	if err != nil {
 		t.Fatal(err)
 	}
