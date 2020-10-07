@@ -49,6 +49,10 @@ func TestServiceUsageService_SetState(t *testing.T) {
 			t.Logf("not found target %+v\n", v)
 			continue
 		}
+		if v.Target.State == serviceusage.StateDisabled {
+			// Disableにするのは、Resourceが残ってたりするとエラーになるので、やめておく
+			continue
+		}
 		if err := sus.SetState(ctx, v.Base.Name, v.Target.State); err != nil {
 			t.Fatal(err)
 		}
