@@ -14,7 +14,7 @@ import (
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
 	"google.golang.org/api/iam/v1"
 
-	. "github.com/sinmetal/gcpbox/storage"
+	. "github.com/sinmetalcraft/gcpbox/storage"
 )
 
 const testBucket = "sinmetal-ci-signed-url"

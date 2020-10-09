@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/sinmetal/gcpbox/serviceusage"
+	"github.com/sinmetalcraft/gcpbox/serviceusage"
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
 	orgsus "google.golang.org/api/serviceusage/v1"
 )

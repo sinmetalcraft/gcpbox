@@ -6,7 +6,7 @@ import (
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 
-	. "github.com/sinmetal/gcpbox/cloudtasks/appengine"
+	. "github.com/sinmetalcraft/gcpbox/cloudtasks/appengine"
 )
 
 type Body struct {

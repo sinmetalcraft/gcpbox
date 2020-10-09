@@ -8,7 +8,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 
-	. "github.com/sinmetal/gcpbox/bigquery"
+	. "github.com/sinmetalcraft/gcpbox/bigquery"
 )
 
 var SampleTableSchema = bigquery.Schema{

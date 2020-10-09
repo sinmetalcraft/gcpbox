@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	iapbox "github.com/sinmetal/gcpbox/iap/appengine"
+	iapbox "github.com/sinmetalcraft/gcpbox/iap/appengine"
 )
 
 func TestCurrentUserWithContext(t *testing.T) {
