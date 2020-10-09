@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"testing"
 
-	crmbox "github.com/sinmetal/gcpbox/cloudresourcemanager"
-	iapbox "github.com/sinmetal/gcpbox/iap"
+	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager"
+	iapbox "github.com/sinmetalcraft/gcpbox/iap"
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
 	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
 )

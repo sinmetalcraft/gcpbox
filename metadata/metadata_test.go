@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	metadatabox "github.com/sinmetal/gcpbox/metadata"
+	metadatabox "github.com/sinmetalcraft/gcpbox/metadata"
 	"golang.org/x/xerrors"
 )
 

@@ -12,7 +12,7 @@ import (
 	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/googleapi"
 
-	. "github.com/sinmetal/gcpbox/cloudresourcemanager"
+	. "github.com/sinmetalcraft/gcpbox/cloudresourcemanager"
 )
 
 func TestResourceManagerService_Folders(t *testing.T) {

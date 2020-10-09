@@ -3,7 +3,7 @@ package spanner_test
 import (
 	"testing"
 
-	spabox "github.com/sinmetal/gcpbox/spanner"
+	spabox "github.com/sinmetalcraft/gcpbox/spanner"
 )
 
 func TestConvertQueryWithStats(t *testing.T) {

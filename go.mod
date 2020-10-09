@@ -1,4 +1,4 @@
-module github.com/sinmetal/gcpbox
+module github.com/sinmetalcraft/gcpbox
 
 go 1.14
 

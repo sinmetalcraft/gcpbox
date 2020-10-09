@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sinmetal/gcpbox/cloudresourcemanager"
-	"github.com/sinmetal/gcpbox/metadata"
+	"github.com/sinmetalcraft/gcpbox/cloudresourcemanager"
+	"github.com/sinmetalcraft/gcpbox/metadata"
 )
 
 const (

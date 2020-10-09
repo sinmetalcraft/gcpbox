@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/xerrors"
 
-	. "github.com/sinmetal/gcpbox/bigquery"
+	. "github.com/sinmetalcraft/gcpbox/bigquery"
 )
 
 func TestStreamingInsertError_Error(t *testing.T) {
