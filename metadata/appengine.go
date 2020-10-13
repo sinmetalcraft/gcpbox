@@ -23,6 +23,17 @@ const AppEngineDeploymentIDKey = "GAE_DEPLOYMENT_ID"
 // AppEngineEnvKey is App Engine Env Env Key
 const AppEngineEnvKey = "GAE_ENV"
 
+// OnGAE is GAE上で動いているかどうかを返す
+// GAE用の環境変数があるかどうかを見てるだけなので、偽装可能
+// 実際のGAEで動いているかどうかを判断したい場合、OnGCP()も同時に呼ぶといいだろう
+func OnGAE() bool {
+	_, err := AppEngineService()
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 // AppEngineService is return service id
 // The service name specified in your app.yaml file. If no service name is specified, it is set to default.
 // https://cloud.google.com/appengine/docs/standard/go/runtime#environment_variables
