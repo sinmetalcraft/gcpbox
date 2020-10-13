@@ -69,18 +69,6 @@ func TestServiceAccountName(t *testing.T) {
 	}
 }
 
-func TestHostname(t *testing.T) {
-	setTestEnvValue(t)
-
-	hostname, err := metadatabox.Hostname()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if e, g := Hostname, hostname; e != g {
-		t.Errorf("want hostname %s but got %s", e, g)
-	}
-}
-
 func TestExtractionRegion(t *testing.T) {
 	cases := []struct {
 		name       string
