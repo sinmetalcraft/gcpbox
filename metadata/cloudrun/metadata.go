@@ -1,3 +1,5 @@
+// cloudrun is Cloud Run 固有のmetadataを扱う
+// https://cloud.google.com/run/docs/reference/container-contract#env-vars
 package cloudrun
 
 import (

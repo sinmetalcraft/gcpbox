@@ -1,3 +1,5 @@
+// appengine is App Engine 固有のmetadataを扱う
+// https://cloud.google.com/appengine/docs/standard/go/runtime#environment_variables
 package appengine
 
 import (
