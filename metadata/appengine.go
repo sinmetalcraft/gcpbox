@@ -24,6 +24,8 @@ const AppEngineDeploymentIDKey = "GAE_DEPLOYMENT_ID"
 const AppEngineEnvKey = "GAE_ENV"
 
 // OnGAE is GAE上で動いているかどうかを返す
+// GAE用の環境変数があるかどうかを見てるだけなので、偽装可能
+// 実際のGAEで動いているかどうかを判断したい場合、OnGCP()も同時に呼ぶといいだろう
 func OnGAE() bool {
 	_, err := AppEngineService()
 	if err != nil {
