@@ -10,6 +10,7 @@ import (
 )
 
 const ProjectID = "sinmetal-ci"
+const NumericProjectID = "401580979819"
 const ServiceAccountEmail = "401580979819@cloudbuild.gserviceaccount.com"
 
 func TestOnGCP(t *testing.T) {
@@ -26,6 +27,18 @@ func TestGetProjectID(t *testing.T) {
 	}
 	if e, g := ProjectID, p; e != g {
 		t.Errorf("want project id %s but got %s", e, g)
+	}
+}
+
+func TestNumericProjectID(t *testing.T) {
+	setTestEnvValue(t)
+
+	p, err := metadatabox.NumericProjectID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e, g := NumericProjectID, p; e != g {
+		t.Errorf("want numeric project id %s but got %s", e, g)
 	}
 }
 
@@ -116,6 +129,9 @@ func TestExtractionZone(t *testing.T) {
 func setTestEnvValue(t *testing.T) {
 	if !metadatabox.OnGCP() {
 		if err := os.Setenv("GOOGLE_CLOUD_PROJECT", ProjectID); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Setenv("NUMERIC_GOOGLE_CLOUD_PROJECT", NumericProjectID); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Setenv("GCLOUD_SERVICE_ACCOUNT", ServiceAccountEmail); err != nil {

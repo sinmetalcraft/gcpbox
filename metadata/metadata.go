@@ -45,6 +45,23 @@ func ProjectID() (string, error) {
 	return projectID, nil
 }
 
+// NumericProjectID is Return current Numeric GCP ProjectID
+// GCP上で動いている場合は、Project Metadataから取得し、そうでなければ、環境変数から取得する
+func NumericProjectID() (string, error) {
+	if !OnGCP() {
+		p := os.Getenv("NUMERIC_GOOGLE_CLOUD_PROJECT")
+		if p != "" {
+			return p, nil
+		}
+		return "", NewErrNotFound("numeric project id environment valiable is not found. plz set $NUMERIC_GOOGLE_CLOUD_PROJECT", nil, nil)
+	}
+	numericProjectID, err := metadata.NumericProjectID()
+	if err != nil {
+		return "", xerrors.Errorf("failed get numeric project id from metadata server: %w", err)
+	}
+	return numericProjectID, nil
+}
+
 // ServiceAccountEmail is Return current Service Account Email
 // GCP上で動いている場合は、Metadataから取得し、そうでなければ、環境変数から取得する
 func ServiceAccountEmail() (string, error) {
