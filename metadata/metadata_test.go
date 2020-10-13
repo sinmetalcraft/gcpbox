@@ -9,9 +9,12 @@ import (
 	"golang.org/x/xerrors"
 )
 
-const ProjectID = "sinmetal-ci"
-const NumericProjectID = "401580979819"
-const ServiceAccountEmail = "401580979819@cloudbuild.gserviceaccount.com"
+const (
+	ProjectID           = "sinmetal-ci"
+	NumericProjectID    = "401580979819"
+	ServiceAccountEmail = "401580979819@cloudbuild.gserviceaccount.com"
+	Hostname            = "hogeHost"
+)
 
 func TestOnGCP(t *testing.T) {
 	v := metadatabox.OnGCP()
@@ -63,6 +66,18 @@ func TestServiceAccountName(t *testing.T) {
 	}
 	if e, g := "401580979819", saName; e != g {
 		t.Errorf("want service account name %s but got %s", e, g)
+	}
+}
+
+func TestHostname(t *testing.T) {
+	setTestEnvValue(t)
+
+	hostname, err := metadatabox.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e, g := Hostname, hostname; e != g {
+		t.Errorf("want hostname %s but got %s", e, g)
 	}
 }
 
@@ -135,6 +150,9 @@ func setTestEnvValue(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := os.Setenv("GCLOUD_SERVICE_ACCOUNT", ServiceAccountEmail); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Setenv("HOSTNAME", Hostname); err != nil {
 			t.Fatal(err)
 		}
 	}

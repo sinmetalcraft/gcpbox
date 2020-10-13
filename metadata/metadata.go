@@ -104,6 +104,18 @@ func ServiceAccountID() (string, error) {
 	return fmt.Sprintf("projects/%s/serviceAccounts/%s", pID, sa), nil
 }
 
+// Hostname is Return hostname
+func Hostname() (string, error) {
+	if !OnGCP() {
+		return os.Getenv("HOSTNAME"), nil
+	}
+	hostname, err := metadata.Hostname()
+	if err != nil {
+		return "", err
+	}
+	return hostname, nil
+}
+
 // Region is Appが動いているRegionを取得する
 func Region() (string, error) {
 	if !metadata.OnGCE() {
