@@ -23,7 +23,7 @@ func OnGCP() bool {
 // ProjectID is Return current GCP ProjectID
 // GCP上で動いている場合は、Project Metadataから取得し、そうでなければ、環境変数から取得する
 func ProjectID() (string, error) {
-	if !metadata.OnGCE() {
+	if !OnGCP() {
 		p := os.Getenv("GOOGLE_CLOUD_PROJECT")
 		if p != "" {
 			return p, nil
@@ -65,7 +65,7 @@ func NumericProjectID() (string, error) {
 // ServiceAccountEmail is Return current Service Account Email
 // GCP上で動いている場合は、Metadataから取得し、そうでなければ、環境変数から取得する
 func ServiceAccountEmail() (string, error) {
-	if !metadata.OnGCE() {
+	if !OnGCP() {
 		return os.Getenv("GCLOUD_SERVICE_ACCOUNT"), nil
 	}
 	sa, err := getMetadata("service-accounts/default/email")
@@ -118,7 +118,7 @@ func Hostname() (string, error) {
 
 // Region is Appが動いているRegionを取得する
 func Region() (string, error) {
-	if !metadata.OnGCE() {
+	if !OnGCP() {
 		return os.Getenv("INSTANCE_REGION"), nil
 	}
 	zone, err := getMetadata("zone")
@@ -131,7 +131,7 @@ func Region() (string, error) {
 
 // Zone is Appが動いているZoneを取得する
 func Zone() (string, error) {
-	if !metadata.OnGCE() {
+	if !OnGCP() {
 		return os.Getenv("INSTANCE_ZONE"), nil
 	}
 	zone, err := getMetadata("zone")
@@ -168,7 +168,7 @@ func ExtractionZone(metaZone string) (string, error) {
 // GetInstanceAttribute is Instance Metadataを取得する
 // GCP以外で動いている時は、環境変数を取得する
 func GetInstanceAttribute(key string) (string, error) {
-	if !metadata.OnGCE() {
+	if !OnGCP() {
 		return os.Getenv(fmt.Sprintf("INSTANCE_%s", key)), nil
 	}
 
@@ -182,7 +182,7 @@ func GetInstanceAttribute(key string) (string, error) {
 // GetProjectAttribute is Project Metadataを取得する
 // GCP以外で動いている時は、環境変数を取得する
 func GetProjectAttribute(key string) (string, error) {
-	if !metadata.OnGCE() {
+	if !OnGCP() {
 		return os.Getenv(fmt.Sprintf("PROJECT_%s", key)), nil
 	}
 
