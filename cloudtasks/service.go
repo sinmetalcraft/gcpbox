@@ -8,6 +8,7 @@ import (
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/k0kubun/pp"
 	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -62,6 +63,7 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string,
 		sec := ms / 1000
 		taskReq.Task.DispatchDeadline = &durationpb.Duration{Seconds: sec}
 	}
+	pp.Println(taskReq)
 	return s.taskClient.CreateTask(ctx, taskReq)
 }
 
