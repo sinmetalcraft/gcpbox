@@ -25,7 +25,7 @@ func TestService_CreateJsonPostTask(t *testing.T) {
 
 	const runHandlerUri = "https://gcpboxtest-73zry4yfvq-an.a.run.app/cloudtasks/run/json-post-task"
 	taskName, err := s.CreateJsonPostTask(ctx, queue, &tasksbox.JsonPostTask{
-		Audience:    runHandlerUri,
+		Audience:    "", // Cloud Run Invoker に投げる時は空っぽ
 		RelativeUri: runHandlerUri,
 		Body: &Body{
 			Content: "Hello JsonPostTask",
