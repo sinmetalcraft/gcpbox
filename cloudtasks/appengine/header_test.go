@@ -33,6 +33,7 @@ func TestGetHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	r.Header.Set("X-Google-Internal-Skipadmincheck", "true")
 	r.Header.Set("X-Appengine-Taskname", "hoge")
 	r.Header.Set("X-Appengine-Tasketa", "1589978096.945286")
 

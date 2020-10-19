@@ -37,6 +37,9 @@ const (
 
 	// AppEngineFailFast Header Key
 	AppEngineFailFast = "X-AppEngine-FailFast"
+
+	// GoogleInternalSkipAdminCheck Header Key
+	GoogleInternalSkipAdminCheck = "X-Google-Internal-Skipadmincheck"
 )
 
 // Header is App Engine task handlers
@@ -85,11 +88,14 @@ type Header struct {
 func GetHeader(r *http.Request) (*Header, error) {
 	var ret Header
 
-	v := r.Header.Get(AppEngineTaskName)
+	v := r.Header.Get(GoogleInternalSkipAdminCheck)
+	if v != "true" {
+		return nil, ErrNotFoundHeader
+	}
+
+	v = r.Header.Get(AppEngineTaskName)
 	if len(v) > 0 {
 		ret.TaskName = v
-	} else {
-		return nil, ErrNotFoundHeader
 	}
 
 	v = r.Header.Get(AppEngineQueueName)
