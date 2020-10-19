@@ -22,8 +22,11 @@ func TestService_CreateJsonPostTask(t *testing.T) {
 	type Body struct {
 		Content string
 	}
+
+	const runHandlerUri = "https://gcpboxtest-73zry4yfvq-an.a.run.app/cloudtasks/run/json-post-task"
 	taskName, err := s.CreateJsonPostTask(ctx, queue, &tasksbox.JsonPostTask{
-		RelativeUri: "",
+		Audience:    runHandlerUri,
+		RelativeUri: runHandlerUri,
 		Body: &Body{
 			Content: "Hello JsonPostTask",
 		},
