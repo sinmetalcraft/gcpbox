@@ -7,6 +7,7 @@ import (
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -40,14 +41,21 @@ func (q *Queue) Parent() string {
 
 // CreateTask is add to task
 // 一番 Primitive なやつ
-func (s *Service) CreateTask(ctx context.Context, queue *Queue, req *taskspb.HttpRequest, deadline time.Duration) (*taskspb.Task, error) {
+func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string, req *taskspb.HttpRequest, scheduledTime time.Time, deadline time.Duration) (*taskspb.Task, error) {
 	taskReq := &taskspb.CreateTaskRequest{
 		Parent: queue.Parent(),
 		Task: &taskspb.Task{
+			Name: taskName,
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: req,
 			},
 		},
+	}
+	if !scheduledTime.IsZero() {
+		taskReq.Task.ScheduleTime = &timestamp.Timestamp{
+			Seconds: scheduledTime.Unix(),
+			Nanos:   0,
+		}
 	}
 	if deadline.Milliseconds() > 0 {
 		ms := deadline.Milliseconds()
@@ -70,6 +78,9 @@ type JsonPostTask struct {
 	// Task が到達する Handler の URL
 	RelativeUri string
 
+	// ScheduledTime is estimated time of arrival
+	ScheduledTime time.Time
+
 	// HandlerのDeadline
 	// default は 10min 最長は 30min
 	Deadline time.Duration
@@ -77,6 +88,12 @@ type JsonPostTask struct {
 	// Task Body
 	// 中で JSON に変換する
 	Body interface{}
+
+	// Name is Task Name
+	// optional
+	// Task の重複を抑制するために指定するTaskのName
+	// 未指定の場合は自動的に設定される
+	Name string
 }
 
 // CreateJsonPostTask is BodyにJsonを入れるTaskを作る
@@ -85,7 +102,7 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 	if err != nil {
 		return "", xerrors.Errorf("failed json.Marshal(). body=%+v : %w", task.Body, err)
 	}
-	got, err := s.CreateTask(ctx, queue, &taskspb.HttpRequest{
+	got, err := s.CreateTask(ctx, queue, task.Name, &taskspb.HttpRequest{
 		Url:        task.RelativeUri,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 		HttpMethod: taskspb.HttpMethod_POST,
@@ -96,7 +113,7 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 				Audience:            task.Audience,
 			},
 		},
-	}, task.Deadline)
+	}, task.ScheduledTime, task.Deadline)
 	if err != nil {
 		return "", xerrors.Errorf("failed CreateJsonPostTask(). queue=%+v, body=%+v : %w", queue, task.Body, err)
 	}
@@ -119,14 +136,23 @@ type GetTask struct {
 	// Task が到達する Handler の URL
 	RelativeUri string
 
+	// ScheduledTime is estimated time of arrival
+	ScheduledTime time.Time
+
 	// HandlerのDeadline
 	// default は 10min 最長は 30min
 	Deadline time.Duration
+
+	// Name is Task Name
+	// optional
+	// Task の重複を抑制するために指定するTaskのName
+	// 未指定の場合は自動的に設定される
+	Name string
 }
 
 // CreateGetTask is Get Request 用の Task を作る
 func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask) (string, error) {
-	got, err := s.CreateTask(ctx, queue, &taskspb.HttpRequest{
+	got, err := s.CreateTask(ctx, queue, task.Name, &taskspb.HttpRequest{
 		Url:        task.RelativeUri,
 		Headers:    task.Headers,
 		HttpMethod: taskspb.HttpMethod_GET,
@@ -136,7 +162,7 @@ func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask
 				Audience:            task.Audience,
 			},
 		},
-	}, task.Deadline)
+	}, task.ScheduledTime, task.Deadline)
 	if err != nil {
 		return "", xerrors.Errorf("failed CreateJsonPostTask(). queue=%+v, url=%s : %w", queue, task.RelativeUri, err)
 	}

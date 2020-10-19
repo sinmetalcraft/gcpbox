@@ -41,6 +41,31 @@ func TestService_CreateJsonPostTask(t *testing.T) {
 	}
 }
 
+func TestService_CreateGetTask(t *testing.T) {
+	ctx := context.Background()
+
+	s := newService(t)
+
+	queue := &tasksbox.Queue{
+		ProjectID: "sinmetal-ci",
+		Region:    "asia-northeast1",
+		Name:      "gcpboxtest",
+	}
+
+	const runHandlerUri = "https://gcpboxtest-73zry4yfvq-an.a.run.app/cloudtasks/run/json-post-task"
+	taskName, err := s.CreateGetTask(ctx, queue, &tasksbox.GetTask{
+		Audience:    "", // Cloud Run Invoker に投げる時は空っぽ
+		RelativeUri: runHandlerUri,
+		Deadline:    time.Duration(30 * time.Minute),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(taskName) < 1 {
+		t.Error("task name is empty")
+	}
+}
+
 func newService(t *testing.T) *tasksbox.Service {
 	ctx := context.Background()
 

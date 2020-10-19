@@ -8,6 +8,7 @@ require (
 	cloud.google.com/go/spanner v1.8.0
 	cloud.google.com/go/storage v1.10.0
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13
+	github.com/golang/protobuf v1.4.2
 	github.com/google/go-cmp v0.5.1
 	golang.org/x/sys v0.0.0-20200803210538-64077c9b5642 // indirect
 	golang.org/x/tools v0.0.0-20200804011535-6c149bb5ef0d // indirect
