@@ -7,7 +7,6 @@ import (
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks"
-	metadatabox "github.com/sinmetalcraft/gcpbox/metadata"
 )
 
 func TestService_CreateJsonPostTask(t *testing.T) {
@@ -74,11 +73,8 @@ func newService(t *testing.T) *tasksbox.Service {
 		t.Fatal(err)
 	}
 
-	sa, err := metadatabox.ServiceAccountEmail()
-	if err != nil {
-		t.Fatal(err)
-	}
-	s, err := tasksbox.NewService(ctx, taskClient, sa)
+	// Cloud Build の SA ではなぜか `rpc error: code = InvalidArgument desc = Request contains an invalid argument.` と返ってくるので、App Engine SA を使っている
+	s, err := tasksbox.NewService(ctx, taskClient, "sinmetal-ci@appspot.gserviceaccount.com")
 	if err != nil {
 		t.Fatal(err)
 	}
