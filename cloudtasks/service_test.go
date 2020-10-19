@@ -3,6 +3,7 @@ package cloudtasks_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks"
@@ -27,6 +28,7 @@ func TestService_CreateJsonPostTask(t *testing.T) {
 	taskName, err := s.CreateJsonPostTask(ctx, queue, &tasksbox.JsonPostTask{
 		Audience:    "", // Cloud Run Invoker に投げる時は空っぽ
 		RelativeUri: runHandlerUri,
+		Deadline:    time.Duration(30 * time.Minute),
 		Body: &Body{
 			Content: "Hello JsonPostTask",
 		},
