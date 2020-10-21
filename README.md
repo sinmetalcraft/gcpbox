@@ -1,5 +1,9 @@
 # gcpbox
+
 Google Cloud Platform Utility
+
+[@sinmetal](https://github.com/sinmetal) が GCP でよく利用する処理をまとめている Utility。
+[@sinmetal](https://github.com/sinmetal) のユースケースに特化しているので、他の人が使うことは気にしていないが、参考程度に見るのはいいかもしれない。
 
 ## cloudtasks
 
