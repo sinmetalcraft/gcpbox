@@ -66,11 +66,11 @@ func TestAdminService_GetRunService(t *testing.T) {
 func newTestAdminService(t *testing.T) *runbox.AdminService {
 	ctx := context.Background()
 
-	apiService, err := runbox.NewOrgAPIService(ctx, gcpbox.TokyoRegion)
+	apiContainer, err := runbox.NewPrimitiveAPIContainer(ctx, gcpbox.TokyoRegion)
 	if err != nil {
 		t.Fatal(err)
 	}
-	admin, err := runbox.NewAdminService(ctx, apiService)
+	admin, err := runbox.NewAdminService(ctx, apiContainer)
 	if err != nil {
 		t.Fatal(err)
 	}

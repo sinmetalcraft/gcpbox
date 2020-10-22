@@ -18,22 +18,35 @@ type AdminService struct {
 	Client *run.APIService
 }
 
-// NewOrgAPIService is google-api-go-client の Cloud Run Admin API Service を作成する
+// PrimitiveAPIContainer is google-api-go-client の Cloud Run Admin API Service の入れ物
+// Cloud Run Admin API Service は endpoint を指定しないとほとんど 400 Bad Request が返ってくるという存在なので、 Region を指定した Endpoint を設定して欲しいという気持ちが溢れている
+type PrimitiveAPIContainer struct {
+	api *run.APIService
+}
+
+// PrimitiveAPIContainer is google-api-go-client の Cloud Run Admin API Service を作成する
 // Cloud Run Admin API は Endpoint で Region を指定する必要があり、指定しない場合、だいたい 400 Bad Request しか返ってこない
 // https://cloud.google.com/run/docs/reference/rest#service-endpoint
 // region ex. asia-northeast1
-func NewOrgAPIService(ctx context.Context, region string) (*run.APIService, error) {
+func NewPrimitiveAPIContainer(ctx context.Context, region string) (*PrimitiveAPIContainer, error) {
 	api, err := run.NewService(ctx, option.WithEndpoint(fmt.Sprintf("https://%s-run.googleapis.com", region)))
 	if err != nil {
 		return nil, err
 	}
-	return api, nil
+	return &PrimitiveAPIContainer{api: api}, nil
+}
+
+// NewSimplePrimitiveAPIContainer is google-api-go-client の Cloud Run Admin API Service を内包した入れ物を作る
+// NewAdminService() の引数を作るためのもの。
+// 基本的には NewPrimitiveAPIContainer を使えばよいが、 Option を指定したい時や、mock を使いたい時とかに利用する
+func NewSimplePrimitiveAPIContainer(ctx context.Context, service *run.APIService) *PrimitiveAPIContainer {
+	return &PrimitiveAPIContainer{api: service}
 }
 
 // NewAdminService is return AdminService
-func NewAdminService(ctx context.Context, api *run.APIService) (*AdminService, error) {
+func NewAdminService(ctx context.Context, api *PrimitiveAPIContainer) (*AdminService, error) {
 	return &AdminService{
-		Client: api,
+		Client: api.api,
 	}, nil
 }
 
