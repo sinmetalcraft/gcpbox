@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
+	"github.com/golang/protobuf/ptypes"
+	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks"
 	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 )
@@ -43,11 +46,39 @@ type Routing struct {
 
 // Task is Task
 type Task struct {
-	Routing     *Routing
-	Headers     map[string]string
-	Method      string
+	// Task を Unique にしたい場合に設定する ID
+	//
+	// optional
+	// 中で projects/PROJECT_ID/locations/LOCATION_ID/queues/QUEUE_ID/tasks/TASK_ID 形式に設定するので、TASK_ID の部分を設定する
+	Name string
+
+	// Task を到達させる App Engine の Service/Version
+	// 設定しない場合は Queue の設定に従う
+	// optional
+	Routing *Routing
+
+	// 任意の HTTP Request Header
+	// optional
+	Headers map[string]string
+
+	// HTTP Method
+	// optional 省略した場合は POST になる
+	Method string
+
+	// Task を到達させる path
+	// "/" で始まる必要がある
 	RelativeUri string
-	Body        []byte
+
+	// Http Request Body
+	Body []byte
+
+	// Task を実行する時刻
+	// optional 省略した場合は即時実行
+	ScheduleTime time.Time
+
+	// Worker で Task を実行する Deadline
+	// optional 省略した場合は App Engine の Instance class に従う (frontend 10min, backend 24h)
+	DispatchDeadline time.Duration
 }
 
 // CreateTask is QueueにTaskを作成する
@@ -81,6 +112,19 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task) (str
 		MessageType: &taskspb.Task_AppEngineHttpRequest{
 			AppEngineHttpRequest: appEngineRequest,
 		},
+	}
+	if len(task.Name) > 0 {
+		pbTask.Name = fmt.Sprintf("projects/%s/locations/%s/queues/%s/tasks/%s", queue.ProjectID, queue.Region, queue.Name, task.Name)
+	}
+	if !task.ScheduleTime.IsZero() {
+		stpb, err := ptypes.TimestampProto(task.ScheduleTime)
+		if err != nil {
+			return "", tasksbox.NewErrInvalidArgument("invalid ScheduleTime", map[string]interface{}{"ScheduledTime": task.ScheduleTime}, err)
+		}
+		pbTask.ScheduleTime = stpb
+	}
+	if task.DispatchDeadline != 0 {
+		pbTask.DispatchDeadline = ptypes.DurationProto(task.DispatchDeadline)
 	}
 	taskReq := &taskspb.CreateTaskRequest{
 		Parent: queue.Parent(),

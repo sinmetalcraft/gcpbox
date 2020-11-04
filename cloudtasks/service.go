@@ -7,10 +7,9 @@ import (
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
-	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/golang/protobuf/ptypes"
 	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
-	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // Service is Cloud Tasks Service
@@ -52,15 +51,14 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string,
 		},
 	}
 	if !scheduledTime.IsZero() {
-		taskReq.Task.ScheduleTime = &timestamp.Timestamp{
-			Seconds: scheduledTime.Unix(),
-			Nanos:   0,
+		stpb, err := ptypes.TimestampProto(scheduledTime)
+		if err != nil {
+			return nil, NewErrInvalidArgument("invalid ScheduleTime", map[string]interface{}{"ScheduledTime": scheduledTime}, err)
 		}
+		taskReq.Task.ScheduleTime = stpb
 	}
-	if deadline.Milliseconds() > 0 {
-		ms := deadline.Milliseconds()
-		sec := ms / 1000
-		taskReq.Task.DispatchDeadline = &durationpb.Duration{Seconds: sec}
+	if deadline != 0 {
+		taskReq.Task.DispatchDeadline = ptypes.DurationProto(deadline)
 	}
 	return s.taskClient.CreateTask(ctx, taskReq)
 }
