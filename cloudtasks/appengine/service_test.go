@@ -2,15 +2,40 @@ package appengine_test
 
 import (
 	"context"
+	"net/http"
 	"testing"
+	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 
-	. "github.com/sinmetalcraft/gcpbox/cloudtasks/appengine"
+	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks/appengine"
 )
 
 type Body struct {
 	Content string
+}
+
+func TestService_CreateTaskForError(t *testing.T) {
+	ctx := context.Background()
+
+	s := newService(t)
+
+	queue := &tasksbox.Queue{
+		ProjectID: "sinmetal-ci",
+		Region:    "asia-northeast1",
+		Name:      "gcpboxtest",
+	}
+
+	task := &tasksbox.Task{
+		Method:       http.MethodGet,
+		RelativeUri:  "/",
+		ScheduleTime: time.Date(0, 1, 1, 1, 1, 1, 1, time.Local),
+	}
+	_, err := s.CreateTask(ctx, queue, task)
+	if err == nil {
+		t.Fatal("want error but err is nil")
+	}
+	t.Log(err.Error())
 }
 
 func TestService_CreateJsonPostTask(t *testing.T) {
@@ -18,13 +43,13 @@ func TestService_CreateJsonPostTask(t *testing.T) {
 
 	s := newService(t)
 
-	queue := &Queue{
+	queue := &tasksbox.Queue{
 		ProjectID: "sinmetal-ci",
 		Region:    "asia-northeast1",
 		Name:      "gcpboxtest",
 	}
-	taskName, err := s.CreateJsonPostTask(ctx, queue, &JsonPostTask{
-		Routing: &Routing{
+	taskName, err := s.CreateJsonPostTask(ctx, queue, &tasksbox.JsonPostTask{
+		Routing: &tasksbox.Routing{
 			Service: "gcpbox",
 		},
 		RelativeUri: "/cloudtasks/appengine/json-post-task",
@@ -45,13 +70,13 @@ func TestService_CreateGetTask(t *testing.T) {
 
 	s := newService(t)
 
-	queue := &Queue{
+	queue := &tasksbox.Queue{
 		ProjectID: "sinmetal-ci",
 		Region:    "asia-northeast1",
 		Name:      "gcpboxtest",
 	}
-	taskName, err := s.CreateGetTask(ctx, queue, &GetTask{
-		Routing: &Routing{
+	taskName, err := s.CreateGetTask(ctx, queue, &tasksbox.GetTask{
+		Routing: &tasksbox.Routing{
 			Service: "gcpbox",
 		},
 		RelativeUri: "/cloudtasks/appengine/get-task",
@@ -64,7 +89,7 @@ func TestService_CreateGetTask(t *testing.T) {
 	}
 }
 
-func newService(t *testing.T) *Service {
+func newService(t *testing.T) *tasksbox.Service {
 	ctx := context.Background()
 
 	taskClient, err := cloudtasks.NewClient(ctx)
@@ -72,7 +97,7 @@ func newService(t *testing.T) *Service {
 		t.Fatal(err)
 	}
 
-	s, err := NewService(ctx, taskClient)
+	s, err := tasksbox.NewService(ctx, taskClient)
 	if err != nil {
 		t.Fatal(err)
 	}
