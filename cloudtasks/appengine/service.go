@@ -140,9 +140,31 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task) (str
 
 // JsonPostTask is JsonをBodyに入れるTask
 type JsonPostTask struct {
-	Routing     *Routing
+	// Task を Unique にしたい場合に設定する ID
+	//
+	// optional
+	// 中で projects/PROJECT_ID/locations/LOCATION_ID/queues/QUEUE_ID/tasks/TASK_ID 形式に設定するので、TASK_ID の部分を設定する
+	Name string
+
+	// Task を到達させる App Engine の Service/Version
+	// 設定しない場合は Queue の設定に従う
+	// optional
+	Routing *Routing
+
+	// Task を到達させる path
+	// "/" で始まる必要がある
 	RelativeUri string
-	Body        interface{}
+
+	// Body is JSON にして格納するもの
+	Body interface{}
+
+	// Task を実行する時刻
+	// optional 省略した場合は即時実行
+	ScheduleTime time.Time
+
+	// Worker で Task を実行する Deadline
+	// optional 省略した場合は App Engine の Instance class に従う (frontend 10min, backend 24h)
+	DispatchDeadline time.Duration
 }
 
 // CreateJsonPostTask is BodyにJsonを入れるTaskを作る
@@ -162,9 +184,33 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 
 // GetTask is Get Request 用の Task
 type GetTask struct {
-	Routing     *Routing
-	Headers     map[string]string
+
+	// Task を Unique にしたい場合に設定する ID
+	//
+	// optional
+	// 中で projects/PROJECT_ID/locations/LOCATION_ID/queues/QUEUE_ID/tasks/TASK_ID 形式に設定するので、TASK_ID の部分を設定する
+	Name string
+
+	// Task を到達させる App Engine の Service/Version
+	// 設定しない場合は Queue の設定に従う
+	// optional
+	Routing *Routing
+
+	// 任意の HTTP Request Header
+	// optional
+	Headers map[string]string
+
+	// Task を到達させる path
+	// "/" で始まる必要がある
 	RelativeUri string
+
+	// Task を実行する時刻
+	// optional 省略した場合は即時実行
+	ScheduleTime time.Time
+
+	// Worker で Task を実行する Deadline
+	// optional 省略した場合は App Engine の Instance class に従う (frontend 10min, backend 24h)
+	DispatchDeadline time.Duration
 }
 
 // CreateGetTask is Get Request 用の Task を作る
