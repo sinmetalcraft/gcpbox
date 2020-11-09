@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
@@ -118,6 +119,26 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 	return got.Name, nil
 }
 
+// CreateJsonPostTaskMulti is Queue に JsonPostTask を複数作成する
+func (s *Service) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask) ([]string, error) {
+	results := make([]string, len(tasks))
+	merr := MultiError{}
+	wg := &sync.WaitGroup{}
+	for i, task := range tasks {
+		wg.Add(1)
+		go func(i int, task *JsonPostTask) {
+			defer wg.Done()
+			tn, err := s.CreateJsonPostTask(ctx, queue, task)
+			if err != nil {
+				merr.Append(NewErrCreateMultiTask("failed CreateJsonPostTask", map[string]interface{}{"index": i, "taskName": task.Name, "URI": task.RelativeURI}, err))
+			}
+			results[i] = tn
+		}(i, task)
+	}
+	wg.Wait()
+	return results, merr.ErrorOrNil()
+}
+
 // GetTask is Get Request 用の Task
 type GetTask struct {
 	// OIDC の Audience
@@ -165,4 +186,24 @@ func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask
 		return "", xerrors.Errorf("failed CreateJsonPostTask(). queue=%+v, url=%s : %w", queue, task.RelativeURI, err)
 	}
 	return got.Name, nil
+}
+
+// CreateGetTaskMulti is Queue に GetTask を作成する
+func (s *Service) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask) ([]string, error) {
+	results := make([]string, len(tasks))
+	merr := MultiError{}
+	wg := &sync.WaitGroup{}
+	for i, task := range tasks {
+		wg.Add(1)
+		go func(i int, task *GetTask) {
+			defer wg.Done()
+			tn, err := s.CreateGetTask(ctx, queue, task)
+			if err != nil {
+				merr.Append(NewErrCreateMultiTask("failed CreateGetTask", map[string]interface{}{"index": i, "taskName": task.Name, "URI": task.RelativeURI}, err))
+			}
+			results[i] = tn
+		}(i, task)
+	}
+	wg.Wait()
+	return results, merr.ErrorOrNil()
 }

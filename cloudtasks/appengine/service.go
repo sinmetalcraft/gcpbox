@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
@@ -136,6 +137,26 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task) (str
 		return "", err
 	}
 	return t.Name, nil
+}
+
+// CreateTask is QueueにTaskを作成する
+func (s *Service) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Task) ([]string, error) {
+	results := make([]string, len(tasks))
+	merr := tasksbox.MultiError{}
+	wg := &sync.WaitGroup{}
+	for i, task := range tasks {
+		wg.Add(1)
+		go func(i int, task *Task) {
+			defer wg.Done()
+			tn, err := s.CreateTask(ctx, queue, task)
+			if err != nil {
+				merr.Append(tasksbox.NewErrCreateMultiTask("failed CreateTask", map[string]interface{}{"index": i, "taskName": task.Name}, err))
+			}
+			results[i] = tn
+		}(i, task)
+	}
+	wg.Wait()
+	return results, merr.ErrorOrNil()
 }
 
 // JsonPostTask is JsonをBodyに入れるTask

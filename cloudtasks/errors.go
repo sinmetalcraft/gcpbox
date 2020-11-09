@@ -2,9 +2,13 @@ package cloudtasks
 
 import (
 	"fmt"
+	"strings"
+	"sync"
 
 	"golang.org/x/xerrors"
 )
+
+var _ error = &MultiError{}
 
 // ErrInvalidHeader is Header が invalid な時に返す
 var ErrInvalidHeader = &Error{
@@ -17,6 +21,13 @@ var ErrInvalidHeader = &Error{
 var ErrInvalidArgument = &Error{
 	Code:    "InvalidArgument",
 	Message: "InvalidArgument",
+	KV:      map[string]interface{}{},
+}
+
+// ErrCreateMultiTask is CreateMultiTask の時に MultiError に入れる Error
+var ErrCreateMultiTask = &Error{
+	Code:    "FailedCreateMultiTask",
+	Message: "FailedCreateMultiTask",
 	KV:      map[string]interface{}{},
 }
 
@@ -50,6 +61,50 @@ func (e *Error) Unwrap() error {
 	return e.err
 }
 
+// MultiError is 複数の error を返す
+type MultiError struct {
+	mutex  sync.Mutex
+	Errors []*Error
+}
+
+func (e *MultiError) Error() string {
+	builder := strings.Builder{}
+	for i, v := range e.Errors {
+		builder.WriteString(v.Error())
+		if i < len(e.Errors) {
+			builder.WriteString("\n")
+		}
+	}
+	return builder.String()
+}
+
+// Is is err equal check
+func (e *MultiError) Is(target error) bool {
+	var appErr *MultiError
+	if !xerrors.As(target, &appErr) {
+		return false
+	}
+	return true
+}
+
+// Unwrap is return unwrap error
+func (e *MultiError) Unwrap() error {
+	return nil
+}
+
+func (e *MultiError) Append(err *Error) {
+	e.mutex.Lock()
+	defer e.mutex.Unlock()
+	e.Errors = append(e.Errors, err)
+}
+
+func (e *MultiError) ErrorOrNil() error {
+	if len(e.Errors) > 0 {
+		return e
+	}
+	return nil
+}
+
 // NewErrInvalidHeader is return ErrInvalidHeader
 func NewErrInvalidHeader(message string, kv map[string]interface{}, err error) error {
 	return &Error{
@@ -64,6 +119,16 @@ func NewErrInvalidHeader(message string, kv map[string]interface{}, err error) e
 func NewErrInvalidArgument(message string, kv map[string]interface{}, err error) error {
 	return &Error{
 		Code:    ErrInvalidArgument.Code,
+		Message: message,
+		KV:      kv,
+		err:     err,
+	}
+}
+
+// NewErrCreateMultiTask is return ErrCreateMultiTask
+func NewErrCreateMultiTask(message string, kv map[string]interface{}, err error) *Error {
+	return &Error{
+		Code:    ErrCreateMultiTask.Code,
 		Message: message,
 		KV:      kv,
 		err:     err,

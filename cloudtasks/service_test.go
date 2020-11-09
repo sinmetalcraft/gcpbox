@@ -40,6 +40,43 @@ func TestService_CreateJsonPostTask(t *testing.T) {
 	}
 }
 
+func TestService_CreateJsonPostTaskMulti(t *testing.T) {
+	ctx := context.Background()
+
+	s := newService(t)
+
+	queue := &tasksbox.Queue{
+		ProjectID: "sinmetal-ci",
+		Region:    "asia-northeast1",
+		Name:      "gcpboxtest",
+	}
+	type Body struct {
+		Content string
+	}
+
+	const runHandlerURI = "https://gcpboxtest-73zry4yfvq-an.a.run.app/cloudtasks/run/json-post-task"
+	var tasks []*tasksbox.JsonPostTask
+	for i := 0; i < 10; i++ {
+		tasks = append(tasks, &tasksbox.JsonPostTask{
+			Audience:    "", // Cloud Run Invoker に投げる時は空っぽ
+			RelativeURI: runHandlerURI,
+			Deadline:    time.Duration(30 * time.Minute),
+			Body: &Body{
+				Content: "Hello JsonPostTask",
+			},
+		})
+	}
+	tns, err := s.CreateJsonPostTaskMulti(ctx, queue, tasks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, tn := range tns {
+		if len(tn) < 1 {
+			t.Errorf("%d : task name is empty", i)
+		}
+	}
+}
+
 func TestService_CreateGetTask(t *testing.T) {
 	ctx := context.Background()
 
@@ -62,6 +99,37 @@ func TestService_CreateGetTask(t *testing.T) {
 	}
 	if len(taskName) < 1 {
 		t.Error("task name is empty")
+	}
+}
+
+func TestService_CreateGetTaskMulti(t *testing.T) {
+	ctx := context.Background()
+
+	s := newService(t)
+
+	queue := &tasksbox.Queue{
+		ProjectID: "sinmetal-ci",
+		Region:    "asia-northeast1",
+		Name:      "gcpboxtest",
+	}
+
+	const runHandlerURI = "https://gcpboxtest-73zry4yfvq-an.a.run.app/cloudtasks/run/json-post-task"
+	var tasks []*tasksbox.GetTask
+	for i := 0; i < 10; i++ {
+		tasks = append(tasks, &tasksbox.GetTask{
+			Audience:    "", // Cloud Run Invoker に投げる時は空っぽ
+			RelativeURI: runHandlerURI,
+			Deadline:    time.Duration(30 * time.Minute),
+		})
+	}
+	tns, err := s.CreateGetTaskMulti(ctx, queue, tasks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, tn := range tns {
+		if len(tn) < 1 {
+			t.Errorf("%d : task name is empty", i)
+		}
 	}
 }
 

@@ -2,11 +2,13 @@ package appengine_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
+	"github.com/google/uuid"
 
 	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks/appengine"
 )
@@ -86,6 +88,40 @@ func TestService_CreateGetTask(t *testing.T) {
 	}
 	if len(taskName) < 1 {
 		t.Error("task name is empty")
+	}
+}
+
+func TestService_CreateTaskMulti(t *testing.T) {
+	ctx := context.Background()
+
+	s := newService(t)
+
+	queue := &tasksbox.Queue{
+		ProjectID: "sinmetal-ci",
+		Region:    "asia-northeast1",
+		Name:      "gcpboxtest",
+	}
+
+	var tasks []*tasksbox.Task
+	baseid := uuid.New().String()
+	for i := 0; i < 10; i++ {
+		tasks = append(tasks, &tasksbox.Task{
+			Name: fmt.Sprintf("%s-%d", baseid, i),
+			Routing: &tasksbox.Routing{
+				Service: "gcpbox",
+			},
+			Method:      http.MethodGet,
+			RelativeURI: "/cloudtasks/appengine/get-task",
+		})
+	}
+	tns, err := s.CreateTaskMulti(ctx, queue, tasks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, tn := range tns {
+		if len(tn) < 1 {
+			t.Errorf("%d taskname is nothing...", i)
+		}
 	}
 }
 
