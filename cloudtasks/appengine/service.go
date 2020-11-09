@@ -67,7 +67,7 @@ type Task struct {
 
 	// Task を到達させる path
 	// "/" で始まる必要がある
-	RelativeUri string
+	RelativeURI string
 
 	// Http Request Body
 	Body []byte
@@ -98,7 +98,7 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task) (str
 	appEngineRequest := &taskspb.AppEngineHttpRequest{
 		Headers:     task.Headers,
 		HttpMethod:  method,
-		RelativeUri: task.RelativeUri,
+		RelativeUri: task.RelativeURI,
 		Body:        task.Body,
 	}
 	if task.Routing != nil {
@@ -153,7 +153,7 @@ type JsonPostTask struct {
 
 	// Task を到達させる path
 	// "/" で始まる必要がある
-	RelativeUri string
+	RelativeURI string
 
 	// Body is JSON にして格納するもの
 	Body interface{}
@@ -177,7 +177,7 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 		Routing:     task.Routing,
 		Headers:     map[string]string{"Content-Type": "application/json"},
 		Method:      http.MethodPost,
-		RelativeUri: task.RelativeUri,
+		RelativeURI: task.RelativeURI,
 		Body:        body,
 	})
 }
@@ -202,7 +202,7 @@ type GetTask struct {
 
 	// Task を到達させる path
 	// "/" で始まる必要がある
-	RelativeUri string
+	RelativeURI string
 
 	// Task を実行する時刻
 	// optional 省略した場合は即時実行
@@ -219,6 +219,6 @@ func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask
 		Routing:     task.Routing,
 		Headers:     task.Headers,
 		Method:      http.MethodGet,
-		RelativeUri: task.RelativeUri,
+		RelativeURI: task.RelativeURI,
 	})
 }

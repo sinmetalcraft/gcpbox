@@ -28,7 +28,7 @@ func TestService_CreateTaskForError(t *testing.T) {
 
 	task := &tasksbox.Task{
 		Method:       http.MethodGet,
-		RelativeUri:  "/",
+		RelativeURI:  "/",
 		ScheduleTime: time.Date(0, 1, 1, 1, 1, 1, 1, time.Local),
 	}
 	_, err := s.CreateTask(ctx, queue, task)
@@ -52,7 +52,7 @@ func TestService_CreateJsonPostTask(t *testing.T) {
 		Routing: &tasksbox.Routing{
 			Service: "gcpbox",
 		},
-		RelativeUri: "/cloudtasks/appengine/json-post-task",
+		RelativeURI: "/cloudtasks/appengine/json-post-task",
 		Body: &Body{
 			Content: "Hello JsonPostTask",
 		},
@@ -79,7 +79,7 @@ func TestService_CreateGetTask(t *testing.T) {
 		Routing: &tasksbox.Routing{
 			Service: "gcpbox",
 		},
-		RelativeUri: "/cloudtasks/appengine/get-task",
+		RelativeURI: "/cloudtasks/appengine/get-task",
 	})
 	if err != nil {
 		t.Fatal(err)
