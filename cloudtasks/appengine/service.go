@@ -84,7 +84,12 @@ type Task struct {
 }
 
 // CreateTask is QueueにTaskを作成する
-func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task) (string, error) {
+func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task, ops ...CreateTaskOptions) (string, error) {
+	opt := createTaskOptions{}
+	for _, o := range ops {
+		o(&opt)
+	}
+
 	var method taskspb.HttpMethod
 	switch task.Method {
 	case http.MethodPost:
@@ -135,13 +140,22 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task) (str
 
 	t, err := s.taskClient.CreateTask(ctx, taskReq)
 	if err != nil {
+		sts, ok := status.FromError(err)
+		if ok {
+			if sts.Code() == codes.AlreadyExists {
+				if opt.ignoreAlreadyExists {
+					return taskReq.GetTask().Name, nil
+				}
+				return "", NewErrAlreadyExists(fmt.Sprintf("%s is already exists.", task.Name), map[string]interface{}{"taskName": task.Name}, err)
+			}
+		}
 		return "", err
 	}
 	return t.Name, nil
 }
 
 // CreateTask is QueueにTaskを作成する
-func (s *Service) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Task) ([]string, error) {
+func (s *Service) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Task, ops ...CreateTaskOptions) ([]string, error) {
 	results := make([]string, len(tasks))
 	merr := MultiError{}
 	wg := &sync.WaitGroup{}
@@ -149,14 +163,13 @@ func (s *Service) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Ta
 		wg.Add(1)
 		go func(i int, task *Task) {
 			defer wg.Done()
-			tn, err := s.CreateTask(ctx, queue, task)
+			tn, err := s.CreateTask(ctx, queue, task, ops...)
 			if err != nil {
-				sts, ok := status.FromError(err)
-				if ok {
-					if sts.Code() == codes.AlreadyExists {
-						merr.Append(NewErrAlreadyExists(fmt.Sprintf("%s is already exists.", task.Name), map[string]interface{}{"index": i, "taskName": task.Name}, err))
-						return
-					}
+				aeerr := &Error{}
+				if xerrors.As(err, &aeerr) && aeerr.Code == ErrAlreadyExists.Code {
+					aeerr.KV["index"] = i
+					merr.Append(aeerr)
+					return
 				}
 
 				merr.Append(NewErrCreateMultiTask("failed CreateTask", map[string]interface{}{"index": i, "taskName": task.Name}, err))

@@ -126,6 +126,8 @@ func TestService_CreateTaskMulti(t *testing.T) {
 	}
 }
 
+// TestService_CreateTaskMultiRetry
+// CreateTaskMulti で Retry できるように失敗した task がどれだったか分かることを確認
 func TestService_CreateTaskMultiRetry(t *testing.T) {
 	ctx := context.Background()
 
@@ -138,42 +140,86 @@ func TestService_CreateTaskMultiRetry(t *testing.T) {
 	}
 
 	baseid := uuid.New().String()
-	for i := 0; i < 2; i++ {
-		var tasks []*tasksbox.Task
-		for j := 0; j < 3; j++ {
-			tasks = append(tasks, &tasksbox.Task{
-				Name: fmt.Sprintf("%s-%d", baseid, j),
-				Routing: &tasksbox.Routing{
-					Service: "gcpbox",
-				},
-				Method:      http.MethodGet,
-				RelativeURI: "/cloudtasks/appengine/get-task",
-			})
-		}
-		tns, err := s.CreateTaskMulti(ctx, queue, tasks)
-		if err != nil {
-			merr := &tasksbox.MultiError{}
-			if xerrors.As(err, &merr) {
-				for _, ierr := range merr.Errors {
-					index, ok := ierr.KV["index"].(int)
-					if !ok {
-						t.Error(ierr)
-						continue
-					}
-					if len(tasks) <= index {
-						t.Error(ierr)
-						continue
-					}
-					t.Errorf("%s is failed. err=%v", tasks[index].Name, ierr)
-				}
+	const alreadyExistsErrIndex = 0
+	_, err := s.CreateTask(ctx, queue, &tasksbox.Task{
+		Name: fmt.Sprintf("%s-%d", baseid, alreadyExistsErrIndex), // TaskNameをぶつけるために先に同じ名前を使ってしまう
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var tasks []*tasksbox.Task
+	for i := 0; i < 3; i++ {
+		tasks = append(tasks, &tasksbox.Task{
+			Name: fmt.Sprintf("%s-%d", baseid, i),
+			Routing: &tasksbox.Routing{
+				Service: "gcpbox",
+			},
+			Method:      http.MethodGet,
+			RelativeURI: "/cloudtasks/appengine/get-task",
+		})
+	}
+	_, err = s.CreateTaskMulti(ctx, queue, tasks)
+	if err == nil {
+		t.Fatal("err is nothing...")
+	}
+	merr := &tasksbox.MultiError{}
+	if xerrors.As(err, &merr) {
+		for _, ierr := range merr.Errors {
+			index, ok := ierr.KV["index"].(int)
+			if !ok {
+				t.Error(ierr)
+				continue
 			}
-			return
-		}
-		for i, tn := range tns {
-			if len(tn) < 1 {
-				t.Errorf("%d taskname is nothing...", i)
+			if len(tasks) <= index {
+				t.Error(ierr)
+				continue
 			}
+			if ierr.Code == tasksbox.ErrAlreadyExists.Code && index == alreadyExistsErrIndex {
+				continue
+			}
+			t.Errorf("%s is failed. err=%v", tasks[index].Name, ierr)
 		}
+	} else {
+		t.Errorf("want tasksbox.MultiError but got %#v", err)
+	}
+}
+
+// TestService_CreateTaskMultiWithIgnoreAlreadyExistsErr
+// tasksbox.WithIgnoreAlreadyExists() を指定した場合、 AlreadyExists が無視されて、error なしで返ってくることを確認
+func TestService_CreateTaskMultiWithIgnoreAlreadyExistsErr(t *testing.T) {
+	ctx := context.Background()
+
+	s := newService(t)
+
+	queue := &tasksbox.Queue{
+		ProjectID: "sinmetal-ci",
+		Region:    "asia-northeast1",
+		Name:      "gcpboxtest",
+	}
+
+	baseid := uuid.New().String()
+	_, err := s.CreateTask(ctx, queue, &tasksbox.Task{
+		Name: fmt.Sprintf("%s-%d", baseid, 0), // TaskNameをぶつけるために先に同じ名前を使ってしまう
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var tasks []*tasksbox.Task
+	for i := 0; i < 3; i++ {
+		tasks = append(tasks, &tasksbox.Task{
+			Name: fmt.Sprintf("%s-%d", baseid, i),
+			Routing: &tasksbox.Routing{
+				Service: "gcpbox",
+			},
+			Method:      http.MethodGet,
+			RelativeURI: "/cloudtasks/appengine/get-task",
+		})
+	}
+	_, err = s.CreateTaskMulti(ctx, queue, tasks, tasksbox.WithIgnoreAlreadyExists())
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
