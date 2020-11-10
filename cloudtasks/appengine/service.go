@@ -165,10 +165,10 @@ func (s *Service) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Ta
 			defer wg.Done()
 			tn, err := s.CreateTask(ctx, queue, task, ops...)
 			if err != nil {
-				aeerr := &Error{}
-				if xerrors.As(err, &aeerr) && aeerr.Code == ErrAlreadyExists.Code {
-					aeerr.KV["index"] = i
-					merr.Append(aeerr)
+				appErr := &Error{}
+				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+					appErr.KV["index"] = i
+					merr.Append(appErr)
 					return
 				}
 

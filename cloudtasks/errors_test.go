@@ -5,13 +5,13 @@ import (
 
 	"golang.org/x/xerrors"
 
-	"github.com/sinmetalcraft/gcpbox/cloudtasks"
+	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks"
 )
 
 func TestMultiError_As(t *testing.T) {
-	var err error = &cloudtasks.MultiError{}
+	var err error = &tasksbox.MultiError{}
 	err = xerrors.Errorf("hello : %w", err)
-	var target *cloudtasks.MultiError
+	var target *tasksbox.MultiError
 	if !xerrors.As(err, &target) {
 		t.Error("failed As...")
 	}

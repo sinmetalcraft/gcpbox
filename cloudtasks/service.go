@@ -11,6 +11,8 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Service is Cloud Tasks Service
@@ -41,15 +43,23 @@ func (q *Queue) Parent() string {
 
 // CreateTask is add to task
 // 一番 Primitive なやつ
-func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string, req *taskspb.HttpRequest, scheduledTime time.Time, deadline time.Duration) (*taskspb.Task, error) {
+// taskName は中で projects/{PROJECT_ID}/locations/{LOCATION}/queues/{QUEUE_ID}/tasks/{TASK_ID} 形式にしているので指定するのは {TASK_ID} の部分だけ
+func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string, req *taskspb.HttpRequest, scheduledTime time.Time, deadline time.Duration, ops ...CreateTaskOptions) (*taskspb.Task, error) {
+	opt := createTaskOptions{}
+	for _, o := range ops {
+		o(&opt)
+	}
+
 	taskReq := &taskspb.CreateTaskRequest{
 		Parent: queue.Parent(),
 		Task: &taskspb.Task{
-			Name: taskName,
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: req,
 			},
 		},
+	}
+	if len(taskName) > 0 {
+		taskReq.GetTask().Name = fmt.Sprintf("projects/%s/locations/%s/queues/%s/tasks/%s", queue.ProjectID, queue.Region, queue.Name, taskName)
 	}
 	if !scheduledTime.IsZero() {
 		stpb, err := ptypes.TimestampProto(scheduledTime)
@@ -61,7 +71,20 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string,
 	if deadline != 0 {
 		taskReq.Task.DispatchDeadline = ptypes.DurationProto(deadline)
 	}
-	return s.taskClient.CreateTask(ctx, taskReq)
+	task, err := s.taskClient.CreateTask(ctx, taskReq)
+	if err != nil {
+		sts, ok := status.FromError(err)
+		if ok {
+			if sts.Code() == codes.AlreadyExists {
+				if opt.ignoreAlreadyExists {
+					return taskReq.GetTask(), nil
+				}
+				return nil, NewErrAlreadyExists(fmt.Sprintf("%s is already exists.", taskReq.GetTask().Name), map[string]interface{}{"taskName": taskReq.GetTask().Name}, err)
+			}
+		}
+		return nil, err
+	}
+	return task, nil
 }
 
 // JsonPostTask is JsonをBodyに入れるTask
@@ -91,12 +114,13 @@ type JsonPostTask struct {
 	// Name is Task Name
 	// optional
 	// Task の重複を抑制するために指定するTaskのName
+	// 中で projects/{PROJECT_ID}/locations/{LOCATION}/queues/{QUEUE_ID}/tasks/{TASK_ID} 形式にしているので指定するのは {TASK_ID} の部分だけ
 	// 未指定の場合は自動的に設定される
 	Name string
 }
 
 // CreateJsonPostTask is BodyにJsonを入れるTaskを作る
-func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask) (string, error) {
+func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error) {
 	body, err := json.Marshal(task.Body)
 	if err != nil {
 		return "", xerrors.Errorf("failed json.Marshal(). body=%+v : %w", task.Body, err)
@@ -112,7 +136,7 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 				Audience:            task.Audience,
 			},
 		},
-	}, task.ScheduledTime, task.Deadline)
+	}, task.ScheduledTime, task.Deadline, ops...)
 	if err != nil {
 		return "", xerrors.Errorf("failed CreateJsonPostTask(). queue=%+v, body=%+v : %w", queue, task.Body, err)
 	}
@@ -120,7 +144,7 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 }
 
 // CreateJsonPostTaskMulti is Queue に JsonPostTask を複数作成する
-func (s *Service) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask) ([]string, error) {
+func (s *Service) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask, ops ...CreateTaskOptions) ([]string, error) {
 	results := make([]string, len(tasks))
 	merr := MultiError{}
 	wg := &sync.WaitGroup{}
@@ -128,8 +152,14 @@ func (s *Service) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tas
 		wg.Add(1)
 		go func(i int, task *JsonPostTask) {
 			defer wg.Done()
-			tn, err := s.CreateJsonPostTask(ctx, queue, task)
+			tn, err := s.CreateJsonPostTask(ctx, queue, task, ops...)
 			if err != nil {
+				appErr := &Error{}
+				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+					appErr.KV["index"] = i
+					merr.Append(appErr)
+					return
+				}
 				merr.Append(NewErrCreateMultiTask("failed CreateJsonPostTask", map[string]interface{}{"index": i, "taskName": task.Name, "URI": task.RelativeURI}, err))
 			}
 			results[i] = tn
@@ -165,12 +195,13 @@ type GetTask struct {
 	// Name is Task Name
 	// optional
 	// Task の重複を抑制するために指定するTaskのName
+	// 中で projects/{PROJECT_ID}/locations/{LOCATION}/queues/{QUEUE_ID}/tasks/{TASK_ID} 形式にしているので指定するのは {TASK_ID} の部分だけ
 	// 未指定の場合は自動的に設定される
 	Name string
 }
 
 // CreateGetTask is Get Request 用の Task を作る
-func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask) (string, error) {
+func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error) {
 	got, err := s.CreateTask(ctx, queue, task.Name, &taskspb.HttpRequest{
 		Url:        task.RelativeURI,
 		Headers:    task.Headers,
@@ -181,7 +212,7 @@ func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask
 				Audience:            task.Audience,
 			},
 		},
-	}, task.ScheduledTime, task.Deadline)
+	}, task.ScheduledTime, task.Deadline, ops...)
 	if err != nil {
 		return "", xerrors.Errorf("failed CreateJsonPostTask(). queue=%+v, url=%s : %w", queue, task.RelativeURI, err)
 	}
@@ -189,7 +220,7 @@ func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask
 }
 
 // CreateGetTaskMulti is Queue に GetTask を作成する
-func (s *Service) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask) ([]string, error) {
+func (s *Service) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask, ops ...CreateTaskOptions) ([]string, error) {
 	results := make([]string, len(tasks))
 	merr := MultiError{}
 	wg := &sync.WaitGroup{}
@@ -197,8 +228,14 @@ func (s *Service) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []
 		wg.Add(1)
 		go func(i int, task *GetTask) {
 			defer wg.Done()
-			tn, err := s.CreateGetTask(ctx, queue, task)
+			tn, err := s.CreateGetTask(ctx, queue, task, ops...)
 			if err != nil {
+				appErr := &Error{}
+				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+					appErr.KV["index"] = i
+					merr.Append(appErr)
+					return
+				}
 				merr.Append(NewErrCreateMultiTask("failed CreateGetTask", map[string]interface{}{"index": i, "taskName": task.Name, "URI": task.RelativeURI}, err))
 			}
 			results[i] = tn

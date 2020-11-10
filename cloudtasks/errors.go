@@ -31,6 +31,14 @@ var ErrCreateMultiTask = &Error{
 	KV:      map[string]interface{}{},
 }
 
+// ErrAlreadyExists is すでに存在している場合の Error
+// 主に TaskName が重複した場合に返す https://cloud.google.com/tasks/docs/reference/rest/v2/projects.locations.queues.tasks/create#body.request_body.FIELDS.task
+var ErrAlreadyExists = &Error{
+	Code:    "AlreadyExists",
+	Message: "AlreadyExists",
+	KV:      map[string]interface{}{},
+}
+
 // Error is Error情報を保持する struct
 type Error struct {
 	Code    string
@@ -119,6 +127,16 @@ func NewErrInvalidHeader(message string, kv map[string]interface{}, err error) e
 func NewErrInvalidArgument(message string, kv map[string]interface{}, err error) error {
 	return &Error{
 		Code:    ErrInvalidArgument.Code,
+		Message: message,
+		KV:      kv,
+		err:     err,
+	}
+}
+
+// NewErrAlreadyExists is return ErrAlreadyExists
+func NewErrAlreadyExists(message string, kv map[string]interface{}, err error) *Error {
+	return &Error{
+		Code:    ErrAlreadyExists.Code,
 		Message: message,
 		KV:      kv,
 		err:     err,
