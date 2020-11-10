@@ -10,9 +10,10 @@ import (
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"github.com/golang/protobuf/ptypes"
-	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks"
 	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Service is App Engine Task Service
@@ -120,7 +121,7 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task) (str
 	if !task.ScheduleTime.IsZero() {
 		stpb, err := ptypes.TimestampProto(task.ScheduleTime)
 		if err != nil {
-			return "", tasksbox.NewErrInvalidArgument("invalid ScheduleTime", map[string]interface{}{"ScheduledTime": task.ScheduleTime}, err)
+			return "", NewErrInvalidArgument("invalid ScheduleTime", map[string]interface{}{"ScheduledTime": task.ScheduleTime}, err)
 		}
 		pbTask.ScheduleTime = stpb
 	}
@@ -142,7 +143,7 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task) (str
 // CreateTask is QueueにTaskを作成する
 func (s *Service) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Task) ([]string, error) {
 	results := make([]string, len(tasks))
-	merr := tasksbox.MultiError{}
+	merr := MultiError{}
 	wg := &sync.WaitGroup{}
 	for i, task := range tasks {
 		wg.Add(1)
@@ -150,7 +151,16 @@ func (s *Service) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Ta
 			defer wg.Done()
 			tn, err := s.CreateTask(ctx, queue, task)
 			if err != nil {
-				merr.Append(tasksbox.NewErrCreateMultiTask("failed CreateTask", map[string]interface{}{"index": i, "taskName": task.Name}, err))
+				sts, ok := status.FromError(err)
+				if ok {
+					if sts.Code() == codes.AlreadyExists {
+						merr.Append(NewErrAlreadyExists(fmt.Sprintf("%s is already exists.", task.Name), map[string]interface{}{"index": i, "taskName": task.Name}, err))
+						return
+					}
+				}
+
+				merr.Append(NewErrCreateMultiTask("failed CreateTask", map[string]interface{}{"index": i, "taskName": task.Name}, err))
+				return
 			}
 			results[i] = tn
 		}(i, task)
