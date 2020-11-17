@@ -68,6 +68,40 @@ func TestService_CreateJsonPostTask(t *testing.T) {
 	}
 }
 
+func TestService_CreateJsonPostTaskMulti(t *testing.T) {
+	ctx := context.Background()
+
+	s := newService(t)
+
+	queue := &tasksbox.Queue{
+		ProjectID: "sinmetal-ci",
+		Region:    "asia-northeast1",
+		Name:      "gcpboxtest",
+	}
+
+	var tasks []*tasksbox.JsonPostTask
+	baseid := uuid.New().String()
+	for i := 0; i < 10; i++ {
+		tasks = append(tasks, &tasksbox.JsonPostTask{
+			Name: fmt.Sprintf("%s-%d", baseid, i),
+			Routing: &tasksbox.Routing{
+				Service: "gcpbox",
+			},
+			RelativeURI: "/cloudtasks/appengine/get-task",
+			Body:        map[string]interface{}{"hoge": "fuga"},
+		})
+	}
+	tns, err := s.CreateJsonPostTaskMulti(ctx, queue, tasks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, tn := range tns {
+		if len(tn) < 1 {
+			t.Errorf("%d taskname is nothing...", i)
+		}
+	}
+}
+
 func TestService_CreateGetTask(t *testing.T) {
 	ctx := context.Background()
 
@@ -89,6 +123,39 @@ func TestService_CreateGetTask(t *testing.T) {
 	}
 	if len(taskName) < 1 {
 		t.Error("task name is empty")
+	}
+}
+
+func TestService_CreateGetTaskMulti(t *testing.T) {
+	ctx := context.Background()
+
+	s := newService(t)
+
+	queue := &tasksbox.Queue{
+		ProjectID: "sinmetal-ci",
+		Region:    "asia-northeast1",
+		Name:      "gcpboxtest",
+	}
+
+	var tasks []*tasksbox.GetTask
+	baseid := uuid.New().String()
+	for i := 0; i < 10; i++ {
+		tasks = append(tasks, &tasksbox.GetTask{
+			Name: fmt.Sprintf("%s-%d", baseid, i),
+			Routing: &tasksbox.Routing{
+				Service: "gcpbox",
+			},
+			RelativeURI: "/cloudtasks/appengine/get-task",
+		})
+	}
+	tns, err := s.CreateGetTaskMulti(ctx, queue, tasks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, tn := range tns {
+		if len(tn) < 1 {
+			t.Errorf("%d taskname is nothing...", i)
+		}
 	}
 }
 
