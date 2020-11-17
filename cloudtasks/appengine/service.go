@@ -195,6 +195,10 @@ type JsonPostTask struct {
 	// optional
 	Routing *Routing
 
+	// 任意の HTTP Request Header
+	// optional
+	Headers map[string]string
+
 	// Task を到達させる path
 	// "/" で始まる必要がある
 	RelativeURI string
@@ -212,18 +216,54 @@ type JsonPostTask struct {
 }
 
 // CreateJsonPostTask is BodyにJsonを入れるTaskを作る
-func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask) (string, error) {
+func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error) {
 	body, err := json.Marshal(task.Body)
 	if err != nil {
 		return "", xerrors.Errorf("failed json.Marshal(). body=%+v : %w", task.Body, err)
 	}
+	var header map[string]string
+	if task.Headers != nil {
+		header = task.Headers
+		header["Content-Type"] = "application/json"
+	} else {
+		header = map[string]string{"Content-Type": "application/json"}
+	}
+
 	return s.CreateTask(ctx, queue, &Task{
 		Routing:     task.Routing,
-		Headers:     map[string]string{"Content-Type": "application/json"},
+		Headers:     header,
 		Method:      http.MethodPost,
 		RelativeURI: task.RelativeURI,
 		Body:        body,
-	})
+	}, ops...)
+}
+
+// CreateJsonPostTaskMulti is Queue に 複数の JsonPostTask を作成する
+func (s *Service) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask, ops ...CreateTaskOptions) ([]string, error) {
+	results := make([]string, len(tasks))
+	merr := MultiError{}
+	wg := &sync.WaitGroup{}
+	for i, task := range tasks {
+		wg.Add(1)
+		go func(i int, task *JsonPostTask) {
+			defer wg.Done()
+			tn, err := s.CreateJsonPostTask(ctx, queue, task, ops...)
+			if err != nil {
+				appErr := &Error{}
+				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+					appErr.KV["index"] = i
+					merr.Append(appErr)
+					return
+				}
+
+				merr.Append(NewErrCreateMultiTask("failed CreateJsonPostTask", map[string]interface{}{"index": i, "taskName": task.Name}, err))
+				return
+			}
+			results[i] = tn
+		}(i, task)
+	}
+	wg.Wait()
+	return results, merr.ErrorOrNil()
 }
 
 // GetTask is Get Request 用の Task
@@ -258,11 +298,39 @@ type GetTask struct {
 }
 
 // CreateGetTask is Get Request 用の Task を作る
-func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask) (string, error) {
+func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error) {
 	return s.CreateTask(ctx, queue, &Task{
 		Routing:     task.Routing,
 		Headers:     task.Headers,
 		Method:      http.MethodGet,
 		RelativeURI: task.RelativeURI,
 	})
+}
+
+// CreateGetTaskMulti is Queue に複数の GetTask を作成する
+func (s *Service) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask, ops ...CreateTaskOptions) ([]string, error) {
+	results := make([]string, len(tasks))
+	merr := MultiError{}
+	wg := &sync.WaitGroup{}
+	for i, task := range tasks {
+		wg.Add(1)
+		go func(i int, task *GetTask) {
+			defer wg.Done()
+			tn, err := s.CreateGetTask(ctx, queue, task, ops...)
+			if err != nil {
+				appErr := &Error{}
+				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+					appErr.KV["index"] = i
+					merr.Append(appErr)
+					return
+				}
+
+				merr.Append(NewErrCreateMultiTask("failed CreateGetTask", map[string]interface{}{"index": i, "taskName": task.Name}, err))
+				return
+			}
+			results[i] = tn
+		}(i, task)
+	}
+	wg.Wait()
+	return results, merr.ErrorOrNil()
 }
