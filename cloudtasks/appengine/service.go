@@ -103,9 +103,9 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task, ops 
 	}
 
 	appEngineRequest := &taskspb.AppEngineHttpRequest{
-		Headers:     task.Headers,
 		HttpMethod:  method,
 		RelativeUri: task.RelativeURI,
+		Headers:     task.Headers,
 		Body:        task.Body,
 	}
 	if task.Routing != nil {
@@ -230,11 +230,14 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 	}
 
 	return s.CreateTask(ctx, queue, &Task{
-		Routing:     task.Routing,
-		Headers:     header,
-		Method:      http.MethodPost,
-		RelativeURI: task.RelativeURI,
-		Body:        body,
+		Name:             task.Name,
+		Routing:          task.Routing,
+		Headers:          header,
+		Method:           http.MethodPost,
+		RelativeURI:      task.RelativeURI,
+		Body:             body,
+		ScheduleTime:     task.ScheduleTime,
+		DispatchDeadline: task.DispatchDeadline,
 	}, ops...)
 }
 
@@ -300,10 +303,14 @@ type GetTask struct {
 // CreateGetTask is Get Request 用の Task を作る
 func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error) {
 	return s.CreateTask(ctx, queue, &Task{
-		Routing:     task.Routing,
-		Headers:     task.Headers,
-		Method:      http.MethodGet,
-		RelativeURI: task.RelativeURI,
+		Name:             task.Name,
+		Routing:          task.Routing,
+		Headers:          task.Headers,
+		Method:           http.MethodGet,
+		RelativeURI:      task.RelativeURI,
+		Body:             nil,
+		ScheduleTime:     task.ScheduleTime,
+		DispatchDeadline: task.DispatchDeadline,
 	})
 }
 
