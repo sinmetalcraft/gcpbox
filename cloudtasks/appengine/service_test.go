@@ -290,7 +290,7 @@ func TestService_CreateTaskMultiWithIgnoreAlreadyExistsErr(t *testing.T) {
 	}
 }
 
-func newService(t *testing.T) *tasksbox.Service {
+func newService(t *testing.T) tasksbox.Service {
 	ctx := context.Background()
 
 	taskClient, err := cloudtasks.NewClient(ctx)
