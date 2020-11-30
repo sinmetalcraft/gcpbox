@@ -92,11 +92,10 @@ type Task struct {
 	DispatchDeadline time.Duration
 }
 
-// CreateTask is QueueにTaskを作成する
-func (s *serviceImple) CreateTask(ctx context.Context, queue *Queue, task *Task, ops ...CreateTaskOptions) (string, error) {
-	opt := createTaskOptions{}
-	for _, o := range ops {
-		o(&opt)
+// ToCreateTaskRequestProto is CreateTaskRequest に変換する
+func (task *Task) ToCreateTaskRequestProto(queue *Queue) (*taskspb.CreateTaskRequest, error) {
+	if queue == nil {
+		return nil, NewErrInvalidArgument("queue is required", map[string]interface{}{}, nil)
 	}
 
 	var method taskspb.HttpMethod
@@ -135,16 +134,30 @@ func (s *serviceImple) CreateTask(ctx context.Context, queue *Queue, task *Task,
 	if !task.ScheduleTime.IsZero() {
 		stpb, err := ptypes.TimestampProto(task.ScheduleTime)
 		if err != nil {
-			return "", NewErrInvalidArgument("invalid ScheduleTime", map[string]interface{}{"ScheduledTime": task.ScheduleTime}, err)
+			return nil, NewErrInvalidArgument("invalid ScheduleTime", map[string]interface{}{"ScheduledTime": task.ScheduleTime}, err)
 		}
 		pbTask.ScheduleTime = stpb
 	}
 	if task.DispatchDeadline != 0 {
 		pbTask.DispatchDeadline = ptypes.DurationProto(task.DispatchDeadline)
 	}
-	taskReq := &taskspb.CreateTaskRequest{
+
+	return &taskspb.CreateTaskRequest{
 		Parent: queue.Parent(),
 		Task:   pbTask,
+	}, nil
+}
+
+// CreateTask is QueueにTaskを作成する
+func (s *serviceImple) CreateTask(ctx context.Context, queue *Queue, task *Task, ops ...CreateTaskOptions) (string, error) {
+	opt := createTaskOptions{}
+	for _, o := range ops {
+		o(&opt)
+	}
+
+	taskReq, err := task.ToCreateTaskRequestProto(queue)
+	if err != nil {
+		return "", err
 	}
 
 	t, err := s.taskClient.CreateTask(ctx, taskReq)

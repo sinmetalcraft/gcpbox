@@ -9,14 +9,14 @@ import (
 )
 
 type MockService struct {
-	mu sync.RWMutex
+	mu         sync.RWMutex
 	addedTasks []*MockResult
 }
 
 type MockResult struct {
 	Queue *Queue
 	Tasks []*Task
-	OPs []CreateTaskOptions
+	OPs   []CreateTaskOptions
 }
 
 func (s *MockService) GetAddedTasks() []*MockResult {
@@ -35,7 +35,7 @@ func (s *MockService) addAddedTasks(queue *Queue, tasks []*Task, ops ...CreateTa
 	s.addedTasks = append(s.addedTasks, &MockResult{
 		Queue: queue,
 		Tasks: tasks,
-		OPs: ops,
+		OPs:   ops,
 	})
 }
 
@@ -44,9 +44,9 @@ func (s *MockService) CreateTask(ctx context.Context, queue *Queue, task *Task, 
 	return s.createMockTaskName(task), nil
 }
 
-func (s *MockService) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Task, ops ...CreateTaskOptions) ([]string, error){
-	s.addAddedTasks(queue,tasks, ops...)
-	tns := make([]string,len(tasks))
+func (s *MockService) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Task, ops ...CreateTaskOptions) ([]string, error) {
+	s.addAddedTasks(queue, tasks, ops...)
+	tns := make([]string, len(tasks))
 	for _, task := range tasks {
 		tns = append(tns, s.createMockTaskName(task))
 	}
@@ -60,7 +60,7 @@ func (s *MockService) createMockTaskName(task *Task) string {
 	return fmt.Sprintf("mock_task_name:%s", uuid.New().String())
 }
 
-func (s *MockService) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error){
+func (s *MockService) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error) {
 	t, err := task.ToTask()
 	if err != nil {
 		return "", err
@@ -69,19 +69,19 @@ func (s *MockService) CreateJsonPostTask(ctx context.Context, queue *Queue, task
 	return s.CreateTask(ctx, queue, t, ops...)
 }
 
-func (s *MockService) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask, ops ...CreateTaskOptions) ([]string, error){
+func (s *MockService) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask, ops ...CreateTaskOptions) ([]string, error) {
 	var ts []*Task
 	merr := MultiError{}
 	for _, task := range tasks {
 		t, err := task.ToTask()
 		if err != nil {
 			merr.Append(&Error{
-				Code: ErrInvalidArgument.Code,
+				Code:    ErrInvalidArgument.Code,
 				Message: "failed JsonPostTask.ToTask",
-				err : err,
+				err:     err,
 			})
 		}
-		ts =append(ts, t)
+		ts = append(ts, t)
 	}
 	err := merr.ErrorOrNil()
 	if err != nil {
@@ -90,7 +90,7 @@ func (s *MockService) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue,
 	return s.CreateTaskMulti(ctx, queue, ts, ops...)
 }
 
-func (s *MockService) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error){
+func (s *MockService) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error) {
 	t, err := task.ToTask()
 	if err != nil {
 		return "", err
@@ -99,19 +99,19 @@ func (s *MockService) CreateGetTask(ctx context.Context, queue *Queue, task *Get
 	return s.CreateTask(ctx, queue, t, ops...)
 }
 
-func (s *MockService) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask, ops ...CreateTaskOptions) ([]string, error){
+func (s *MockService) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask, ops ...CreateTaskOptions) ([]string, error) {
 	var ts []*Task
 	merr := MultiError{}
 	for _, task := range tasks {
 		t, err := task.ToTask()
 		if err != nil {
 			merr.Append(&Error{
-				Code: ErrInvalidArgument.Code,
+				Code:    ErrInvalidArgument.Code,
 				Message: "failed GetTask.ToTask",
-				err : err,
+				err:     err,
 			})
 		}
-		ts =append(ts, t)
+		ts = append(ts, t)
 	}
 	err := merr.ErrorOrNil()
 	if err != nil {
@@ -119,4 +119,3 @@ func (s *MockService) CreateGetTaskMulti(ctx context.Context, queue *Queue, task
 	}
 	return s.CreateTaskMulti(ctx, queue, ts, ops...)
 }
-
