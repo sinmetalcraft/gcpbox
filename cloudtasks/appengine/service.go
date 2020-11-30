@@ -55,6 +55,33 @@ type Routing struct {
 	Version string
 }
 
+// AppEngineRoutingProtoToRouting is AppEngineRouting から Routing に変換する
+func AppEngineRoutingProtoToRouting(routing *taskspb.AppEngineRouting) (*Routing, error) {
+	if routing == nil {
+		return nil, fmt.Errorf("routing is required")
+	}
+	return &Routing{
+		Service: routing.GetService(),
+		Version: routing.GetVersion(),
+	}, nil
+}
+
+// HttpMethodProtoToHttpMethod is HttpMethodProto から HttpMethod に変換する
+func HttpMethodProtoToHttpMethod(method taskspb.HttpMethod) (string, error) {
+	switch method {
+	case taskspb.HttpMethod_POST:
+		return http.MethodPost, nil
+	case taskspb.HttpMethod_GET:
+		return http.MethodGet, nil
+	case taskspb.HttpMethod_PUT:
+		return http.MethodPut, nil
+	case taskspb.HttpMethod_DELETE:
+		return http.MethodDelete, nil
+	default:
+		return "", xerrors.Errorf("unsupported method %s", method.String())
+	}
+}
+
 // Task is Task
 type Task struct {
 	// Task を Unique にしたい場合に設定する ID
@@ -108,6 +135,8 @@ func (task *Task) ToCreateTaskRequestProto(queue *Queue) (*taskspb.CreateTaskReq
 		method = taskspb.HttpMethod_GET
 	case http.MethodDelete:
 		method = taskspb.HttpMethod_DELETE
+	default:
+		return nil, xerrors.Errorf("unsupported HttpMethod : %v", task.Method)
 	}
 
 	appEngineRequest := &taskspb.AppEngineHttpRequest{
