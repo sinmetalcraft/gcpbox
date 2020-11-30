@@ -61,18 +61,62 @@ func (s *MockService) createMockTaskName(task *Task) string {
 }
 
 func (s *MockService) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error){
-	return "", nil
+	t, err := task.ToTask()
+	if err != nil {
+		return "", err
+	}
+
+	return s.CreateTask(ctx, queue, t, ops...)
 }
 
 func (s *MockService) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask, ops ...CreateTaskOptions) ([]string, error){
-	return []string{}, nil
+	var ts []*Task
+	merr := MultiError{}
+	for _, task := range tasks {
+		t, err := task.ToTask()
+		if err != nil {
+			merr.Append(&Error{
+				Code: ErrInvalidArgument.Code,
+				Message: "failed JsonPostTask.ToTask",
+				err : err,
+			})
+		}
+		ts =append(ts, t)
+	}
+	err := merr.ErrorOrNil()
+	if err != nil {
+		return nil, err
+	}
+	return s.CreateTaskMulti(ctx, queue, ts, ops...)
 }
 
 func (s *MockService) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error){
-	return "", nil
+	t, err := task.ToTask()
+	if err != nil {
+		return "", err
+	}
+
+	return s.CreateTask(ctx, queue, t, ops...)
 }
 
 func (s *MockService) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask, ops ...CreateTaskOptions) ([]string, error){
-	return []string{}, nil
+	var ts []*Task
+	merr := MultiError{}
+	for _, task := range tasks {
+		t, err := task.ToTask()
+		if err != nil {
+			merr.Append(&Error{
+				Code: ErrInvalidArgument.Code,
+				Message: "failed GetTask.ToTask",
+				err : err,
+			})
+		}
+		ts =append(ts, t)
+	}
+	err := merr.ErrorOrNil()
+	if err != nil {
+		return nil, err
+	}
+	return s.CreateTaskMulti(ctx, queue, ts, ops...)
 }
 

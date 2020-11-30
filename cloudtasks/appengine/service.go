@@ -224,30 +224,44 @@ type JsonPostTask struct {
 	DispatchDeadline time.Duration
 }
 
-// CreateJsonPostTask is BodyにJsonを入れるTaskを作る
-func (s *serviceImple) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error) {
-	body, err := json.Marshal(task.Body)
+// ToTask is JsonPostTask convert to Task
+func (jpTask *JsonPostTask) ToTask() (*Task, error) {
+	body, err := json.Marshal(jpTask.Body)
 	if err != nil {
-		return "", xerrors.Errorf("failed json.Marshal(). body=%+v : %w", task.Body, err)
+		return nil, xerrors.Errorf("failed json.Marshal(). task=%#v : %w", jpTask, err)
 	}
 	var header map[string]string
-	if task.Headers != nil {
-		header = task.Headers
+	if jpTask.Headers != nil {
+		header = jpTask.Headers
 		header["Content-Type"] = "application/json"
 	} else {
 		header = map[string]string{"Content-Type": "application/json"}
 	}
 
-	return s.CreateTask(ctx, queue, &Task{
-		Name:             task.Name,
-		Routing:          task.Routing,
+	return &Task{
+		Name:             jpTask.Name,
+		Routing:          jpTask.Routing,
 		Headers:          header,
 		Method:           http.MethodPost,
-		RelativeURI:      task.RelativeURI,
+		RelativeURI:      jpTask.RelativeURI,
 		Body:             body,
-		ScheduleTime:     task.ScheduleTime,
-		DispatchDeadline: task.DispatchDeadline,
-	}, ops...)
+		ScheduleTime:     jpTask.ScheduleTime,
+		DispatchDeadline: jpTask.DispatchDeadline,
+	}, nil
+}
+
+// CreateJsonPostTask is BodyにJsonを入れるTaskを作る
+func (s *serviceImple) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error) {
+	if task == nil {
+		return "", xerrors.Errorf("failed CreateJsonPostTask. task is nil")
+	}
+
+	t, err := task.ToTask()
+	if err != nil {
+		return "", err
+	}
+
+	return s.CreateTask(ctx, queue, t, ops...)
 }
 
 // CreateJsonPostTaskMulti is Queue に 複数の JsonPostTask を作成する
@@ -309,18 +323,32 @@ type GetTask struct {
 	DispatchDeadline time.Duration
 }
 
+// ToTask is GetTask convert to Task
+func (gTask *GetTask) ToTask() (*Task, error) {
+	return &Task{
+		Name:             gTask.Name,
+		Routing:          gTask.Routing,
+		Headers:          gTask.Headers,
+		Method:           http.MethodGet,
+		RelativeURI:      gTask.RelativeURI,
+		Body:             nil,
+		ScheduleTime:     gTask.ScheduleTime,
+		DispatchDeadline: gTask.DispatchDeadline,
+	}, nil
+}
+
 // CreateGetTask is Get Request 用の Task を作る
 func (s *serviceImple) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error) {
-	return s.CreateTask(ctx, queue, &Task{
-		Name:             task.Name,
-		Routing:          task.Routing,
-		Headers:          task.Headers,
-		Method:           http.MethodGet,
-		RelativeURI:      task.RelativeURI,
-		Body:             nil,
-		ScheduleTime:     task.ScheduleTime,
-		DispatchDeadline: task.DispatchDeadline,
-	})
+	if task == nil {
+		return "", xerrors.Errorf("failed CreateGetTask. task is nil")
+	}
+
+	t, err := task.ToTask()
+	if err != nil {
+		return "", err
+	}
+
+	return s.CreateTask(ctx, queue, t, ops...)
 }
 
 // CreateGetTaskMulti is Queue に複数の GetTask を作成する
