@@ -11,10 +11,12 @@ require (
 	github.com/golang/protobuf v1.4.2
 	github.com/google/go-cmp v0.5.1
 	github.com/google/uuid v1.1.2
+	github.com/sinmetalcraft/gcpfaker v0.0.0
 	golang.org/x/sys v0.0.0-20200803210538-64077c9b5642 // indirect
 	golang.org/x/tools v0.0.0-20200804011535-6c149bb5ef0d // indirect
 	golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543
 	google.golang.org/api v0.29.0
 	google.golang.org/genproto v0.0.0-20200731012542-8145dea6a485
 	google.golang.org/grpc v1.31.0
+	google.golang.org/protobuf v1.25.0
 )

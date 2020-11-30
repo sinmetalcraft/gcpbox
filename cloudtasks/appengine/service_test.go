@@ -209,7 +209,8 @@ func TestService_CreateTaskMultiRetry(t *testing.T) {
 	baseid := uuid.New().String()
 	const alreadyExistsErrIndex = 0
 	_, err := s.CreateTask(ctx, queue, &tasksbox.Task{
-		Name: fmt.Sprintf("%s-%d", baseid, alreadyExistsErrIndex), // TaskNameをぶつけるために先に同じ名前を使ってしまう
+		Name:   fmt.Sprintf("%s-%d", baseid, alreadyExistsErrIndex), // TaskNameをぶつけるために先に同じ名前を使ってしまう
+		Method: http.MethodGet,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -267,7 +268,8 @@ func TestService_CreateTaskMultiWithIgnoreAlreadyExistsErr(t *testing.T) {
 
 	baseid := uuid.New().String()
 	_, err := s.CreateTask(ctx, queue, &tasksbox.Task{
-		Name: fmt.Sprintf("%s-%d", baseid, 0), // TaskNameをぶつけるために先に同じ名前を使ってしまう
+		Name:   fmt.Sprintf("%s-%d", baseid, 0), // TaskNameをぶつけるために先に同じ名前を使ってしまう
+		Method: http.MethodGet,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -290,7 +292,7 @@ func TestService_CreateTaskMultiWithIgnoreAlreadyExistsErr(t *testing.T) {
 	}
 }
 
-func newService(t *testing.T) *tasksbox.Service {
+func newService(t *testing.T) tasksbox.Service {
 	ctx := context.Background()
 
 	taskClient, err := cloudtasks.NewClient(ctx)
