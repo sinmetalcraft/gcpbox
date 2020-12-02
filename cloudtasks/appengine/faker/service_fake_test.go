@@ -57,7 +57,7 @@ func TestService_fake_CreateGetTask(t *testing.T) {
 	}
 }
 
-func newFakeService(t *testing.T) (tasksbox.Service, *faker.Faker) {
+func newFakeService(t *testing.T) (*tasksbox.Service, *faker.Faker) {
 	ctx := context.Background()
 
 	tasksFaker := faker.NewFaker(t)

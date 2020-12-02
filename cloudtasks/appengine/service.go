@@ -17,22 +17,13 @@ import (
 )
 
 // Service is App Engine Task Service
-type Service interface {
-	CreateTask(ctx context.Context, queue *Queue, task *Task, ops ...CreateTaskOptions) (string, error)
-	CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Task, ops ...CreateTaskOptions) ([]string, error)
-	CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error)
-	CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask, ops ...CreateTaskOptions) ([]string, error)
-	CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error)
-	CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask, ops ...CreateTaskOptions) ([]string, error)
-}
-
-type serviceImple struct {
+type Service struct {
 	taskClient *cloudtasks.Client
 }
 
 // NewService is return serviceImple
-func NewService(ctx context.Context, taskClient *cloudtasks.Client) (Service, error) {
-	return &serviceImple{
+func NewService(ctx context.Context, taskClient *cloudtasks.Client) (*Service, error) {
+	return &Service{
 		taskClient: taskClient,
 	}, nil
 }
@@ -178,7 +169,7 @@ func (task *Task) ToCreateTaskRequestProto(queue *Queue) (*taskspb.CreateTaskReq
 }
 
 // CreateTask is QueueにTaskを作成する
-func (s *serviceImple) CreateTask(ctx context.Context, queue *Queue, task *Task, ops ...CreateTaskOptions) (string, error) {
+func (s *Service) CreateTask(ctx context.Context, queue *Queue, task *Task, ops ...CreateTaskOptions) (string, error) {
 	opt := createTaskOptions{}
 	for _, o := range ops {
 		o(&opt)
@@ -206,7 +197,7 @@ func (s *serviceImple) CreateTask(ctx context.Context, queue *Queue, task *Task,
 }
 
 // CreateTask is QueueにTaskを作成する
-func (s *serviceImple) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Task, ops ...CreateTaskOptions) ([]string, error) {
+func (s *Service) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Task, ops ...CreateTaskOptions) ([]string, error) {
 	results := make([]string, len(tasks))
 	merr := MultiError{}
 	wg := &sync.WaitGroup{}
@@ -293,7 +284,7 @@ func (jpTask *JsonPostTask) ToTask() (*Task, error) {
 }
 
 // CreateJsonPostTask is BodyにJsonを入れるTaskを作る
-func (s *serviceImple) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error) {
+func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error) {
 	if task == nil {
 		return "", xerrors.Errorf("failed CreateJsonPostTask. task is nil")
 	}
@@ -307,7 +298,7 @@ func (s *serviceImple) CreateJsonPostTask(ctx context.Context, queue *Queue, tas
 }
 
 // CreateJsonPostTaskMulti is Queue に 複数の JsonPostTask を作成する
-func (s *serviceImple) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask, ops ...CreateTaskOptions) ([]string, error) {
+func (s *Service) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tasks []*JsonPostTask, ops ...CreateTaskOptions) ([]string, error) {
 	results := make([]string, len(tasks))
 	merr := MultiError{}
 	wg := &sync.WaitGroup{}
@@ -380,7 +371,7 @@ func (gTask *GetTask) ToTask() (*Task, error) {
 }
 
 // CreateGetTask is Get Request 用の Task を作る
-func (s *serviceImple) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error) {
+func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error) {
 	if task == nil {
 		return "", xerrors.Errorf("failed CreateGetTask. task is nil")
 	}
@@ -394,7 +385,7 @@ func (s *serviceImple) CreateGetTask(ctx context.Context, queue *Queue, task *Ge
 }
 
 // CreateGetTaskMulti is Queue に複数の GetTask を作成する
-func (s *serviceImple) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask, ops ...CreateTaskOptions) ([]string, error) {
+func (s *Service) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []*GetTask, ops ...CreateTaskOptions) ([]string, error) {
 	results := make([]string, len(tasks))
 	merr := MultiError{}
 	wg := &sync.WaitGroup{}
