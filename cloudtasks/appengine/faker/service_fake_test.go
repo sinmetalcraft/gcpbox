@@ -14,46 +14,64 @@ import (
 func TestService_fake_CreateGetTask(t *testing.T) {
 	ctx := context.Background()
 
-	s, tasksFaker := newFakeService(t)
-
 	testQueue := &tasksbox.Queue{
 		ProjectID: "unittest",
 		Region:    "asia-northeast1",
 		Name:      "testqueue",
 	}
 
-	gTask := &tasksbox.GetTask{
-		Name: "hellotask",
-		Routing: &tasksbox.Routing{
-			Service: "background",
-			Version: "",
+	cases := []struct {
+		name    string
+		getTask *tasksbox.GetTask
+	}{
+		{"all setting task",
+			&tasksbox.GetTask{
+				Name: "hellotask",
+				Routing: &tasksbox.Routing{
+					Service: "background",
+					Version: "",
+				},
+				Headers:          map[string]string{"x-sinmetal": "hello"},
+				RelativeURI:      "/tq/hoge",
+				ScheduleTime:     time.Now().Add(1 * time.Minute),
+				DispatchDeadline: 60 * time.Second,
+			},
 		},
-		Headers:          map[string]string{"x-sinmetal": "hello"},
-		RelativeURI:      "/tq/hoge",
-		ScheduleTime:     time.Now().Add(1 * time.Minute),
-		DispatchDeadline: 60 * time.Second,
+		{"最小構成",
+			&tasksbox.GetTask{
+				Routing:     nil,
+				RelativeURI: "/tq/hoge",
+			},
+		},
 	}
-	tn, err := s.CreateGetTask(ctx, testQueue, gTask)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Log(tn)
-	if e, g := 1, tasksFaker.GetCreateTaskCallCount(); e != g {
-		t.Errorf("want CreateTaskCallCount is %d but got %d", e, g)
-		return
-	}
-	for i := 0; i < tasksFaker.GetCreateTaskCallCount(); i++ {
-		task, err := gTask.ToTask()
-		if err != nil {
-			t.Fatal(err)
-		}
-		got, err := tasksFaker.GetTask(i)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if e, g := task, got; cmp.Equal(e, g) {
-			t.Errorf("want task %#v but got %#v", e, g)
-		}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			s, tasksFaker := newFakeService(t)
+			tn, err := s.CreateGetTask(ctx, testQueue, tt.getTask)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Log(tn)
+			if e, g := 1, tasksFaker.GetCreateTaskCallCount(); e != g {
+				t.Errorf("want CreateTaskCallCount is %d but got %d", e, g)
+				return
+			}
+			for i := 0; i < tasksFaker.GetCreateTaskCallCount(); i++ {
+				task, err := tt.getTask.ToTask()
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, err := tasksFaker.GetTask(i)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if e, g := task, got; cmp.Equal(e, g) {
+					t.Errorf("want task %#v but got %#v", e, g)
+				}
+			}
+		})
 	}
 }
 
