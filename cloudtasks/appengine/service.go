@@ -49,7 +49,7 @@ type Routing struct {
 // AppEngineRoutingProtoToRouting is AppEngineRouting から Routing に変換する
 func AppEngineRoutingProtoToRouting(routing *taskspb.AppEngineRouting) (*Routing, error) {
 	if routing == nil {
-		return nil, fmt.Errorf("routing is required")
+		return nil, nil
 	}
 	return &Routing{
 		Service: routing.GetService(),
