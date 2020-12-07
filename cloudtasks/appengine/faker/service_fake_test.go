@@ -51,6 +51,8 @@ func TestService_fake_CreateGetTask(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			s, tasksFaker := newFakeService(t)
+			defer tasksFaker.Stop()
+
 			tn, err := s.CreateGetTask(ctx, testQueue, tt.getTask)
 			if err != nil {
 				t.Fatal(err)
@@ -123,6 +125,8 @@ func TestService_fake_CreateGetTaskMulti(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			s, tasksFaker := newFakeService(t)
+			defer tasksFaker.Stop()
+
 			tns, err := s.CreateGetTaskMulti(ctx, testQueue, tt.getTask)
 			if err != nil {
 				t.Fatal(err)
@@ -202,6 +206,8 @@ func TestService_fake_CreateJsonPostTask(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			s, tasksFaker := newFakeService(t)
+			defer tasksFaker.Stop()
+
 			tn, err := s.CreateJsonPostTask(ctx, testQueue, tt.jsonPostTask)
 			if err != nil {
 				t.Fatal(err)
@@ -279,6 +285,8 @@ func TestService_fake_CreateJsonPostTaskMulti(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			s, tasksFaker := newFakeService(t)
+			defer tasksFaker.Stop()
+
 			tns, err := s.CreateJsonPostTaskMulti(ctx, testQueue, tt.jsonPostTasks)
 			if err != nil {
 				t.Fatal(err)
@@ -302,6 +310,68 @@ func TestService_fake_CreateJsonPostTaskMulti(t *testing.T) {
 			}
 			for i := 0; i < tasksFaker.GetCreateTaskCallCount(); i++ {
 				task, err := tt.jsonPostTasks[i].ToTask()
+				if err != nil {
+					t.Fatal(err)
+				}
+				got, err := tasksFaker.GetTask(i)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if e, g := task, got; cmp.Equal(e, g) {
+					t.Errorf("want task %#v but got %#v", e, g)
+				}
+			}
+		})
+	}
+}
+
+func TestService_fake_Heavy(t *testing.T) {
+	ctx := context.Background()
+
+	testQueue1 := &tasksbox.Queue{
+		ProjectID: "unittest",
+		Region:    "asia-northeast1",
+		Name:      "testqueue1",
+	}
+	testQueue2 := &tasksbox.Queue{
+		ProjectID: "unittest",
+		Region:    "asia-northeast1",
+		Name:      "testqueue2",
+	}
+
+	cases := []struct {
+		name      string
+		callCount int
+		queue     *tasksbox.Queue
+		getTask   *tasksbox.GetTask
+	}{
+		{"100", 100, testQueue1, &tasksbox.GetTask{RelativeURI: "/tq/hoge"}},
+		{"200", 200, testQueue2, &tasksbox.GetTask{RelativeURI: "/tq/hoge"}},
+		{"300", 300, testQueue1, &tasksbox.GetTask{RelativeURI: "/tq/hoge"}},
+		{"400", 400, testQueue1, &tasksbox.GetTask{RelativeURI: "/tq/hoge"}},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			s, tasksFaker := newFakeService(t)
+			defer tasksFaker.Stop()
+
+			for i := 0; i < tt.callCount; i++ {
+				_, err := s.CreateGetTask(ctx, tt.queue, tt.getTask)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			if e, g := tt.callCount, tasksFaker.GetCreateTaskCallCount(); e != g {
+				t.Errorf("want CreateTaskCallCount is %d but got %d", e, g)
+				return
+			}
+			for i := 0; i < tasksFaker.GetCreateTaskCallCount(); i++ {
+				task, err := tt.getTask.ToTask()
 				if err != nil {
 					t.Fatal(err)
 				}
