@@ -21,6 +21,11 @@ func NewFaker(t *testing.T) *Faker {
 	return &Faker{tasksfaker.NewFaker(t)}
 }
 
+// Stop is Stop
+func (f *Faker) Stop() {
+	f.org.Stop()
+}
+
 // ClientOption is cloudtasks.Client に 設定する ClientOption
 func (f *Faker) ClientOption() option.ClientOption {
 	return f.org.ClientOpt
@@ -33,11 +38,11 @@ func (s *Faker) GetCreateTaskCallCount() int {
 
 // GetTask is 作成された Task を取得する
 func (s *Faker) GetTask(i int) (*tasksbox.Task, error) {
-	mlist, err := s.org.GetCreateTaskRequest(i)
+	req, err := s.org.GetCreateTaskRequest(i)
 	if err != nil {
 		return nil, err
 	}
-	buf, err := proto.Marshal(mlist[0])
+	buf, err := proto.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
