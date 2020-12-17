@@ -4,7 +4,8 @@ steps:
     args: ['run', '-d', '-p', '9010:9010', '-p', '9020:9020', '--network=cloudbuild', '--name=spanner-emulator', 'gcr.io/cloud-spanner-emulator/emulator:0.8.0']
   - name: jwilder/dockerize:0.6.1
     args: ['dockerize', '-timeout=60s', '-wait=tcp://spanner-emulator:9010']
-  - name: 'bash'
+  - name: 'golang:1.14-stretch'
+    entrypoint: 'bash'
     args:
       - './setup.sh'
     env:
@@ -16,7 +17,8 @@ steps:
     env:
       - 'GO111MODULE=on'
       - 'GOBIN=/workspace/build-cmd'
-  - name: 'bash'
+  - name: 'golang:1.14-stretch'
+    entrypoint: 'bash'
     args:
       - './test.sh'
     env:
