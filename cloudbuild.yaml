@@ -12,20 +12,22 @@ steps:
       - 'GOBIN=/workspace/build-cmd'
   - name: 'golang:1.14-stretch'
     entrypoint: 'go'
-    args: ['install', 'honnef.co/go/tools/cmd/staticcheck']
+    args: ['vet', '-vettool', '/workspace/build-cmd/myvet']
     env:
       - 'GO111MODULE=on'
       - 'GOBIN=/workspace/build-cmd'
   - name: 'golang:1.14-stretch'
     entrypoint: 'go'
-    args: ['vet', '-vettool', '/workspace/build-cmd/myvet']
+    args: ['install', 'honnef.co/go/tools/cmd/staticcheck']
     env:
       - 'GO111MODULE=on'
+      - 'GOBIN=/workspace/build-cmd'
   - name: 'golang:1.14-stretch'
     entrypoint: 'staticcheck'
     args: ['./...']
     env:
       - 'GO111MODULE=on'
+      - 'GOBIN=/workspace/build-cmd'
   - name: 'golang:1.14-stretch'
     entrypoint: 'go'
     args: ['test', './...']
