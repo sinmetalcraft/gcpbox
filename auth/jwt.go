@@ -31,7 +31,7 @@ func ParseJWTPayload(jwt string) (*JWTPayload, error) {
 	var payload *JWTPayload
 	r := base64.NewDecoder(base64.RawStdEncoding, strings.NewReader(list[1]))
 	if err := json.NewDecoder(r).Decode(&payload); err != nil {
-		return nil, xerrors.Errorf("invalid JWT :%w", err)
+		return nil, xerrors.Errorf("invalid JWT : %w", err)
 	}
 	return payload, nil
 }

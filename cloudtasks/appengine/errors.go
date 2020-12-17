@@ -89,10 +89,7 @@ func (e *MultiError) Error() string {
 // Is is err equal check
 func (e *MultiError) Is(target error) bool {
 	var appErr *MultiError
-	if !xerrors.As(target, &appErr) {
-		return false
-	}
-	return true
+	return xerrors.As(target, &appErr)
 }
 
 // Unwrap is return unwrap error

@@ -33,10 +33,7 @@ const EnvKey = "GAE_ENV"
 // GAE用の環境変数があるかどうかを見てるだけなので、偽装可能
 func OnGAE() bool {
 	_, err := Service()
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // OnGAEReal is AppがGAEで動いてるかどうか
