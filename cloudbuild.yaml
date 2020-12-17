@@ -23,7 +23,7 @@ steps:
       - 'GO111MODULE=on'
       - 'GOBIN=/workspace/build-cmd'
   - name: 'bash'
-    args: ['/workspace/build-cmd/staticcheck', './...']
+    args: ['staticcheck', './...']
   - name: 'golang:1.14-stretch'
     entrypoint: 'go'
     args: ['test', './...']
