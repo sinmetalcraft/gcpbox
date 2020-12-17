@@ -4,9 +4,9 @@ steps:
     args: ['run', '-d', '-p', '9010:9010', '-p', '9020:9020', '--network=cloudbuild', '--name=spanner-emulator', 'gcr.io/cloud-spanner-emulator/emulator:0.8.0']
   - name: jwilder/dockerize:0.6.1
     args: ['dockerize', '-timeout=60s', '-wait=tcp://spanner-emulator:9010']
-  - name: 'golang:1.14-stretch'
-    entrypoint: 'go'
-    args: ['install', 'github.com/sinmetalcraft/gcpbox/_cmd/myvet']
+  - name: 'bash'
+    args:
+      - './setup.sh'
     env:
       - 'GO111MODULE=on'
       - 'GOBIN=/workspace/build-cmd'
@@ -16,18 +16,11 @@ steps:
     env:
       - 'GO111MODULE=on'
       - 'GOBIN=/workspace/build-cmd'
-  - name: 'golang:1.14-stretch'
-    entrypoint: 'go'
-    args: ['install', 'honnef.co/go/tools/cmd/staticcheck']
+  - name: 'bash'
+    args:
+      - './test.sh'
     env:
       - 'GO111MODULE=on'
       - 'GOBIN=/workspace/build-cmd'
-  - name: 'bash'
-    args: ['staticcheck', './...']
-  - name: 'golang:1.14-stretch'
-    entrypoint: 'go'
-    args: ['test', './...']
-    env:
-      - 'GO111MODULE=on'
       - 'SPANNER_EMULATOR_HOST=spanner-emulator:9010'
     waitFor: ['spanner-emulator']
