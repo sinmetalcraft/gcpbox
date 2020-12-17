@@ -18,6 +18,15 @@ steps:
   - name: 'golang:1.14-stretch'
     entrypoint: 'bash'
     args:
+      - './lint.sh'
+    env:
+      - 'GO111MODULE=on'
+      - 'GOBIN=/workspace/build-cmd'
+      - 'SPANNER_EMULATOR_HOST=spanner-emulator:9010'
+    waitFor: ['setup']
+  - name: 'golang:1.14-stretch'
+    entrypoint: 'bash'
+    args:
       - './test.sh'
     env:
       - 'GO111MODULE=on'
