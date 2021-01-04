@@ -103,7 +103,6 @@ func newStorageSignedURLService(t *testing.T) *StorageSignedURLService {
 		t.Fatal(err)
 	}
 
-	const projectID = "sinmetal-ci"
 	const sa = "signedurl@sinmetal-ci.iam.gserviceaccount.com"
 	s, err := NewStorageSignedURLService(ctx, sa, iamService, iamCredentialsClient)
 	if err != nil {

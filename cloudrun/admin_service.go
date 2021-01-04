@@ -71,7 +71,7 @@ func (s *AdminService) ListRunService(ctx context.Context, projectID string) ([]
 		}
 		res, err := call.Do()
 		if err != nil {
-			return nil, xerrors.Errorf("failed AdminService.ListRunService. projectID:%s :%w", projectID, err)
+			return nil, xerrors.Errorf("failed AdminService.ListRunService. projectID:%s : %w", projectID, err)
 		}
 		for _, item := range res.Items {
 			results = append(results, &RunService{

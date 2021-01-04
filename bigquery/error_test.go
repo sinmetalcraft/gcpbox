@@ -14,8 +14,7 @@ func TestStreamingInsertError_Error(t *testing.T) {
 		InsertID: "sampleInsertID",
 		Err:      fmt.Errorf("hello sample error"),
 	}
-	var err error
-	err = org
+	var err error = org
 
 	var sierr *StreamingInsertError
 	if !xerrors.As(err, &sierr) {
@@ -40,8 +39,7 @@ func TestStreamingInsertErrors_Error(t *testing.T) {
 	org := &StreamingInsertErrors{}
 	org.Errors = append(org.Errors, org1, org2)
 
-	var err error
-	err = org
+	var err error = org
 
 	var sierr *StreamingInsertErrors
 	if !xerrors.As(err, &sierr) {
