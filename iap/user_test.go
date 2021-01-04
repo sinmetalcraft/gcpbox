@@ -24,6 +24,7 @@ func TestCurrentUserWithContext(t *testing.T) {
 
 	ctx := context.Background()
 	ctx, u := iapbox.CurrentUserWithContext(ctx, r)
+	_ = ctx
 	if u == nil {
 		t.Fatal("not login")
 	}
@@ -43,6 +44,7 @@ func TestCurrentUserWithContextNotLogin(t *testing.T) {
 
 	ctx := context.Background()
 	ctx, user := iapbox.CurrentUserWithContext(ctx, r)
+	_ = ctx
 	if user != nil {
 		t.Errorf("user login")
 	}

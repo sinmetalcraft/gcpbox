@@ -21,10 +21,7 @@ const ConfigurationKey = "K_CONFIGURATION"
 // 環境変数見てるだけなので、偽装可能
 func OnCloudRun() bool {
 	_, err := Service()
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 // OnCloudRunReal is AppがCloudRunで動いてるかどうか

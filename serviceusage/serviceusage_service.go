@@ -74,7 +74,7 @@ func (s *ServiceUsageService) ListByDiff(ctx context.Context, baseProjectID stri
 
 	target, err := s.ListAll(ctx, targetProjectID)
 	if err != nil {
-		return nil, xerrors.Errorf("failed List ServiceUsage. projectID:%d : %w", targetProjectID, err)
+		return nil, xerrors.Errorf("failed List ServiceUsage. projectID:%s : %w", targetProjectID, err)
 	}
 	targetMap := map[string]*Service{}
 	for _, v := range target {

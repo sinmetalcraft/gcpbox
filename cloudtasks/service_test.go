@@ -270,6 +270,9 @@ func TestService_CreateGetTaskMulti_Error(t *testing.T) {
 		RelativeURI: runHandlerURI,
 		Deadline:    time.Duration(30 * time.Minute),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var tasks []*tasksbox.GetTask
 	for i := 0; i < 10; i++ {
@@ -323,6 +326,9 @@ func TestService_CreateGetTaskMulti_WithIgnoreAlreadyExists(t *testing.T) {
 		RelativeURI: runHandlerURI,
 		Deadline:    time.Duration(30 * time.Minute),
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	var tasks []*tasksbox.GetTask
 	for i := 0; i < 10; i++ {
