@@ -41,6 +41,22 @@ CREATE TABLE QUERY_STATS_DUMMY (
     TEXT_TRUNCATED BOOL,
 ) PRIMARY KEY (INTERVAL_END DESC, TEXT_FINGERPRINT)`
 
+	readStatsDummyTable            = "READ_STATS_DUMMY"
+	dummyReadStatsTableCreateTable = `
+CREATE TABLE READ_STATS_DUMMY (
+    INTERVAL_END TIMESTAMP,
+    READ_COLUMNS ARRAY<STRING(MAX)>,    
+    FPRINT INT64,
+    EXECUTION_COUNT INT64,
+    AVG_ROWS FLOAT64,
+    AVG_BYTES FLOAT64,
+    AVG_CPU_SECONDS FLOAT64,
+    AVG_LOCKING_DELAY_SECONDS FLOAT64,
+    AVG_CLIENT_WAIT_SECONDS FLOAT64,
+    AVG_LEADER_REFRESH_DELAY_SECONDS FLOAT64,
+) PRIMARY KEY (INTERVAL_END DESC, FPRINT)
+`
+
 	txStatsDummyTable            = "TRANSACTION_STATS_DUMMY"
 	dummyTxStatsTableCreateTable = `
 CREATE TABLE TRANSACTION_STATS_DUMMY (
@@ -144,6 +160,41 @@ func TestService_CopyQueryStats(t *testing.T) {
 	}
 
 	count, err := s.CopyQueryStats(ctx, dataset, table, queryStatsDummyTable, intervalEnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("insert count is %d", count)
+}
+
+func TestService_CopyReadStats(t *testing.T) {
+	ctx := context.Background()
+
+	const project = "sinmetal-ci"
+	const instance = "fuga"
+	database := fmt.Sprintf("test%d", rand.Intn(10000000))
+	intervalEnd := time.Date(2020, 8, 20, 1, 1, 0, 0, time.UTC)
+
+	newSpannerDatabase(t, project, instance, fmt.Sprintf("CREATE DATABASE %s", database), []string{dummyReadStatsTableCreateTable})
+	newReadStatsDummyData(t, project, instance, database, intervalEnd)
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_read_stats"}
+	table := "minutes"
+	if err := s.CreateReadStatsTable(ctx, dataset, table); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 409 {
+				// noop
+			} else {
+				t.Fatal(ae)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+
+	count, err := s.CopyReadStats(ctx, dataset, table, readStatsDummyTable, intervalEnd)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,6 +379,53 @@ func newQueryStatsDummyData(t *testing.T, project string, instance string, datab
 			AvgCPUSeconds:     rand.Float64(),
 		}
 		mu, err := spanner.InsertStruct("QUERY_STATS_DUMMY", stat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mus = append(mus, mu)
+	}
+	_, err = sc.Apply(ctx, mus)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newReadStatsDummyData(t *testing.T, project string, instance string, database string, intervalEnd time.Time) {
+	ctx := context.Background()
+
+	createStatement := fmt.Sprintf("CREATE DATABASE %s", database)
+	extraStatements := []string{
+		dummyReadStatsTableCreateTable,
+	}
+	newSpannerDatabase(t, project, instance, createStatement, extraStatements)
+
+	sc, err := spanner.NewClientWithConfig(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database),
+		spanner.ClientConfig{
+			SessionPoolConfig: spanner.SessionPoolConfig{
+				MinOpened:     1,  // 1query投げておしまいので、1でOK
+				MaxOpened:     10, // 1query投げておしまいなので、そんなにたくさんは要らない
+				WriteSessions: 0,  // Readしかしないので、WriteSessionsをPoolする必要はない
+			},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var mus []*spanner.Mutation
+	for i := 0; i < 10; i++ {
+		stat := &statscopy.ReadStat{
+			IntervalEnd:                  intervalEnd,
+			ReadColumns:                  []string{"ReadHoge"},
+			Fprint:                       rand.Int63n(1000),
+			ExecutionCount:               rand.Int63n(1000),
+			AvgRows:                      rand.Float64(),
+			AvgBytes:                     rand.Float64(),
+			AvgCPUSeconds:                rand.Float64(),
+			AvgLockingDelaySeconds:       rand.Float64(),
+			AvgClientWaitSeconds:         rand.Float64(),
+			AvgLeaderRefreshDelaySeconds: rand.Float64(),
+		}
+		mu, err := spanner.InsertStruct("READ_STATS_DUMMY", stat)
 		if err != nil {
 			t.Fatal(err)
 		}

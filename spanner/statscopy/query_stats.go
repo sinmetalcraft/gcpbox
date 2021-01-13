@@ -24,10 +24,6 @@ FROM {{.Table}}
 WHERE interval_end = TIMESTAMP(@IntervalEnd, "UTC")
 `
 
-var (
-	ErrRequiredSpannerClient = xerrors.New("required spanner client.")
-)
-
 type QueryStatsTopTable string
 
 const (
