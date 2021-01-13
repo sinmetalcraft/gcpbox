@@ -31,21 +31,38 @@ WHERE interval_end = TIMESTAMP(@IntervalEnd, "UTC")
 `
 
 var (
+	//
+	// deprecated
 	ErrRequiredSpannerClient = xerrors.New("required spanner client.")
 )
 
+//
+// deprecated
 type QueryStatsTopTable string
 
 const (
-	QueryStatsTopMinuteTable   QueryStatsTopTable = "spanner_sys.query_stats_top_minute"
+	//
+	// deprecated
+	QueryStatsTopMinuteTable QueryStatsTopTable = "spanner_sys.query_stats_top_minute"
+
+	//
+	// deprecated
 	QueryStatsTop10MinuteTable QueryStatsTopTable = "spanner_sys.query_stats_top_10minute"
-	QueryStatsTopHourTable     QueryStatsTopTable = "spanner_sys.query_stats_top_hour"
+
+	//
+	// deprecated
+	QueryStatsTopHourTable QueryStatsTopTable = "spanner_sys.query_stats_top_hour"
 )
 
+//
+// deprecated
 type QueryStatsParam struct {
 	Table string
 }
 
+// QueryStatsCopyService is QueryStatsをCopyする機能
+//
+// deprecated
 type QueryStatsCopyService struct {
 	queryStatsTopQueryTemplate *template.Template
 	Spanner                    *spanner.Client
@@ -53,11 +70,15 @@ type QueryStatsCopyService struct {
 }
 
 // NewQueryStatsCopyService is QueryStatsCopyServiceを生成する
+//
+// deprecated
 func NewQueryStatsCopyService(ctx context.Context, bq *bigquery.Client) (*QueryStatsCopyService, error) {
 	return NewQueryStatsCopyServiceWithSpannerClient(ctx, bq, nil)
 }
 
 // NewQueryStatsCopyServiceWithSpannerClient is Statsを取得したいSpanner DBが1つしかないのであれば、Spanner Clientを設定して、QueryStatsCopyServiceを作成する
+//
+// deprecated
 func NewQueryStatsCopyServiceWithSpannerClient(ctx context.Context, bq *bigquery.Client, spannerClient *spanner.Client) (*QueryStatsCopyService, error) {
 	tmpl, err := template.New("getQueryStatsTopQuery").Parse(queryStatsTopMinute)
 	if err != nil {
@@ -78,11 +99,15 @@ type Database struct {
 }
 
 // ToSpannerDatabaseName is Spanner Database Name として指定できる形式の文字列を返す
+//
+// deprecated
 func (d *Database) ToSpannerDatabaseName() string {
 	return fmt.Sprintf("projects/%s/instances/%s/databases/%s", d.ProjectID, d.Instance, d.Database)
 }
 
 // SplitDatabaseName is projects/{PROJECT_ID}/instances/{INSTANCE}/databases/{DB} 形式の文字列をstructにして返す
+//
+// deprecated
 func SplitDatabaseName(database string) (*Database, error) {
 	l := strings.Split(database, "/")
 	if len(l) < 6 {
@@ -98,6 +123,9 @@ func SplitDatabaseName(database string) (*Database, error) {
 
 var _ bigquery.ValueSaver = &QueryStat{}
 
+// QueryStat
+//
+// deprecated
 type QueryStat struct {
 	IntervalEnd       time.Time `spanner:"interval_end"` // End of the time interval that the included query executions occurred in.
 	Text              string    // SQL query text, truncated to approximately 64KB.
@@ -154,6 +182,8 @@ func (s *QueryStatsCopyService) Close() error {
 }
 
 // GetQueryStats is SpannerからQueryStatsを取得する
+//
+// deprecated
 func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QueryStatsTopTable, intervalEnd time.Time) ([]*QueryStat, error) {
 	if s.Spanner == nil {
 		return nil, ErrRequiredSpannerClient
@@ -162,6 +192,8 @@ func (s *QueryStatsCopyService) GetQueryStats(ctx context.Context, table QuerySt
 }
 
 // GetQueryStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからQueryStatsを取得する
+//
+// deprecated
 func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Context, table QueryStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*QueryStat, error) {
 	if spannerClient == nil {
 		return nil, ErrRequiredSpannerClient
@@ -199,6 +231,8 @@ func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Conte
 }
 
 // QueryStatsBigQueryTableSchema is BigQuery Table Schema
+//
+// deprecated
 var QueryStatsBigQueryTableSchema = bigquery.Schema{
 	{Name: "interval_end", Required: true, Type: bigquery.TimestampFieldType},
 	{Name: "text", Required: true, Type: bigquery.StringFieldType},
@@ -213,6 +247,8 @@ var QueryStatsBigQueryTableSchema = bigquery.Schema{
 }
 
 // ToBigQuery is QueryStatsをBigQueryにStreamingInsertでInsertする
+//
+// deprecated
 func (s *QueryStatsCopyService) CreateTable(ctx context.Context, dataset *bigquery.Dataset, table string) error {
 
 	return s.BQ.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
@@ -225,6 +261,8 @@ func (s *QueryStatsCopyService) CreateTable(ctx context.Context, dataset *bigque
 }
 
 // Copy is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
+//
+// deprecated
 func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, intervalEnd time.Time) (int, error) {
 	if s.Spanner == nil {
 		return 0, ErrRequiredSpannerClient
@@ -233,6 +271,8 @@ func (s *QueryStatsCopyService) Copy(ctx context.Context, dataset *bigquery.Data
 }
 
 // CopyWithSpannerClient is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
+//
+// deprecated
 func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (int, error) {
 	if spannerClient == nil {
 		return 0, ErrRequiredSpannerClient
