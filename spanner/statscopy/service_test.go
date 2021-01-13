@@ -416,7 +416,7 @@ func newReadStatsDummyData(t *testing.T, project string, instance string, databa
 		stat := &statscopy.ReadStat{
 			IntervalEnd:                  intervalEnd,
 			ReadColumns:                  []string{"ReadHoge"},
-			Fprint:                       rand.Int63n(1000),
+			Fprint:                       rand.Int63(),
 			ExecutionCount:               rand.Int63n(1000),
 			AvgRows:                      rand.Float64(),
 			AvgBytes:                     rand.Float64(),
@@ -462,7 +462,7 @@ func newTxStatsDummyData(t *testing.T, project string, instance string, database
 	for i := 0; i < 10; i++ {
 		stat := &statscopy.TxStats{
 			IntervalEnd:                   intervalEnd,
-			Fprint:                        rand.Int63n(1000),
+			Fprint:                        rand.Int63(),
 			ReadColumns:                   []string{"ReadHoge"},
 			WriteConstructiveColumns:      []string{"ConFuga"},
 			WriteDeleteTables:             []string{"DeleteMoge"},
