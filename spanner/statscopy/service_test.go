@@ -1,4 +1,4 @@
-package spanner_test
+package statscopy_test
 
 import (
 	"context"
@@ -21,7 +21,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	. "github.com/sinmetalcraft/gcpbox/spanner"
+	"github.com/sinmetalcraft/gcpbox/spanner/statscopy"
 )
 
 const (
@@ -40,6 +40,23 @@ CREATE TABLE QUERY_STATS_DUMMY (
     TEXT STRING(MAX),
     TEXT_TRUNCATED BOOL,
 ) PRIMARY KEY (INTERVAL_END DESC, TEXT_FINGERPRINT)`
+
+	txStatsDummyTable            = "TRANSACTION_STATS_DUMMY"
+	dummyTxStatsTableCreateTable = `
+CREATE TABLE TRANSACTION_STATS_DUMMY (
+    INTERVAL_END TIMESTAMP,
+    FPRINT INT64,
+    READ_COLUMNS ARRAY<STRING(MAX)>,
+    WRITE_CONSTRUCTIVE_COLUMNS ARRAY<STRING(MAX)>,
+    WRITE_DELETE_TABLES ARRAY<STRING(MAX)>,
+    COMMIT_ATTEMPT_COUNT INT64,
+    COMMIT_FAILED_PRECONDITION_COUNT INT64,
+    COMMIT_ABORT_COUNT INT64,
+    AVG_PARTICIPANTS FLOAT64,
+    AVG_TOTAL_LATENCY_SECONDS FLOAT64,
+    AVG_COMMIT_LATENCY_SECONDS FLOAT64,
+    AVG_BYTES FLOAT64,
+) PRIMARY KEY (INTERVAL_END DESC, FPRINT)`
 )
 
 func TestSplitDatabaseName(t *testing.T) {
@@ -48,7 +65,7 @@ func TestSplitDatabaseName(t *testing.T) {
 	const database = "sinmetal"
 	dbname := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
 
-	got, err := SplitDatabaseName(dbname)
+	got, err := statscopy.SplitDatabaseName(dbname)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,14 +81,14 @@ func TestSplitDatabaseName(t *testing.T) {
 }
 
 func TestSplitDatabaseName_Err(t *testing.T) {
-	_, err := SplitDatabaseName("projects/%s/instances/%s/databases")
+	_, err := statscopy.SplitDatabaseName("projects/%s/instances/%s/databases")
 	if err == nil {
 		t.Fatal("want err....")
 	}
 }
 
 func TestDatabase_ToSpannerDatabaseName(t *testing.T) {
-	d := Database{
+	d := statscopy.Database{
 		ProjectID: "gcpug-public-spanner",
 		Instance:  "merpay-sponsored-instance",
 		Database:  "sinmetal",
@@ -81,7 +98,7 @@ func TestDatabase_ToSpannerDatabaseName(t *testing.T) {
 	}
 }
 
-func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
+func TestService_GetQueryStats(t *testing.T) {
 	ctx := context.Background()
 
 	const project = "hoge"
@@ -91,14 +108,14 @@ func TestQueryStatsCopyService_GetQueryStats(t *testing.T) {
 
 	newQueryStatsDummyData(t, project, instance, database, intervalEnd)
 
-	s := newQueryStatsCopyService(t, project, instance, database)
+	s := newService(t, project, instance, database)
 	_, err := s.GetQueryStats(ctx, queryStatsDummyTable, intervalEnd)
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestQueryStatsCopyService_Copy(t *testing.T) {
+func TestService_CopyQueryStats(t *testing.T) {
 	ctx := context.Background()
 
 	const project = "sinmetal-ci"
@@ -109,11 +126,11 @@ func TestQueryStatsCopyService_Copy(t *testing.T) {
 	newSpannerDatabase(t, project, instance, fmt.Sprintf("CREATE DATABASE %s", database), []string{dummyQueryStatsTableCreateTable})
 	newQueryStatsDummyData(t, project, instance, database, intervalEnd)
 
-	s := newQueryStatsCopyService(t, project, instance, database)
+	s := newService(t, project, instance, database)
 
 	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_query_stats"}
 	table := "minutes"
-	if err := s.CreateTable(ctx, dataset, table); err != nil {
+	if err := s.CreateQueryStatsTable(ctx, dataset, table); err != nil {
 		var ae *googleapi.Error
 		if ok := errors.As(err, &ae); ok {
 			if ae.Code == 409 {
@@ -126,14 +143,49 @@ func TestQueryStatsCopyService_Copy(t *testing.T) {
 		}
 	}
 
-	count, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, intervalEnd)
+	count, err := s.CopyQueryStats(ctx, dataset, table, queryStatsDummyTable, intervalEnd)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("insert count is %d", count)
 }
 
-func TestQueryStatsCopyService_Copy_Real(t *testing.T) {
+func TestService_CopyTxStats(t *testing.T) {
+	ctx := context.Background()
+
+	const project = "sinmetal-ci"
+	const instance = "fuga"
+	database := fmt.Sprintf("test%d", rand.Intn(10000000))
+	intervalEnd := time.Date(2020, 8, 20, 1, 1, 0, 0, time.UTC)
+
+	newSpannerDatabase(t, project, instance, fmt.Sprintf("CREATE DATABASE %s", database), []string{dummyTxStatsTableCreateTable})
+	newTxStatsDummyData(t, project, instance, database, intervalEnd)
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_tx_stats"}
+	table := "minutes"
+	if err := s.CreateTxStatsTable(ctx, dataset, table); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 409 {
+				// noop
+			} else {
+				t.Fatal(ae)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+
+	count, err := s.CopyTxStats(ctx, dataset, table, txStatsDummyTable, intervalEnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("insert count is %d", count)
+}
+
+func TestService_CopyQueryStats_Real(t *testing.T) {
 	seh := os.Getenv("SPANNER_EMULATOR_HOST")
 	if len(seh) > 0 {
 		t.SkipNow()
@@ -145,11 +197,11 @@ func TestQueryStatsCopyService_Copy_Real(t *testing.T) {
 	const instance = "merpay-sponsored-instance"
 	const database = "sinmetal"
 
-	s := newQueryStatsCopyService(t, project, instance, database)
+	s := newService(t, project, instance, database)
 
 	dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
 	table := "minutes"
-	if err := s.CreateTable(ctx, dataset, table); err != nil {
+	if err := s.CreateQueryStatsTable(ctx, dataset, table); err != nil {
 		var ae *googleapi.Error
 		if ok := errors.As(err, &ae); ok {
 			if ae.Code == 409 {
@@ -162,7 +214,7 @@ func TestQueryStatsCopyService_Copy_Real(t *testing.T) {
 		}
 	}
 	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
-	_, err := s.Copy(ctx, dataset, table, QueryStatsTopMinuteTable, utc)
+	_, err := s.CopyQueryStats(ctx, dataset, table, statscopy.QueryStatsTopMinuteTable, utc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +227,7 @@ func TestTimestamp(t *testing.T) {
 	}
 }
 
-func TestQueryStatsCopyService_Copy_TableCreate(t *testing.T) {
+func TestService_CreateQueryStatsTable(t *testing.T) {
 	ctx := context.Background()
 
 	const project = "hoge"
@@ -184,17 +236,17 @@ func TestQueryStatsCopyService_Copy_TableCreate(t *testing.T) {
 
 	newSpannerDatabase(t, project, instance, fmt.Sprintf("CREATE DATABASE %s", database), []string{dummyQueryStatsTableCreateTable})
 
-	s := newQueryStatsCopyService(t, project, instance, database)
+	s := newService(t, project, instance, database)
 
 	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_query_stats"}
 	table := "not_found"
 	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
-	_, err := s.Copy(ctx, dataset, table, queryStatsDummyTable, utc)
+	_, err := s.CopyQueryStats(ctx, dataset, table, queryStatsDummyTable, utc)
 	if err != nil {
 		var ae *googleapi.Error
 		if ok := errors.As(err, &ae); ok {
 			if ae.Code == 404 {
-				if err := s.CreateTable(ctx, dataset, table); err != nil {
+				if err := s.CreateQueryStatsTable(ctx, dataset, table); err != nil {
 					t.Fatal(err)
 				}
 			} else {
@@ -206,7 +258,7 @@ func TestQueryStatsCopyService_Copy_TableCreate(t *testing.T) {
 	}
 }
 
-func newQueryStatsCopyService(t *testing.T, project string, instance string, database string) *QueryStatsCopyService {
+func newService(t *testing.T, project string, instance string, database string) *statscopy.Service {
 	ctx := context.Background()
 
 	spannerClient, err := spanner.NewClientWithConfig(ctx,
@@ -226,7 +278,7 @@ func newQueryStatsCopyService(t *testing.T, project string, instance string, dat
 		t.Fatal(err)
 	}
 
-	s, err := NewQueryStatsCopyServiceWithSpannerClient(ctx, bqClient, spannerClient)
+	s, err := statscopy.NewServiceWithSpannerClient(ctx, bqClient, spannerClient)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +315,7 @@ func newQueryStatsDummyData(t *testing.T, project string, instance string, datab
 		}
 		v := strings.Join(list, ",")
 		queryText := "SELECT " + v
-		stat := &QueryStat{
+		stat := &statscopy.QueryStat{
 			IntervalEnd:       intervalEnd,
 			Text:              queryText,
 			TextTruncated:     false,
@@ -276,6 +328,55 @@ func newQueryStatsDummyData(t *testing.T, project string, instance string, datab
 			AvgCPUSeconds:     rand.Float64(),
 		}
 		mu, err := spanner.InsertStruct("QUERY_STATS_DUMMY", stat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mus = append(mus, mu)
+	}
+	_, err = sc.Apply(ctx, mus)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newTxStatsDummyData(t *testing.T, project string, instance string, database string, intervalEnd time.Time) {
+	ctx := context.Background()
+
+	createStatement := fmt.Sprintf("CREATE DATABASE %s", database)
+	extraStatements := []string{
+		dummyTxStatsTableCreateTable,
+	}
+	newSpannerDatabase(t, project, instance, createStatement, extraStatements)
+
+	sc, err := spanner.NewClientWithConfig(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database),
+		spanner.ClientConfig{
+			SessionPoolConfig: spanner.SessionPoolConfig{
+				MinOpened:     1,  // 1query投げておしまいので、1でOK
+				MaxOpened:     10, // 1query投げておしまいなので、そんなにたくさんは要らない
+				WriteSessions: 0,  // Readしかしないので、WriteSessionsをPoolする必要はない
+			},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var mus []*spanner.Mutation
+	for i := 0; i < 10; i++ {
+		stat := &statscopy.TxStats{
+			IntervalEnd:                   intervalEnd,
+			Fprint:                        rand.Int63n(1000),
+			ReadColumns:                   []string{"ReadHoge"},
+			WriteConstructiveColumns:      []string{"ConFuga"},
+			WriteDeleteTables:             []string{"DeleteMoge"},
+			CommitAttemptCount:            rand.Int63n(1000),
+			CommitFailedPreconditionCount: rand.Int63n(1000),
+			CommitAbortCount:              rand.Int63n(1000),
+			AvgParticipants:               rand.Float64(),
+			AvgTotalLatencySeconds:        rand.Float64(),
+			AvgCommitLatencySeconds:       rand.Float64(),
+			AvgBytes:                      rand.Float64(),
+		}
+		mu, err := spanner.InsertStruct("TRANSACTION_STATS_DUMMY", stat)
 		if err != nil {
 			t.Fatal(err)
 		}
