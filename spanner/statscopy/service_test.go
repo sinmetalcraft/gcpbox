@@ -367,16 +367,20 @@ func newQueryStatsDummyData(t *testing.T, project string, instance string, datab
 		v := strings.Join(list, ",")
 		queryText := "SELECT " + v
 		stat := &statscopy.QueryStat{
-			IntervalEnd:       intervalEnd,
-			Text:              queryText,
-			TextTruncated:     false,
-			TextFingerprint:   int64(farm.Fingerprint64([]byte(queryText))),
-			ExecuteCount:      rand.Int63n(1000),
-			AvgLatencySeconds: rand.Float64(),
-			AvgRows:           rand.Float64(),
-			AvgBytes:          rand.Float64(),
-			AvgRowsScanned:    rand.Float64(),
-			AvgCPUSeconds:     rand.Float64(),
+			IntervalEnd:                           intervalEnd,
+			Text:                                  queryText,
+			TextTruncated:                         false,
+			TextFingerprint:                       int64(farm.Fingerprint64([]byte(queryText))),
+			ExecuteCount:                          rand.Int63n(1000),
+			AvgLatencySeconds:                     rand.Float64(),
+			AvgRows:                               rand.Float64(),
+			AvgBytes:                              rand.Float64(),
+			AvgRowsScanned:                        rand.Float64(),
+			AvgCPUSeconds:                         rand.Float64(),
+			AllFailedExecutionCount:               rand.Int63(),
+			AllFailedAvgLatencySeconds:            rand.Float64(),
+			CancelledOrDisconnectedExecutionCount: rand.Int63(),
+			TimedOutExecutionCount:                rand.Int63(),
 		}
 		mu, err := spanner.InsertStruct("QUERY_STATS_DUMMY", stat)
 		if err != nil {
