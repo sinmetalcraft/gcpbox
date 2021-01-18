@@ -239,6 +239,15 @@ func (s *Service) CreateQueryStatsTable(ctx context.Context, dataset *bigquery.D
 	})
 }
 
+// UpdateQueryStatsTable is BigQuery上にあるQueryStats TableのSchemaをUpdateする
+// 途中でColumnが追加されたときに使う
+func (s *Service) UpdateQueryStatsTable(ctx context.Context, dataset *bigquery.Dataset, table string) (*bigquery.TableMetadata, error) {
+
+	return s.BQ.Dataset(dataset.DatasetID).Table(table).Update(ctx, bigquery.TableMetadataToUpdate{
+		Schema: QueryStatsBigQueryTableSchema,
+	}, "")
+}
+
 // CreateReadStatsTable is ReadStatsをCopyするTableをBigQueryに作成する
 func (s *Service) CreateReadStatsTable(ctx context.Context, dataset *bigquery.Dataset, table string) error {
 
