@@ -106,8 +106,23 @@ var QueryStatsBigQueryTableSchema = bigquery.Schema{
 	{Name: "avg_bytes", Required: true, Type: bigquery.FloatFieldType},
 	{Name: "avg_rows_scanned", Required: true, Type: bigquery.FloatFieldType},
 	{Name: "avg_cpu_seconds", Required: true, Type: bigquery.FloatFieldType},
-	{Name: "all_failed_execution_count", Required: true, Type: bigquery.IntegerFieldType},
-	{Name: "all_failed_avg_latency_seconds", Required: true, Type: bigquery.FloatFieldType},
-	{Name: "cancelled_or_disconnected_execution_count", Required: true, Type: bigquery.IntegerFieldType},
-	{Name: "timed_out_execution_count", Required: true, Type: bigquery.IntegerFieldType},
+	{Name: "all_failed_execution_count", Required: false, Type: bigquery.IntegerFieldType},
+	{Name: "all_failed_avg_latency_seconds", Required: false, Type: bigquery.FloatFieldType},
+	{Name: "cancelled_or_disconnected_execution_count", Required: false, Type: bigquery.IntegerFieldType},
+	{Name: "timed_out_execution_count", Required: false, Type: bigquery.IntegerFieldType},
+}
+
+// QueryStatsBigQueryTableSchemaV1 is BigQuery Table Schema
+// 2021/01/14 UPDATEでFailed系のColumnが追加される前のSchema
+var QueryStatsBigQueryTableSchema20210113 = bigquery.Schema{
+	{Name: "interval_end", Required: true, Type: bigquery.TimestampFieldType},
+	{Name: "text", Required: true, Type: bigquery.StringFieldType},
+	{Name: "text_truncated", Required: true, Type: bigquery.BooleanFieldType},
+	{Name: "text_fingerprint", Required: true, Type: bigquery.IntegerFieldType},
+	{Name: "execution_count", Required: true, Type: bigquery.IntegerFieldType},
+	{Name: "avg_latency_seconds", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "avg_rows", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "avg_bytes", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "avg_rows_scanned", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "avg_cpu_seconds", Required: true, Type: bigquery.FloatFieldType},
 }
