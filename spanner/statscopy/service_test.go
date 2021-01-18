@@ -244,9 +244,7 @@ func TestService_CopyQueryStats_Real(t *testing.T) {
 
 	ctx := context.Background()
 
-	const project = "gcpug-public-spanner"
-	const instance = "merpay-sponsored-instance"
-	const database = "sinmetal"
+	project, instance, database := getRealSpanner(t)
 
 	s := newService(t, project, instance, database)
 
@@ -264,8 +262,74 @@ func TestService_CopyQueryStats_Real(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	utc := time.Date(2020, 8, 13, 1, 1, 0, 0, time.UTC)
+	utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
 	_, err := s.CopyQueryStats(ctx, dataset, table, statscopy.QueryStatsTopMinuteTable, utc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestService_ReadQueryStats_Real(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	project, instance, database := getRealSpanner(t)
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_read_stats"}
+	table := "minutes"
+	if err := s.CreateReadStatsTable(ctx, dataset, table); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 409 {
+				// noop
+			} else {
+				t.Fatal(ae)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
+	_, err := s.CopyReadStats(ctx, dataset, table, statscopy.ReadStatsTop10MinuteTable, utc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestService_TxQueryStats_Real(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	project, instance, database := getRealSpanner(t)
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_tx_stats"}
+	table := "minutes"
+	if err := s.CreateReadStatsTable(ctx, dataset, table); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 409 {
+				// noop
+			} else {
+				t.Fatal(ae)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
+	_, err := s.CopyTxStats(ctx, dataset, table, statscopy.TxStatsTop10MinuteTable, utc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -545,4 +609,23 @@ func newSpannerDatabase(t *testing.T, project string, instance string, createSta
 			t.Fatal(err)
 		}
 	}
+}
+
+// getRealSpanner is Test時に実際のSpannerにアクセスする時のSpannerの情報を取得する
+func getRealSpanner(t *testing.T) (project string, instance string, database string) {
+	project = os.Getenv("SPANNER_PROJECT")
+	instance = os.Getenv("SPANNER_INSTANCE")
+	database = os.Getenv("SPANNER_DATABASE")
+
+	if project == "" {
+		project = "gcpug-public-spanner"
+	}
+	if instance == "" {
+		instance = "merpay-sponsored-instance"
+	}
+	if database == "" {
+		database = "sinmetal"
+	}
+
+	return project, instance, database
 }

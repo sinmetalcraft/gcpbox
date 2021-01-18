@@ -21,7 +21,7 @@ SELECT
   avg_rows_scanned,
   avg_cpu_seconds,
   all_failed_execution_count,
-  all_failed_avg_latency_seconds,
+  IF(IS_NAN(all_failed_avg_latency_seconds), 0, all_failed_avg_latency_seconds) AS all_failed_avg_latency_seconds,
   cancelled_or_disconnected_execution_count,
   timed_out_execution_count,
 FROM {{.Table}}
