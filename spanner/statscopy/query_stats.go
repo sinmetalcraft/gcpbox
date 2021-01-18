@@ -19,7 +19,11 @@ SELECT
   avg_rows,
   avg_bytes,
   avg_rows_scanned,
-  avg_cpu_seconds
+  avg_cpu_seconds,
+  all_failed_execution_count,
+  IF(IS_NAN(all_failed_avg_latency_seconds), 0, all_failed_avg_latency_seconds) AS all_failed_avg_latency_seconds,
+  cancelled_or_disconnected_execution_count,
+  timed_out_execution_count,
 FROM {{.Table}}
 WHERE interval_end = TIMESTAMP(@IntervalEnd, "UTC")
 `
@@ -39,16 +43,20 @@ type QueryStatsParam struct {
 var _ bigquery.ValueSaver = &QueryStat{}
 
 type QueryStat struct {
-	IntervalEnd       time.Time `spanner:"interval_end"` // End of the time interval that the included query executions occurred in.
-	Text              string    // SQL query text, truncated to approximately 64KB.
-	TextTruncated     bool      `spanner:"text_truncated"`      // Whether or not the query text was truncated.
-	TextFingerprint   int64     `spanner:"text_fingerprint"`    // Hash of the query text.
-	ExecuteCount      int64     `spanner:"execution_count"`     // Number of times Cloud Spanner saw the query during the interval.
-	AvgLatencySeconds float64   `spanner:"avg_latency_seconds"` // Average length of time, in seconds, for each query execution within the database. This average excludes the encoding and transmission time for the result set as well as overhead.
-	AvgRows           float64   `spanner:"avg_rows"`            // Average number of rows that the query returned.
-	AvgBytes          float64   `spanner:"avg_bytes"`           // Average number of data bytes that the query returned, excluding transmission encoding overhead.
-	AvgRowsScanned    float64   `spanner:"avg_rows_scanned"`    // Average number of rows that the query scanned, excluding deleted values.
-	AvgCPUSeconds     float64   `spanner:"avg_cpu_seconds"`     // Average number of seconds of CPU time Cloud Spanner spent on all operations to execute the query.
+	IntervalEnd                           time.Time `spanner:"interval_end"` // End of the time interval that the included query executions occurred in.
+	Text                                  string    // SQL query text, truncated to approximately 64KB.
+	TextTruncated                         bool      `spanner:"text_truncated"`                            // Whether or not the query text was truncated.
+	TextFingerprint                       int64     `spanner:"text_fingerprint"`                          // Hash of the query text.
+	ExecuteCount                          int64     `spanner:"execution_count"`                           // Number of times Cloud Spanner saw the query during the interval.
+	AvgLatencySeconds                     float64   `spanner:"avg_latency_seconds"`                       // Average length of time, in seconds, for each query execution within the database. This average excludes the encoding and transmission time for the result set as well as overhead.
+	AvgRows                               float64   `spanner:"avg_rows"`                                  // Average number of rows that the query returned.
+	AvgBytes                              float64   `spanner:"avg_bytes"`                                 // Average number of data bytes that the query returned, excluding transmission encoding overhead.
+	AvgRowsScanned                        float64   `spanner:"avg_rows_scanned"`                          // Average number of rows that the query scanned, excluding deleted values.
+	AvgCPUSeconds                         float64   `spanner:"avg_cpu_seconds"`                           // Average number of seconds of CPU time Cloud Spanner spent on all operations to execute the query.
+	AllFailedExecutionCount               int64     `spanner:"all_failed_execution_count"`                // Number of times the query failed during the interval.
+	AllFailedAvgLatencySeconds            float64   `spanner:"all_failed_avg_latency_seconds"`            // Average length of time, in seconds, for each query execution that failed within the database. This average excludes the encoding and transmission time for the result set as well as overhead.
+	CancelledOrDisconnectedExecutionCount int64     `spanner:"cancelled_or_disconnected_execution_count"` // Number of times the query was canceled by the user or failed due to broken network connection during the interval.
+	TimedOutExecutionCount                int64     `spanner:"timed_out_execution_count"`                 // Number of times the query timed out during the interval.
 }
 
 // Save is bigquery.ValueSaver interface
@@ -58,16 +66,20 @@ func (s *QueryStat) Save() (map[string]bigquery.Value, string, error) {
 		return nil, "", xerrors.Errorf("failed InsertID() : %w", err)
 	}
 	return map[string]bigquery.Value{
-		"interval_end":        s.IntervalEnd,
-		"text":                s.Text,
-		"text_truncated":      s.TextTruncated,
-		"text_fingerprint":    s.TextFingerprint,
-		"execution_count":     s.ExecuteCount,
-		"avg_latency_seconds": s.AvgLatencySeconds,
-		"avg_rows":            s.AvgRows,
-		"avg_bytes":           s.AvgBytes,
-		"avg_rows_scanned":    s.AvgRowsScanned,
-		"avg_cpu_seconds":     s.AvgCPUSeconds,
+		"interval_end":                   s.IntervalEnd,
+		"text":                           s.Text,
+		"text_truncated":                 s.TextTruncated,
+		"text_fingerprint":               s.TextFingerprint,
+		"execution_count":                s.ExecuteCount,
+		"avg_latency_seconds":            s.AvgLatencySeconds,
+		"avg_rows":                       s.AvgRows,
+		"avg_bytes":                      s.AvgBytes,
+		"avg_rows_scanned":               s.AvgRowsScanned,
+		"avg_cpu_seconds":                s.AvgCPUSeconds,
+		"all_failed_execution_count":     s.AllFailedExecutionCount,
+		"all_failed_avg_latency_seconds": s.AllFailedAvgLatencySeconds,
+		"cancelled_or_disconnected_execution_count": s.CancelledOrDisconnectedExecutionCount,
+		"timed_out_execution_count":                 s.TimedOutExecutionCount,
 	}, insertID, nil
 }
 
@@ -94,4 +106,8 @@ var QueryStatsBigQueryTableSchema = bigquery.Schema{
 	{Name: "avg_bytes", Required: true, Type: bigquery.FloatFieldType},
 	{Name: "avg_rows_scanned", Required: true, Type: bigquery.FloatFieldType},
 	{Name: "avg_cpu_seconds", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "all_failed_execution_count", Required: true, Type: bigquery.IntegerFieldType},
+	{Name: "all_failed_avg_latency_seconds", Required: true, Type: bigquery.FloatFieldType},
+	{Name: "cancelled_or_disconnected_execution_count", Required: true, Type: bigquery.IntegerFieldType},
+	{Name: "timed_out_execution_count", Required: true, Type: bigquery.IntegerFieldType},
 }
