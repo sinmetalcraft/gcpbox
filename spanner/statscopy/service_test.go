@@ -15,6 +15,7 @@ import (
 	sadDatabase "cloud.google.com/go/spanner/admin/database/apiv1"
 	sadInstance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/dgryski/go-farm"
+	spabox "github.com/sinmetalcraft/gcpbox/spanner"
 	"google.golang.org/api/googleapi"
 	sdbproto "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	protoInstance "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
@@ -85,7 +86,7 @@ func TestSplitDatabaseName(t *testing.T) {
 	const database = "sinmetal"
 	dbname := fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database)
 
-	got, err := statscopy.SplitDatabaseName(dbname)
+	got, err := spabox.SplitDatabaseName(dbname)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,14 +102,14 @@ func TestSplitDatabaseName(t *testing.T) {
 }
 
 func TestSplitDatabaseName_Err(t *testing.T) {
-	_, err := statscopy.SplitDatabaseName("projects/%s/instances/%s/databases")
+	_, err := spabox.SplitDatabaseName("projects/%s/instances/%s/databases")
 	if err == nil {
 		t.Fatal("want err....")
 	}
 }
 
 func TestDatabase_ToSpannerDatabaseName(t *testing.T) {
-	d := statscopy.Database{
+	d := spabox.Database{
 		ProjectID: "gcpug-public-spanner",
 		Instance:  "merpay-sponsored-instance",
 		Database:  "sinmetal",
