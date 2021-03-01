@@ -36,6 +36,35 @@ type IamMember struct {
 // ExistsMemberInGCPProject is GCP Projectに指定したユーザが権限を持っているかを返す
 // defaultだと何らかのroleを持っているかを返す。rolesを指定するといずれか1つ以上を持っているかを返す。
 func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
+	exists, err := s.existsMemberInGCPProject(ctx, projectID, email, roles...)
+	if err != nil {
+		return false, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
+	}
+	if exists {
+		return true, nil
+	}
+
+	// 親のIAMをチェック
+	for {
+		project, err := s.Project(ctx, projectID)
+		if err != nil {
+			return false, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
+		}
+		if project.Parent == nil {
+			return false, nil
+		}
+
+		exists, err := s.existsMemberInGCPProject(ctx, project.Parent.ID, email, roles...)
+		if err != nil {
+			return false, xerrors.Errorf("failed existsMemberInGCPProject: target=%s, email=%s, roles=%+v : %w", project.Parent.ID, email, roles, err)
+		}
+		if exists {
+			return true, nil
+		}
+	}
+}
+
+func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
 	p, err := s.crmv1.Projects.GetIamPolicy(projectID, &crmv1.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
@@ -402,4 +431,27 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parentTy
 	}
 
 	return projects, nil
+}
+
+// Project is 指定したProjectIDのProjectを取得する
+func (s *ResourceManagerService) Project(ctx context.Context, projectID string) (*Project, error) {
+	project, err := s.crmv1.Projects.Get(projectID).Context(ctx).Do()
+	if err != nil {
+		return nil, xerrors.Errorf("failed get project. projectID=%s: %w", projectID, err)
+	}
+	p := &Project{
+		ProjectID:      project.ProjectId,
+		ProjectNumber:  project.ProjectNumber,
+		Name:           project.Name,
+		LifecycleState: project.LifecycleState,
+		Labels:         project.Labels,
+		CreateTime:     project.CreateTime,
+	}
+	if project.Parent != nil {
+		p.Parent = &ResourceID{
+			ID:   project.Parent.Id,
+			Type: project.Parent.Type,
+		}
+	}
+	return p, nil
 }
