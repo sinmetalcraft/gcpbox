@@ -222,6 +222,98 @@ type Binding struct {
 	NullFields []string `json:"-"`
 }
 
+// OrganizationOwner: The entity that owns an Organization. The lifetime
+// of the Organization and
+// all of its descendants are bound to the `OrganizationOwner`. If
+// the
+// `OrganizationOwner` is deleted, the Organization and all its
+// descendants will
+// be deleted.
+type OrganizationOwner struct {
+	// DirectoryCustomerId: The G Suite customer id used in the Directory
+	// API.
+	DirectoryCustomerId string `json:"directoryCustomerId,omitempty"`
+
+	// ForceSendFields is a list of field names (e.g. "DirectoryCustomerId")
+	// to unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "DirectoryCustomerId") to
+	// include in API requests with the JSON null value. By default, fields
+	// with empty values are omitted from API requests. However, any field
+	// with an empty value appearing in NullFields will be sent to the
+	// server as null. It is an error if a field in this list has a
+	// non-empty value. This may be used to include null fields in Patch
+	// requests.
+	NullFields []string `json:"-"`
+}
+
+// Organization: The root node in the resource hierarchy to which a
+// particular entity's
+// (e.g., company) resources belong.
+type Organization struct {
+	// CreationTime: Timestamp when the Organization was created. Assigned
+	// by the server.
+	CreationTime string `json:"creationTime,omitempty"`
+
+	// DisplayName: A human-readable string that refers to the Organization
+	// in the
+	// GCP Console UI. This string is set by the server and cannot
+	// be
+	// changed. The string will be set to the primary domain (for
+	// example,
+	// "google.com") of the G Suite customer that owns the organization.
+	DisplayName string `json:"displayName,omitempty"`
+
+	// LifecycleState: The organization's current lifecycle state. Assigned
+	// by the server.
+	//
+	// Possible values:
+	//   "LIFECYCLE_STATE_UNSPECIFIED" - Unspecified state.  This is only
+	// useful for distinguishing unset values.
+	//   "ACTIVE" - The normal and active state.
+	//   "DELETE_REQUESTED" - The organization has been marked for deletion
+	// by the user.
+	LifecycleState string `json:"lifecycleState,omitempty"`
+
+	// Name: Output only. The resource name of the organization. This is
+	// the
+	// organization's relative path in the API. Its format
+	// is
+	// "organizations/[organization_id]". For example, "organizations/1234".
+	Name string `json:"name,omitempty"`
+
+	// Owner: The owner of this Organization. The owner should be specified
+	// on
+	// creation. Once set, it cannot be changed.
+	// This field is required.
+	Owner *OrganizationOwner `json:"owner,omitempty"`
+
+	// ServerResponse contains the HTTP response code and headers from the
+	// server.
+	googleapi.ServerResponse `json:"-"`
+
+	// ForceSendFields is a list of field names (e.g. "CreationTime") to
+	// unconditionally include in API requests. By default, fields with
+	// empty values are omitted from API requests. However, any non-pointer,
+	// non-interface field appearing in ForceSendFields will be sent to the
+	// server regardless of whether the field is empty or not. This may be
+	// used to include empty fields in Patch requests.
+	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "CreationTime") to include
+	// in API requests with the JSON null value. By default, fields with
+	// empty values are omitted from API requests. However, any field with
+	// an empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
+}
+
 // Folder: A Folder in an Organization's resource hierarchy, used
 // to
 // organize that Organization's resources.
@@ -260,10 +352,6 @@ type Folder struct {
 	// Name: Output only. The resource name of the Folder.
 	// Its format is `folders/{folder_id}`, for example: "folders/1234".
 	Name string `json:"name,omitempty"`
-
-	// ID is FolderID
-	// e.g. folder/1234 -> 1234
-	ID string
 
 	// Parent: Required. The Folder’s parent's resource name.
 	// Updates to the folder's parent must be performed via
@@ -404,9 +492,9 @@ func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, p
 // ExistsMemberCheckResult is 上位階層のIAMをチェックした履歴
 type ExistsMemberCheckResult struct {
 	Resource *ResourceID
-	Parent *ResourceID
-	Exists bool
-	Err error
+	Parent   *ResourceID
+	Exists   bool
+	Err      error
 }
 
 // ExistsMemberInGCPProjectWithInherit is GCP Projectに指定したユーザが権限を持っているかを返す
@@ -423,43 +511,67 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 
 	// 親のIAMをチェック
 	var rets []*ExistsMemberCheckResult
-	for {
-		project, err := s.GetProject(ctx, projectID)
-		if err != nil {
-			return false, nil, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
-		}
-		if project.Parent == nil {
-			return false, rets, nil
-		}
+	project, err := s.GetProject(ctx, projectID)
+	if err != nil {
+		return false, nil, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
+	}
+	if project.Parent == nil {
+		return false, rets, nil
+	}
 
-		exists, err := s.existsMemberInGCPProject(ctx, project.Parent.ID, email, roles...)
+	parent := project.Parent
+	for {
+		var exists bool
+		var err error
+		switch parent.Type {
+		case "folders":
+			exists, err = s.existsMemberInFolder(ctx, parent, email, roles...)
+		case "organizations":
+			// TODO org
+
+		default:
+			// TODO unsupported
+			return false, rets, fmt.Errorf("%s is unsupported resource type", parent.Type)
+		}
 		if err != nil {
 			rets = append(rets, &ExistsMemberCheckResult{
-				Resource: &ResourceID{
-					ID : project.Parent.ID,
-					Type: project.Parent.Type,
-				},
-				Err : err,
+				Resource: parent,
+				Err:      err,
 			})
-			return false, rets, nil
+			return false, rets, err
 		}
-		rets = append(rets, &ExistsMemberCheckResult{
-			Resource: &ResourceID{
-				ID : project.Parent.ID,
-				Type: project.Parent.Type,
-			},
-			// TODO Parent
-			Exists: exists,
-			Err : nil,
-		})
+		ret := &ExistsMemberCheckResult{
+			Resource: parent,
+			Exists:   exists,
+			Err:      nil,
+		}
+		rets = append(rets, ret)
 		if exists {
 			return true, rets, nil
+		}
+
+		switch parent.Type {
+		case "folders":
+			folder, err := s.GetFolder(ctx, parent)
+			if err != nil {
+				return false, rets, xerrors.Errorf("failed get folder : resource=%+v, : %w", parent, err)
+			}
+			if folder.Parent == nil {
+				return false, rets, nil
+			}
+			parent = folder.Parent
+		case "organizations":
+			// TODO org
+			return false, rets, nil
+		default:
+			// TODO unsupported
+			return false, rets, fmt.Errorf("%s is unsupported resource type", parent.Type)
 		}
 	}
 }
 
 func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
-	p, err := s.crmv1.Projects.GetIamPolicy(projectID, &crmv1.GetIamPolicyRequest{}).Context(ctx).Do()
+	resource, err := s.crmv1.Projects.GetIamPolicy(projectID, &crmv1.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
@@ -470,64 +582,22 @@ func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, p
 
 		return false, xerrors.Errorf("failed Projects.GetIamPolicy: projectID=%s, : %w", projectID, err)
 	}
-	roleMap := map[string]bool{}
-	for _, role := range roles {
-		roleMap[role] = true
-	}
-
-	for _, binding := range p.Bindings {
-		if len(roleMap) > 0 {
-			v := roleMap[binding.Role]
-			if !v {
-				continue
-			}
-		}
-		hit, err := s.existsIamMember(binding.Members, email)
-		if err != nil {
-			return false, err
-		}
-		if hit {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return s.existsIamMemberInBindings(email, s.convertCrmV1Bindings(resource.Bindings), roles...)
 }
 
-func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
-	resource, err := s.crmv2.Folders.GetIamPolicy(projectID, &crmv2.GetIamPolicyRequest{}).Context(ctx).Do()
+func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folder *ResourceID, email string, roles ...string) (bool, error) {
+	resource, err := s.crmv2.Folders.GetIamPolicy(folder.Name(), &crmv2.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
-				return false, NewErrPermissionDenied("failed Projects.GetIamPolicy", map[string]interface{}{"input_project": projectID}, err)
+				return false, NewErrPermissionDenied("failed Folders.GetIamPolicy", map[string]interface{}{"input_folder": folder}, err)
 			}
 		}
 
-		return false, xerrors.Errorf("failed Projects.GetIamPolicy: projectID=%s, : %w", projectID, err)
+		return false, xerrors.Errorf("failed Folders.GetIamPolicy: folder=%+v, : %w", folder, err)
 	}
-	roleMap := map[string]bool{}
-	for _, role := range roles {
-		roleMap[role] = true
-	}
-
-	for _, binding := range resource.Bindings {
-		if len(roleMap) > 0 {
-			v := roleMap[binding.Role]
-			if !v {
-				continue
-			}
-		}
-		hit, err := s.existsIamMember(binding.Members, email)
-		if err != nil {
-			return false, err
-		}
-		if hit {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return s.existsIamMemberInBindings(email, s.convertCrmV2Bindings(resource.Bindings), roles...)
 }
 
 func (s *ResourceManagerService) existsIamMemberInBindings(email string, bindings []*Binding, roles ...string) (bool, error) {
@@ -689,7 +759,7 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parentID strin
 			if project.Parent != nil {
 				p.Parent = &ResourceID{
 					Type: project.Parent.Type,
-					ID:project.Parent.Id,
+					ID:   project.Parent.Id,
 				}
 			}
 			list = append(list, p)
@@ -740,6 +810,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 }
 
 // GetProject is 指定したProjectIDのProjectを取得する
+// projectID は "my-project-id" という値を渡されるのを期待している
 func (s *ResourceManagerService) GetProject(ctx context.Context, projectID string) (*Project, error) {
 	project, err := s.crmv1.Projects.Get(projectID).Context(ctx).Do()
 	if err != nil {
@@ -756,32 +827,27 @@ func (s *ResourceManagerService) GetProject(ctx context.Context, projectID strin
 	if project.Parent != nil {
 		p.Parent = &ResourceID{
 			Type: project.Parent.Type,
-			ID: project.Parent.Id,
+			ID:   project.Parent.Id,
 		}
 	}
 	return p, nil
 }
 
 // GetFolder is 指定したFolderIDのFolderを取得する
-func (s *ResourceManagerService) GetFolder(ctx context.Context, folderID string) (*Folder, error) {
-	folder, err := s.crmv2.Folders.Get(folderID).Context(ctx).Do()
+func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *ResourceID) (*Folder, error) {
+	fol, err := s.crmv2.Folders.Get(folder.Name()).Context(ctx).Do()
 	if err != nil {
-		return nil, xerrors.Errorf("failed get folder. folderID=%s: %w", folderID, err)
+		return nil, xerrors.Errorf("failed get folder. folder=%+v: %w", folder, err)
 	}
 	ret := &Folder{
-		CreateTime:     folder.CreateTime,
-		DisplayName:    folder.DisplayName,
-		LifecycleState: folder.LifecycleState,
-		Name:           folder.Name,
+		CreateTime:     fol.CreateTime,
+		DisplayName:    fol.DisplayName,
+		LifecycleState: fol.LifecycleState,
+		Name:           fol.Name,
 	}
-	id, err := s.ConvertResourceID(folder.Name)
-	if err != nil {
-		return nil, xerrors.Errorf("failed ConvertResourceID(). folder.Name=%s: %w", folder.Name, err)
-	}
-	ret.ID = id.ID
 
-	if folder.Parent != "" {
-		parent, err := s.ConvertResourceID(folder.Parent)
+	if fol.Parent != "" {
+		parent, err := s.ConvertResourceID(fol.Parent)
 		if err != nil {
 			return nil, xerrors.Errorf("failed ConvertResourceID(). folder.Name=%s: %w", folder.Name, err)
 		}
@@ -790,19 +856,90 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folderID string)
 	return ret, nil
 }
 
-func (s *ResourceManagerService) Organization(ctx context.Context, organizationID string) () {
-	// organization, err := s.crmv2.Operations.Get(organizationID).Context()
+// GetOrganization is Organizationを取得する
+func (s *ResourceManagerService) GetOrganization(ctx context.Context, organization *ResourceID) (*Organization, error) {
+	org, err := s.crmv1.Organizations.Get(organization.Name()).Context(ctx).Do()
+	if err != nil {
+		return nil, xerrors.Errorf("failed get organization. organization=%+v: %w", organization, err)
+	}
+
+	return &Organization{
+		CreationTime:   org.CreationTime,
+		DisplayName:    org.DisplayName,
+		LifecycleState: org.LifecycleState,
+		Name:           org.Name,
+		Owner: &OrganizationOwner{
+			DirectoryCustomerId: org.Owner.DirectoryCustomerId,
+		},
+		ServerResponse: org.ServerResponse,
+	}, nil
 }
 
 // ConvertResourceID is "type/id" 形式の文字列をResourceIDに返還する
-// e.g. folder/100, organization/100
+// e.g. folders/100, organizations/100
 func (s *ResourceManagerService) ConvertResourceID(name string) (*ResourceID, error) {
 	vl := strings.Split(name, "/")
 	if len(vl) < 2 {
 		return nil, xerrors.Errorf("invalid resource name. name=%s", name)
 	}
 	return &ResourceID{
-		ID : vl[1],
+		ID:   vl[1],
 		Type: vl[0],
 	}, nil
+}
+
+func (s *ResourceManagerService) convertCrmV1Bindings(bindings []*crmv1.Binding) []*Binding {
+	var rets []*Binding
+	if bindings == nil {
+		return rets
+	}
+	for _, binding := range bindings {
+		rets = append(rets, &Binding{
+			Condition: s.convertCrmV1Expr(binding.Condition),
+			Members:   binding.Members,
+			Role:      binding.Role,
+		})
+	}
+
+	return rets
+}
+
+func (s *ResourceManagerService) convertCrmV1Expr(expr *crmv1.Expr) *Expr {
+	if expr == nil {
+		return nil
+	}
+	return &Expr{
+		Description: expr.Description,
+		Expression:  expr.Expression,
+		Location:    expr.Location,
+		Title:       expr.Title,
+	}
+}
+
+func (s *ResourceManagerService) convertCrmV2Bindings(bindings []*crmv2.Binding) []*Binding {
+	var rets []*Binding
+	if bindings == nil {
+		return rets
+	}
+	for _, binding := range bindings {
+		rets = append(rets, &Binding{
+			Condition: s.convertCrmV2Expr(binding.Condition),
+			Members:   binding.Members,
+			Role:      binding.Role,
+		})
+	}
+
+	return rets
+}
+
+func (s *ResourceManagerService) convertCrmV2Expr(expr *crmv2.Expr) *Expr {
+	if expr == nil {
+		return nil
+	}
+	return &Expr{
+		Description: expr.Description,
+		Expression:  expr.Expression,
+		Location:    expr.Location,
+		Title:       expr.Title,
+	}
 }

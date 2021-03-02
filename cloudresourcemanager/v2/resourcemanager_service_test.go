@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/k0kubun/pp"
 	"github.com/google/go-cmp/cmp"
+	"github.com/k0kubun/pp"
 	"golang.org/x/xerrors"
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
 	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
@@ -16,12 +16,12 @@ import (
 )
 
 const (
-	metalTileFolder = "1050500061186"
+	metalTileFolder    = "1050500061186"
 	sinmetalcraftJPOrg = "190932998497"
 	gcpalcatrazLandOrg = "69098872916"
 
 	gcpboxFolderSinmetalcraftJPOrg = "484650900491"
-	gcpboxFolderSinmetalJPOrg = "167285374874"
+	gcpboxFolderSinmetalJPOrg      = "167285374874"
 )
 
 func TestResourceManagerService_GetFolders(t *testing.T) {
@@ -34,8 +34,8 @@ func TestResourceManagerService_GetFolders(t *testing.T) {
 		parent  *ResourceID
 		wantErr error
 	}{
-		{"正常系", &ResourceID{Type: "organizations",ID:sinmetalcraftJPOrg }, nil},
-		{"権限がないparent", &ResourceID{Type: "organizations",ID:"1050507061166" }, ErrPermissionDenied},
+		{"正常系", &ResourceID{Type: "organizations", ID: sinmetalcraftJPOrg}, nil},
+		{"権限がないparent", &ResourceID{Type: "organizations", ID: "1050507061166"}, ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {
@@ -104,13 +104,13 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 
 	cases := []struct {
 		name         string
-		parent   *ResourceID
+		parent       *ResourceID
 		wantCountMin int
 		wantErr      error
 	}{
-		{"正常系 folder", &ResourceID{Type:"folders", ID:metalTileFolder}, 2, nil},
-		{"正常系 organization", &ResourceID{Type:"organizations", ID:sinmetalcraftJPOrg}, 10, nil},
-		{"権限がないparent", &ResourceID{Type:"folders", ID:"105058807061166"}, 0, ErrPermissionDenied},
+		{"正常系 folder", &ResourceID{Type: "folders", ID: metalTileFolder}, 2, nil},
+		{"正常系 organization", &ResourceID{Type: "organizations", ID: sinmetalcraftJPOrg}, 10, nil},
+		{"権限がないparent", &ResourceID{Type: "folders", ID: "105058807061166"}, 0, ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {
@@ -273,11 +273,29 @@ func TestResourceManagerService_GetFolder(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, err := s.GetFolder(ctx, metalTileFolder)
+	_, err := s.GetFolder(ctx, &ResourceID{
+		Type: "folders",
+		ID:   metalTileFolder,
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 }
+
+func TestResourceManagerService_GetOrganization(t *testing.T) {
+	s := newResourceManagerService(t)
+
+	ctx := context.Background()
+
+	_, err := s.GetOrganization(ctx, &ResourceID{
+		Type: "organizations",
+		ID:   sinmetalcraftJPOrg,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func newResourceManagerService(t *testing.T) *ResourceManagerService {
 	ctx := context.Background()
 
