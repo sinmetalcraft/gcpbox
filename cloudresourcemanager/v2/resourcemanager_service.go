@@ -474,9 +474,35 @@ type ResourceID struct {
 }
 
 // Name is type/id 形式の文字列を返す
-// e.g. organization/1234, folder/1234
+// e.g. organizations/1234, folders/1234
 func (r *ResourceID) Name() string {
-	return fmt.Sprintf("%s/%s", r.Type, r.ID)
+	return fmt.Sprintf("%ss/%s", r.Type, r.ID)
+}
+
+// NewResourceID is ResourceIDを生成する
+func NewResourceID(resourceType string, id string) *ResourceID {
+	switch resourceType {
+	case "projects":
+		return &ResourceID{
+			Type: "project",
+			ID:   id,
+		}
+	case "folders":
+		return &ResourceID{
+			Type: "folder",
+			ID:   id,
+		}
+	case "organizations":
+		return &ResourceID{
+			Type: "organization",
+			ID:   id,
+		}
+	default:
+		return &ResourceID{
+			Type: resourceType,
+			ID:   id,
+		}
+	}
 }
 
 // ExistsMemberInGCPProject is GCP Projectに指定したユーザが権限を持っているかを返す
@@ -524,9 +550,9 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 		var exists bool
 		var err error
 		switch parent.Type {
-		case "folders":
+		case "folder":
 			exists, err = s.existsMemberInFolder(ctx, parent, email, roles...)
-		case "organizations":
+		case "organization":
 			// TODO org
 
 		default:
@@ -551,7 +577,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 		}
 
 		switch parent.Type {
-		case "folders":
+		case "folder":
 			folder, err := s.GetFolder(ctx, parent)
 			if err != nil {
 				return false, rets, xerrors.Errorf("failed get folder : resource=%+v, : %w", parent, err)
@@ -560,7 +586,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 				return false, rets, nil
 			}
 			parent = folder.Parent
-		case "organizations":
+		case "organization":
 			// TODO org
 			return false, rets, nil
 		default:
@@ -629,9 +655,6 @@ func (s *ResourceManagerService) existsIamMember(members []string, email string)
 		iamMember, err := s.ConvertIamMember(member)
 		if err != nil {
 			return false, err
-		}
-		if iamMember.Type != "user" {
-			continue
 		}
 		if email == iamMember.Email {
 			return true, nil
@@ -705,7 +728,7 @@ func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID
 	req := s.crmv2.Folders.List().Parent(parent.Name())
 	if err := req.Pages(ctx, func(page *crmv2.ListFoldersResponse) error {
 		for _, folder := range page.Folders {
-			resourceID, err := s.ConvertResourceID(folder.Name)
+			resourceID, err := ConvertResourceID(folder.Name)
 			if err != nil {
 				return err
 			}
@@ -720,7 +743,7 @@ func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID
 				CreateTime:     folder.CreateTime,
 			}
 			if folder.Parent != "" {
-				parent, err := s.ConvertResourceID(folder.Parent)
+				parent, err := ConvertResourceID(folder.Parent)
 				if err != nil {
 					return err
 				}
@@ -757,10 +780,7 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parentID strin
 				CreateTime:     project.CreateTime,
 			}
 			if project.Parent != nil {
-				p.Parent = &ResourceID{
-					Type: project.Parent.Type,
-					ID:   project.Parent.Id,
-				}
+				p.Parent = NewResourceID(project.Parent.Type, project.Parent.Id)
 			}
 			list = append(list, p)
 		}
@@ -795,7 +815,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 	}
 
 	for _, folder := range folders {
-		fn, err := s.ConvertResourceID(folder.Name)
+		fn, err := ConvertResourceID(folder.Name)
 		if err != nil {
 			return nil, xerrors.Errorf("invalid folder.Name. name=%s : %w", folder.Name, err)
 		}
@@ -847,7 +867,7 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *Resource
 	}
 
 	if fol.Parent != "" {
-		parent, err := s.ConvertResourceID(fol.Parent)
+		parent, err := ConvertResourceID(fol.Parent)
 		if err != nil {
 			return nil, xerrors.Errorf("failed ConvertResourceID(). folder.Name=%s: %w", folder.Name, err)
 		}
@@ -877,15 +897,12 @@ func (s *ResourceManagerService) GetOrganization(ctx context.Context, organizati
 
 // ConvertResourceID is "type/id" 形式の文字列をResourceIDに返還する
 // e.g. folders/100, organizations/100
-func (s *ResourceManagerService) ConvertResourceID(name string) (*ResourceID, error) {
+func ConvertResourceID(name string) (*ResourceID, error) {
 	vl := strings.Split(name, "/")
 	if len(vl) < 2 {
 		return nil, xerrors.Errorf("invalid resource name. name=%s", name)
 	}
-	return &ResourceID{
-		ID:   vl[1],
-		Type: vl[0],
-	}, nil
+	return NewResourceID(vl[0], vl[1]), nil
 }
 
 func (s *ResourceManagerService) convertCrmV1Bindings(bindings []*crmv1.Binding) []*Binding {

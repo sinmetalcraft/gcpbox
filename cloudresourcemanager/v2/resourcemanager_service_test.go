@@ -199,8 +199,11 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 		wantErr error
 	}{
 		{"Projectが存在して権限を持っており、メンバーが存在している", "sinmetal-ci", "sinmetal@sinmetalcraft.jp", true, nil},
-		{"Projectが存在して、Projectが所属しているFolderの権限を持っており、メンバーが存在している", "gentle-mapper-229103", "sinmetal@sinmetalcraft.jp", true, nil},
-		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っており、メンバーが存在している", "gcpbox-ci", "metal.tie@gmail.com", true, nil},
+		{"Projectが存在して、Projectが所属している親のFolderの権限を持っているメンバーが存在している", "gcpbox-ci", "gcpbox-iam-test-3@sinmetal-ci.iam.gserviceaccount.com", true, nil},
+		{"Projectが存在して、Projectが所属している祖父のFolderの権限を持っているメンバーが存在している", "gcpbox-ci", "gcpbox-iam-test-1@sinmetal-ci.iam.gserviceaccount.com", true, nil},
+		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っているメンバーが存在している", "gcpbox-ci", "gcpbox-iam-test-2@sinmetal-ci.iam.gserviceaccount.com", true, nil},
+		{"Projectが存在して権限を持っているが、親のFolderの権限をAppが持っていない", "gentle-mapper-229103", "hoge@example.com", false, ErrPermissionDenied},
+		{"Projectが存在して権限を持っているが、親のOrganizationの権限をAppが持っていない", "gentle-mapper-229103", "hoge@example.com", false, ErrPermissionDenied},
 		{"Projectが存在して権限を持っており、メンバーが存在していない", "sinmetal-ci", "hoge@example.com", false, nil},
 		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", false, ErrPermissionDenied},
 		{"Projectが存在していない", "adoi893lda3fd1", "hoge@example.com", false, ErrPermissionDenied},
@@ -226,7 +229,7 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 				}
 
 				var errGoogleAPI *googleapi.Error
-				if !xerrors.As(err, &errGoogleAPI) {
+				if xerrors.As(err, &errGoogleAPI) {
 					if errGoogleAPI.Code != http.StatusForbidden {
 						t.Errorf("want StatusForbidden but got %v", errGoogleAPI.Code)
 					}
