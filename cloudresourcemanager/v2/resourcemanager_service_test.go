@@ -12,7 +12,7 @@ import (
 	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/googleapi"
 
-	. "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v2"
+	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v2"
 )
 
 const (
@@ -31,11 +31,11 @@ func TestResourceManagerService_GetFolders(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		parent  *ResourceID
+		parent  *crmbox.ResourceID
 		wantErr error
 	}{
-		{"正常系", NewResourceID(ResourceTypeOrganization, sinmetalcraftJPOrg), nil},
-		{"権限がないparent", NewResourceID(ResourceTypeOrganization, "1050507061166"), ErrPermissionDenied},
+		{"正常系", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg), nil},
+		{"権限がないparent", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, "1050507061166"), crmbox.ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {
@@ -46,7 +46,7 @@ func TestResourceManagerService_GetFolders(t *testing.T) {
 				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
 					t.Errorf("want error %T but got %T", e, g)
 				}
-				var errPermissionDenied *Error
+				var errPermissionDenied *crmbox.Error
 				if xerrors.As(err, &errPermissionDenied) {
 					if errPermissionDenied.KV["parent"] == "" {
 						t.Errorf("ErrPermissionDenied.Target is empty...")
@@ -104,13 +104,13 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 
 	cases := []struct {
 		name         string
-		parent       *ResourceID
+		parent       *crmbox.ResourceID
 		wantCountMin int
 		wantErr      error
 	}{
-		{"正常系 folder", NewResourceID(ResourceTypeFolder, metalTileFolder), 2, nil},
-		{"正常系 organization", NewResourceID(ResourceTypeOrganization, sinmetalcraftJPOrg), 10, nil},
-		{"権限がないparent", NewResourceID(ResourceTypeFolder, "105058807061166"), 0, ErrPermissionDenied},
+		{"正常系 folder", crmbox.NewResourceID(crmbox.ResourceTypeFolder, metalTileFolder), 2, nil},
+		{"正常系 organization", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg), 10, nil},
+		{"権限がないparent", crmbox.NewResourceID(crmbox.ResourceTypeFolder, "105058807061166"), 0, crmbox.ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {
@@ -121,7 +121,7 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
 					t.Errorf("want error %T but got %T", e, g)
 				}
-				var errPermissionDenied *Error
+				var errPermissionDenied *crmbox.Error
 				if xerrors.As(err, &errPermissionDenied) {
 					if errPermissionDenied.KV["parent"] == "" {
 						t.Errorf("ErrPermissionDenied.Target is empty...")
@@ -151,8 +151,8 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 	}{
 		{"Projectが存在して権限を持っており、メンバーが存在している", "sinmetal-ci", "sinmetal@sinmetalcraft.jp", true, nil},
 		{"Projectが存在して権限を持っており、メンバーが存在していない", "sinmetal-ci", "hoge@example.com", false, nil},
-		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", false, ErrPermissionDenied},
-		{"Projectが存在していない", "adoi893lda3fd1", "hoge@example.com", false, ErrPermissionDenied},
+		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", false, crmbox.ErrPermissionDenied},
+		{"Projectが存在していない", "adoi893lda3fd1", "hoge@example.com", false, crmbox.ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {
@@ -166,7 +166,7 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
 					t.Errorf("want error %T but got %T", e, g)
 				}
-				var errPermissionDenied *Error
+				var errPermissionDenied *crmbox.Error
 				if xerrors.As(err, &errPermissionDenied) {
 					if errPermissionDenied.KV["input_project"] == "" {
 						t.Errorf("ErrPermissionDenied.input_project is empty...")
@@ -202,11 +202,11 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 		{"Projectが存在して、Projectが所属している親のFolderの権限を持っているメンバーが存在している", "gcpbox-ci", "gcpbox-iam-test-3@sinmetal-ci.iam.gserviceaccount.com", true, nil},
 		{"Projectが存在して、Projectが所属している祖父のFolderの権限を持っているメンバーが存在している", "gcpbox-ci", "gcpbox-iam-test-1@sinmetal-ci.iam.gserviceaccount.com", true, nil},
 		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っているメンバーが存在している", "gcpbox-ci", "gcpbox-iam-test-2@sinmetal-ci.iam.gserviceaccount.com", true, nil},
-		{"Projectが存在して権限を持っているが、親のFolderの権限をAppが持っていない", "gentle-mapper-229103", "hoge@example.com", false, ErrPermissionDenied},
-		{"Projectが存在して権限を持っているが、親のOrganizationの権限をAppが持っていない", "gentle-mapper-229103", "hoge@example.com", false, ErrPermissionDenied},
+		{"Projectが存在して権限を持っているが、親のFolderの権限をAppが持っていない", "gentle-mapper-229103", "hoge@example.com", false, crmbox.ErrPermissionDenied},
+		{"Projectが存在して権限を持っているが、親のOrganizationの権限をAppが持っていない", "gentle-mapper-229103", "hoge@example.com", false, crmbox.ErrPermissionDenied},
 		{"Projectが存在して権限を持っており、メンバーが存在していない", "sinmetal-ci", "hoge@example.com", false, nil},
-		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", false, ErrPermissionDenied},
-		{"Projectが存在していない", "adoi893lda3fd1", "hoge@example.com", false, ErrPermissionDenied},
+		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", false, crmbox.ErrPermissionDenied},
+		{"Projectが存在していない", "adoi893lda3fd1", "hoge@example.com", false, crmbox.ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {
@@ -221,7 +221,7 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
 					t.Errorf("want error %T but got %T", e, g)
 				}
-				var errPermissionDenied *Error
+				var errPermissionDenied *crmbox.Error
 				if xerrors.As(err, &errPermissionDenied) {
 					if errPermissionDenied.KV["input_project"] == "" {
 						t.Errorf("ErrPermissionDenied.input_project is empty...")
@@ -245,16 +245,16 @@ func TestResourceManagerService_ConvertIamMember(t *testing.T) {
 	cases := []struct {
 		name   string
 		member string
-		want   *IamMember
+		want   *crmbox.IamMember
 	}{
 		{"deleted-sa", "deleted:serviceAccount:my-service-account@project-id.iam.gserviceaccount.com?uid=123456789012345678901",
-			&IamMember{Type: "serviceAccount", Email: "my-service-account@project-id.iam.gserviceaccount.com", Deleted: true, UID: "123456789012345678901"}},
+			&crmbox.IamMember{Type: "serviceAccount", Email: "my-service-account@project-id.iam.gserviceaccount.com", Deleted: true, UID: "123456789012345678901"}},
 		{"deleted-user", "deleted:user:donald@example.com?uid=234567890123456789012",
-			&IamMember{Type: "user", Email: "donald@example.com", Deleted: true, UID: "234567890123456789012"}},
+			&crmbox.IamMember{Type: "user", Email: "donald@example.com", Deleted: true, UID: "234567890123456789012"}},
 		{"user", "user:donald@example.com",
-			&IamMember{Type: "user", Email: "donald@example.com", Deleted: false, UID: ""}},
+			&crmbox.IamMember{Type: "user", Email: "donald@example.com", Deleted: false, UID: ""}},
 		{"service-account", "serviceAccount:my-service-account@project-id.iam.gserviceaccount.com",
-			&IamMember{Type: "serviceAccount", Email: "my-service-account@project-id.iam.gserviceaccount.com", Deleted: false, UID: ""}},
+			&crmbox.IamMember{Type: "serviceAccount", Email: "my-service-account@project-id.iam.gserviceaccount.com", Deleted: false, UID: ""}},
 	}
 
 	for _, tt := range cases {
@@ -276,10 +276,7 @@ func TestResourceManagerService_GetFolder(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, err := s.GetFolder(ctx, &ResourceID{
-		Type: "folders",
-		ID:   metalTileFolder,
-	})
+	_, err := s.GetFolder(ctx, crmbox.NewResourceID(crmbox.ResourceTypeFolder, metalTileFolder))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,16 +287,13 @@ func TestResourceManagerService_GetOrganization(t *testing.T) {
 
 	ctx := context.Background()
 
-	_, err := s.GetOrganization(ctx, &ResourceID{
-		Type: "organizations",
-		ID:   sinmetalcraftJPOrg,
-	})
+	_, err := s.GetOrganization(ctx, crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg))
 	if err != nil {
 		t.Fatal(err)
 	}
 }
 
-func newResourceManagerService(t *testing.T) *ResourceManagerService {
+func newResourceManagerService(t *testing.T) *crmbox.ResourceManagerService {
 	ctx := context.Background()
 
 	crmv1Service, err := crmv1.NewService(ctx)
@@ -311,7 +305,7 @@ func newResourceManagerService(t *testing.T) *ResourceManagerService {
 		t.Fatal(err)
 	}
 
-	s, err := NewResourceManagerService(ctx, crmv1Service, crmv2Service)
+	s, err := crmbox.NewResourceManagerService(ctx, crmv1Service, crmv2Service)
 	if err != nil {
 		t.Fatal(err)
 	}
