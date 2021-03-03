@@ -34,8 +34,8 @@ func TestResourceManagerService_GetFolders(t *testing.T) {
 		parent  *ResourceID
 		wantErr error
 	}{
-		{"正常系", &ResourceID{Type: "organizations", ID: sinmetalcraftJPOrg}, nil},
-		{"権限がないparent", &ResourceID{Type: "organizations", ID: "1050507061166"}, ErrPermissionDenied},
+		{"正常系", NewResourceID(ResourceTypeOrganization, sinmetalcraftJPOrg), nil},
+		{"権限がないparent", NewResourceID(ResourceTypeOrganization, "1050507061166"), ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {
@@ -108,9 +108,9 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 		wantCountMin int
 		wantErr      error
 	}{
-		{"正常系 folder", &ResourceID{Type: "folders", ID: metalTileFolder}, 2, nil},
-		{"正常系 organization", &ResourceID{Type: "organizations", ID: sinmetalcraftJPOrg}, 10, nil},
-		{"権限がないparent", &ResourceID{Type: "folders", ID: "105058807061166"}, 0, ErrPermissionDenied},
+		{"正常系 folder", NewResourceID(ResourceTypeFolder, metalTileFolder), 2, nil},
+		{"正常系 organization", NewResourceID(ResourceTypeOrganization, sinmetalcraftJPOrg), 10, nil},
+		{"権限がないparent", NewResourceID(ResourceTypeFolder, "105058807061166"), 0, ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {

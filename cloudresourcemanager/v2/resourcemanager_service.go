@@ -12,6 +12,17 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
+const (
+	// ResourceTypeProject is projectを表すResourceType
+	ResourceTypeProject = "project"
+
+	// ResourceTypeFolder is folderを表すResourceType
+	ResourceTypeFolder = "folder"
+
+	// ResourceTypeOrganization is organizationを表すResourceType
+	ResourceTypeOrganization = "organization"
+)
+
 // NewResourceManagerService is return ResourceManagerService
 func NewResourceManagerService(ctx context.Context, crmv1Service *crmv1.Service, crmv2Service *crmv2.Service) (*ResourceManagerService, error) {
 	return &ResourceManagerService{
@@ -553,10 +564,8 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 		case "folder":
 			exists, err = s.existsMemberInFolder(ctx, parent, email, roles...)
 		case "organization":
-			// TODO org
-
+			exists, err = s.existsMemberInOrganization(ctx, parent, email, roles...)
 		default:
-			// TODO unsupported
 			return false, rets, fmt.Errorf("%s is unsupported resource type", parent.Type)
 		}
 		if err != nil {
@@ -587,10 +596,9 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 			}
 			parent = folder.Parent
 		case "organization":
-			// TODO org
+			// orgの親は存在しないので、終了する
 			return false, rets, nil
 		default:
-			// TODO unsupported
 			return false, rets, fmt.Errorf("%s is unsupported resource type", parent.Type)
 		}
 	}
@@ -622,6 +630,21 @@ func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folde
 		}
 
 		return false, xerrors.Errorf("failed Folders.GetIamPolicy: folder=%+v, : %w", folder, err)
+	}
+	return s.existsIamMemberInBindings(email, s.convertCrmV2Bindings(resource.Bindings), roles...)
+}
+
+func (s *ResourceManagerService) existsMemberInOrganization(ctx context.Context, organization *ResourceID, email string, roles ...string) (bool, error) {
+	resource, err := s.crmv2.Folders.GetIamPolicy(organization.Name(), &crmv2.GetIamPolicyRequest{}).Context(ctx).Do()
+	if err != nil {
+		var errGoogleAPI *googleapi.Error
+		if xerrors.As(err, &errGoogleAPI) {
+			if errGoogleAPI.Code == http.StatusForbidden {
+				return false, NewErrPermissionDenied("failed Organizations.GetIamPolicy", map[string]interface{}{"input_organization": organization}, err)
+			}
+		}
+
+		return false, xerrors.Errorf("failed Organizations.GetIamPolicy: organization=%+v, : %w", organization, err)
 	}
 	return s.existsIamMemberInBindings(email, s.convertCrmV2Bindings(resource.Bindings), roles...)
 }
