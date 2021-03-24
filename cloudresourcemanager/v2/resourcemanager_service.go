@@ -624,7 +624,7 @@ func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folde
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
-			if errGoogleAPI.Code == http.StatusForbidden {
+			if errGoogleAPI.Code == http.StatusForbidden || errGoogleAPI.Code == http.StatusNotFound {
 				return false, NewErrPermissionDenied("failed Folders.GetIamPolicy", map[string]interface{}{"input_folder": folder}, err)
 			}
 		}
@@ -639,7 +639,7 @@ func (s *ResourceManagerService) existsMemberInOrganization(ctx context.Context,
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
-			if errGoogleAPI.Code == http.StatusForbidden {
+			if errGoogleAPI.Code == http.StatusForbidden || errGoogleAPI.Code == http.StatusNotFound {
 				return false, NewErrPermissionDenied("failed Organizations.GetIamPolicy", map[string]interface{}{"input_organization": organization}, err)
 			}
 		}
