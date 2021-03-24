@@ -219,22 +219,10 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 				t.Errorf("want %v but got %v", e, g)
 			}
 			if tt.wantErr != nil {
-				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
-					t.Errorf("want error %T, %s but got %T %s", e, e, g, g)
+				if e, g := tt.wantErr, err; xerrors.Is(g, e) {
+					return
 				}
-				var errPermissionDenied *crmbox.Error
-				if xerrors.As(err, &errPermissionDenied) {
-					if errPermissionDenied.KV["input_project"] == "" {
-						t.Errorf("ErrPermissionDenied.input_project is empty...")
-					}
-				}
-
-				var errGoogleAPI *googleapi.Error
-				if xerrors.As(err, &errGoogleAPI) {
-					if errGoogleAPI.Code != http.StatusForbidden {
-						t.Errorf("want StatusForbidden but got %v", errGoogleAPI.Code)
-					}
-				}
+				t.Errorf("want error %T, %s but got %T %s", tt.wantErr, tt.wantErr, err, err)
 			}
 		})
 	}
