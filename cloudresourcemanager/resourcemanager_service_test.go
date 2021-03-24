@@ -142,7 +142,6 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 		wantErr error
 	}{
 		{"Projectが存在して権限を持っており、メンバーが存在している", "sinmetal-ci", "sinmetal@sinmetalcraft.jp", true, nil},
-		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っており、メンバーが存在している", "gcpbox-ci", "metal.tie@gmail.com", true, nil},
 		{"Projectが存在して権限を持っており、メンバーが存在していない", "sinmetal-ci", "hoge@example.com", false, nil},
 		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", false, ErrPermissionDenied},
 		{"Projectが存在していない", "adoi893lda3fd1", "hoge@example.com", false, ErrPermissionDenied},
