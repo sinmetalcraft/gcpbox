@@ -174,7 +174,7 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 				}
 
 				var errGoogleAPI *googleapi.Error
-				if !xerrors.As(err, &errGoogleAPI) {
+				if xerrors.As(err, &errGoogleAPI) {
 					if errGoogleAPI.Code != http.StatusForbidden {
 						t.Errorf("want StatusForbidden but got %v", errGoogleAPI.Code)
 					}
@@ -219,7 +219,7 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 			}
 			if tt.wantErr != nil {
 				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
-					t.Errorf("want error %T but got %T", e, g)
+					t.Errorf("want error %T, %s but got %T %s", e, e, g, g)
 				}
 				var errPermissionDenied *crmbox.Error
 				if xerrors.As(err, &errPermissionDenied) {
