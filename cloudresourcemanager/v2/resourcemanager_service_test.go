@@ -18,11 +18,11 @@ import (
 const (
 	metalTileFolder    = "1050500061186"
 	sinmetalcraftJPOrg = "190932998497"
-	gcpalcatrazLandOrg = "69098872916"
-	sinmetalJPOrg      = "870462276916"
+	// gcpalcatrazLandOrg = "69098872916"
+	// sinmetalJPOrg      = "870462276916"
 
-	gcpboxFolderSinmetalcraftJPOrg = "484650900491"
-	gcpboxFolderSinmetalJPOrg      = "167285374874"
+	// gcpboxFolderSinmetalcraftJPOrg = "484650900491"
+	// gcpboxFolderSinmetalJPOrg      = "167285374874"
 )
 
 func TestResourceManagerService_GetFolders(t *testing.T) {

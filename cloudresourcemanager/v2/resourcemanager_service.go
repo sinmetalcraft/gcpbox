@@ -892,7 +892,7 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *Resource
 	if fol.Parent != "" {
 		parent, err := ConvertResourceID(fol.Parent)
 		if err != nil {
-			return nil, xerrors.Errorf("failed ConvertResourceID(). folder.Name=%s: %w", folder.Name, err)
+			return nil, xerrors.Errorf("failed ConvertResourceID(). folder.Name=%s : %w", folder.Name(), err)
 		}
 		ret.Parent = parent
 	}
