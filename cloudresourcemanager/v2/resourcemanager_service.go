@@ -635,7 +635,7 @@ func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folde
 }
 
 func (s *ResourceManagerService) existsMemberInOrganization(ctx context.Context, organization *ResourceID, email string, roles ...string) (bool, error) {
-	resource, err := s.crmv2.Folders.GetIamPolicy(organization.Name(), &crmv2.GetIamPolicyRequest{}).Context(ctx).Do()
+	resource, err := s.crmv1.Organizations.GetIamPolicy(organization.Name(), &crmv1.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
@@ -646,7 +646,7 @@ func (s *ResourceManagerService) existsMemberInOrganization(ctx context.Context,
 
 		return false, xerrors.Errorf("failed Organizations.GetIamPolicy: organization=%+v, : %w", organization, err)
 	}
-	return s.existsIamMemberInBindings(email, s.convertCrmV2Bindings(resource.Bindings), roles...)
+	return s.existsIamMemberInBindings(email, s.convertCrmV1Bindings(resource.Bindings), roles...)
 }
 
 func (s *ResourceManagerService) existsIamMemberInBindings(email string, bindings []*Binding, roles ...string) (bool, error) {
