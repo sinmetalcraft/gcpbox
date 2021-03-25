@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/go-cmp/cmp"
 	"golang.org/x/xerrors"
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
 	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
@@ -536,21 +537,26 @@ type ExistsMemberCheckResult struct {
 
 // ExistsMemberInGCPProjectWithInherit is GCP Projectに指定したユーザが権限を持っているかを返す
 // 対象のProjectの上位階層のIAMもチェックする。
-// defaultだと何らかのroleを持っているかを返す。rolesを指定するといずれか1つ以上を持っているかを返す。
-func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context.Context, projectID string, email string, roles ...string) (bool, []*ExistsMemberCheckResult, error) {
-	exists, err := s.existsMemberInGCPProject(ctx, projectID, email, roles...)
+func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context.Context, projectID string, email string, ops ...ExistsMemberInheritOptions) (bool, []*ExistsMemberCheckResult, error) {
+	opt := existsMemberInheritOption{}
+	for _, o := range ops {
+		o(&opt)
+	}
+
+	exists, err := s.existsMemberInGCPProject(ctx, projectID, email, opt.roles...)
 	if err != nil {
-		return false, nil, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
+		return false, nil, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
 	}
 	if exists {
 		return true, nil, nil
 	}
 
 	// 親のIAMをチェック
+	var step int
 	var rets []*ExistsMemberCheckResult
 	project, err := s.GetProject(ctx, projectID)
 	if err != nil {
-		return false, nil, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
+		return false, nil, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
 	}
 	if project.Parent == nil {
 		return false, rets, nil
@@ -562,9 +568,9 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 		var err error
 		switch parent.Type {
 		case "folder":
-			exists, err = s.existsMemberInFolder(ctx, parent, email, roles...)
+			exists, err = s.existsMemberInFolder(ctx, parent, email, opt.roles...)
 		case "organization":
-			exists, err = s.existsMemberInOrganization(ctx, parent, email, roles...)
+			exists, err = s.existsMemberInOrganization(ctx, parent, email, opt.roles...)
 		default:
 			return false, rets, fmt.Errorf("%s is unsupported resource type", parent.Type)
 		}
@@ -585,8 +591,16 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 			return true, rets, nil
 		}
 
+		step++
+		if opt.step > 0 && step >= opt.step {
+			return false, rets, nil
+		}
 		switch parent.Type {
 		case "folder":
+			if cmp.Equal(parent, opt.topNode) {
+				return false, rets, nil
+			}
+
 			folder, err := s.GetFolder(ctx, parent)
 			if err != nil {
 				return false, rets, xerrors.Errorf("failed get folder : resource=%+v, : %w", parent, err)
