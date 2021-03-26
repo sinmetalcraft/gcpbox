@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
-	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"github.com/google/uuid"
@@ -16,29 +15,6 @@ import (
 
 type Body struct {
 	Content string
-}
-
-func TestService_CreateTaskForError(t *testing.T) {
-	ctx := context.Background()
-
-	s := newService(t)
-
-	queue := &tasksbox.Queue{
-		ProjectID: "sinmetal-ci",
-		Region:    "asia-northeast1",
-		Name:      "gcpboxtest",
-	}
-
-	task := &tasksbox.Task{
-		Method:       http.MethodGet,
-		RelativeURI:  "/",
-		ScheduleTime: time.Date(0, 1, 1, 1, 1, 1, 1, time.Local),
-	}
-	_, err := s.CreateTask(ctx, queue, task)
-	if err == nil {
-		t.Fatal("want error but err is nil")
-	}
-	t.Log(err.Error())
 }
 
 func TestService_CreateJsonPostTask(t *testing.T) {
