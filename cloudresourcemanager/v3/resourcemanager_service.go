@@ -202,7 +202,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 }
 
 func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
-	resource, err := s.crm.Projects.GetIamPolicy(projectID, &crm.GetIamPolicyRequest{}).Context(ctx).Do()
+	resource, err := s.crm.Projects.GetIamPolicy(fmt.Sprintf("projects/%s", projectID), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
@@ -369,22 +369,23 @@ func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID
 }
 
 // Projects is 指定したリソース以下のProject一覧を返す
-// 権限がない (存在しない) parentID を指定しても 空のList を返す
-func (s *ResourceManagerService) GetProjects(ctx context.Context, parentID string) ([]*crm.Project, error) {
+// 対象のparentの権限がない場合、 ErrPermissionDenied を返す
+func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *ResourceID) ([]*crm.Project, error) {
 	req := s.crm.Projects.List().Context(ctx)
-	if len(parentID) > 0 {
-		req.Parent(parentID)
+	if parent != nil {
+		req = req.Parent(parent.Name())
 	}
-
-	var list []*crm.Project
-	if err := req.Pages(ctx, func(page *crm.ListProjectsResponse) error {
-		list = append(list, page.Projects...)
-		return nil
-	}); err != nil {
-		return nil, xerrors.Errorf("failed get projects : %w", err)
+	resp, err := req.Do()
+	if err != nil {
+		var errGoogleAPI *googleapi.Error
+		if xerrors.As(err, &errGoogleAPI) {
+			if errGoogleAPI.Code == http.StatusForbidden {
+				return nil, NewErrPermissionDenied("failed get projects", map[string]interface{}{"parent": parent}, err)
+			}
+		}
+		return nil, xerrors.Errorf("failed get projects. parent=%v : %w", parent, err)
 	}
-
-	return list, nil
+	return resp.Projects, nil
 }
 
 // GetRelatedProject is 指定したParent配下のすべてのProjectを返す
@@ -395,9 +396,9 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 
 	// 直下のProjectを取得
 	{
-		ps, err := s.GetProjects(ctx, parent.ID)
+		ps, err := s.GetProjects(ctx, parent)
 		if err != nil {
-			return nil, xerrors.Errorf("failed get projects. parent=%s: %w", parent.ID, err)
+			return nil, xerrors.Errorf("failed get projects. parent=%v: %w", parent, err)
 		}
 
 		projects = append(projects, ps...)
@@ -414,7 +415,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 		if err != nil {
 			return nil, xerrors.Errorf("invalid folder.Name. name=%s : %w", folder.Name, err)
 		}
-		ps, err := s.GetProjects(ctx, fn.ID)
+		ps, err := s.GetProjects(ctx, fn)
 		if err != nil {
 			return nil, xerrors.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
 		}

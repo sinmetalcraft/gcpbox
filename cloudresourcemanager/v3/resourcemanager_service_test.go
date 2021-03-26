@@ -68,29 +68,37 @@ func TestResourceManagerService_GetProjects(t *testing.T) {
 
 	cases := []struct {
 		name       string
-		parent     string
+		parent     *crmbox.ResourceID
 		wantExists bool
 		wantErr    error
 	}{
-		{"正常系", metalTileFolder, true, nil},
-		{"権限がないparent", "105058807061166", false, nil},
+		{"正常系", &crmbox.ResourceID{Type: crmbox.ResourceTypeFolder, ID: metalTileFolder}, true, nil},
+		{"権限がないparent", &crmbox.ResourceID{Type: crmbox.ResourceTypeFolder, ID: "105058807061166"}, false, crmbox.ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := s.GetProjects(ctx, tt.parent)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if tt.wantExists {
-				if len(got) < 1 {
-					t.Errorf("project list length is zero.")
+			if tt.wantErr != nil {
+				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
+					t.Errorf("want error %T but got %T", e, g)
+				}
+				var errPermissionDenied *crmbox.Error
+				if xerrors.As(err, &errPermissionDenied) {
+					if errPermissionDenied.KV["parent"] == "" {
+						t.Errorf("ErrPermissionDenied.Target is empty...")
+					}
 				}
 			} else {
-				if len(got) >= 1 {
-					t.Errorf("project list length is not zero.")
+				if tt.wantExists {
+					if len(got) < 1 {
+						t.Errorf("project list length is zero.")
+					}
+				} else {
+					if len(got) >= 1 {
+						t.Errorf("project list length is not zero.")
+					}
 				}
 			}
 		})
@@ -159,6 +167,10 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := s.ExistsMemberInGCPProject(ctx, tt.project, tt.member)
+			if tt.wantErr != nil && tt.wantErr != err {
+				t.Fatal(err)
+			}
+
 			if e, g := tt.want, got; !cmp.Equal(e, g) {
 				t.Errorf("want %v but got %v", e, g)
 			}
