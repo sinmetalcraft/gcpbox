@@ -428,8 +428,14 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 // GetProject is 指定したProjectIDのProjectを取得する
 // projectID は "my-project-id" という値を渡されるのを期待している
 func (s *ResourceManagerService) GetProject(ctx context.Context, projectID string) (*crm.Project, error) {
-	project, err := s.crm.Projects.Get(projectID).Context(ctx).Do()
+	project, err := s.crm.Projects.Get(fmt.Sprintf("projects/%s", projectID)).Context(ctx).Do()
 	if err != nil {
+		var errGoogleAPI *googleapi.Error
+		if xerrors.As(err, &errGoogleAPI) {
+			if errGoogleAPI.Code == http.StatusForbidden {
+				return nil, NewErrPermissionDenied("failed get project", map[string]interface{}{"projectID": projectID}, err)
+			}
+		}
 		return nil, xerrors.Errorf("failed get project. projectID=%s: %w", projectID, err)
 	}
 	return project, nil
@@ -439,6 +445,12 @@ func (s *ResourceManagerService) GetProject(ctx context.Context, projectID strin
 func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *ResourceID) (*crm.Folder, error) {
 	fol, err := s.crm.Folders.Get(folder.Name()).Context(ctx).Do()
 	if err != nil {
+		var errGoogleAPI *googleapi.Error
+		if xerrors.As(err, &errGoogleAPI) {
+			if errGoogleAPI.Code == http.StatusForbidden {
+				return nil, NewErrPermissionDenied("failed get folder", map[string]interface{}{"folder": folder}, err)
+			}
+		}
 		return nil, xerrors.Errorf("failed get folder. folder=%+v: %w", folder, err)
 	}
 	return fol, nil
@@ -448,6 +460,12 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *Resource
 func (s *ResourceManagerService) GetOrganization(ctx context.Context, organization *ResourceID) (*crm.Organization, error) {
 	org, err := s.crm.Organizations.Get(organization.Name()).Context(ctx).Do()
 	if err != nil {
+		var errGoogleAPI *googleapi.Error
+		if xerrors.As(err, &errGoogleAPI) {
+			if errGoogleAPI.Code == http.StatusForbidden {
+				return nil, NewErrPermissionDenied("failed get organization", map[string]interface{}{"organization": organization}, err)
+			}
+		}
 		return nil, xerrors.Errorf("failed get organization. organization=%+v: %w", organization, err)
 	}
 	return org, nil

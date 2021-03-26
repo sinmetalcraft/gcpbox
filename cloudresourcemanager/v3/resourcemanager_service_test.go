@@ -2,6 +2,7 @@ package cloudresourcemanager_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 
@@ -159,7 +160,7 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 	}{
 		{"Projectが存在して権限を持っており、メンバーが存在している", "sinmetal-ci", "sinmetal@sinmetalcraft.jp", true, nil},
 		{"Projectが存在して権限を持っており、メンバーが存在していない", "sinmetal-ci", "hoge@example.com", false, nil},
-		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", false, crmbox.ErrPermissionDenied},
+		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", false, nil},
 		{"Projectが存在していない", "adoi893lda3fd1", "hoge@example.com", false, crmbox.ErrPermissionDenied},
 	}
 
@@ -167,7 +168,7 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := s.ExistsMemberInGCPProject(ctx, tt.project, tt.member)
-			if tt.wantErr != nil && tt.wantErr != err {
+			if tt.wantErr == nil && tt.wantErr != err {
 				t.Fatal(err)
 			}
 
@@ -175,9 +176,11 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 				t.Errorf("want %v but got %v", e, g)
 			}
 			if tt.wantErr != nil {
-				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
-					t.Errorf("want error %T but got %T", e, g)
+				if e, g := tt.wantErr, err; errors.Is(e, g) {
+					return
 				}
+
+				t.Errorf("want error %T but got %T", tt.wantErr, err)
 				var errPermissionDenied *crmbox.Error
 				if xerrors.As(err, &errPermissionDenied) {
 					if errPermissionDenied.KV["input_project"] == "" {
@@ -229,9 +232,13 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			got, logs, err := s.ExistsMemberInGCPProjectWithInherit(ctx, tt.project, tt.member, tt.opt...)
-			if e, g := tt.want, got; !cmp.Equal(e, g) {
-				pp.Println(logs)
+			if tt.wantErr == nil && err != nil {
+				t.Fatal(err)
+			}
+
+			if e, g := tt.want, got; e != g {
 				t.Errorf("want %v but got %v", e, g)
+				pp.Println(logs)
 			}
 			if tt.wantErr != nil {
 				if e, g := tt.wantErr, err; xerrors.Is(g, e) {
