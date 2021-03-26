@@ -9,11 +9,12 @@ import (
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
-	"github.com/golang/protobuf/ptypes"
 	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Service is App Engine Task Service
@@ -152,14 +153,10 @@ func (task *Task) ToCreateTaskRequestProto(queue *Queue) (*taskspb.CreateTaskReq
 		pbTask.Name = fmt.Sprintf("projects/%s/locations/%s/queues/%s/tasks/%s", queue.ProjectID, queue.Region, queue.Name, task.Name)
 	}
 	if !task.ScheduleTime.IsZero() {
-		stpb, err := ptypes.TimestampProto(task.ScheduleTime)
-		if err != nil {
-			return nil, NewErrInvalidArgument("invalid ScheduleTime", map[string]interface{}{"ScheduledTime": task.ScheduleTime}, err)
-		}
-		pbTask.ScheduleTime = stpb
+		pbTask.ScheduleTime = timestamppb.New(task.ScheduleTime)
 	}
 	if task.DispatchDeadline != 0 {
-		pbTask.DispatchDeadline = ptypes.DurationProto(task.DispatchDeadline)
+		pbTask.DispatchDeadline = durationpb.New(task.DispatchDeadline)
 	}
 
 	return &taskspb.CreateTaskRequest{

@@ -8,11 +8,12 @@ import (
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
-	"github.com/golang/protobuf/ptypes"
 	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Service is Cloud Tasks Service
@@ -62,14 +63,10 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string,
 		taskReq.GetTask().Name = fmt.Sprintf("projects/%s/locations/%s/queues/%s/tasks/%s", queue.ProjectID, queue.Region, queue.Name, taskName)
 	}
 	if !scheduledTime.IsZero() {
-		stpb, err := ptypes.TimestampProto(scheduledTime)
-		if err != nil {
-			return nil, NewErrInvalidArgument("invalid ScheduleTime", map[string]interface{}{"ScheduledTime": scheduledTime}, err)
-		}
-		taskReq.Task.ScheduleTime = stpb
+		taskReq.Task.ScheduleTime = timestamppb.New(scheduledTime)
 	}
 	if deadline != 0 {
-		taskReq.Task.DispatchDeadline = ptypes.DurationProto(deadline)
+		taskReq.Task.DispatchDeadline = durationpb.New(deadline)
 	}
 	task, err := s.taskClient.CreateTask(ctx, taskReq)
 	if err != nil {
