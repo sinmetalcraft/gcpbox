@@ -19,7 +19,7 @@ GCPとLocalで同じロジックを使いつつ、設定値を持ち回るため
 
 ### 動作確認した環境
 
-* Google App Engine Standard for Go 1.11
+* Google App Engine Standard for Go 1.15
 * Google Compute Engine
 * Google Kubernetes Engine
 
