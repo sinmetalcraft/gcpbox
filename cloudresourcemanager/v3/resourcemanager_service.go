@@ -177,7 +177,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 		}
 		switch parent.Type {
 		case "folder":
-			if cmp.Equal(parent, opt.topNode) {
+			if s.findResource(opt.topNodes, parent) {
 				return false, rets, nil
 			}
 
@@ -199,6 +199,15 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 			return false, rets, fmt.Errorf("%s is unsupported resource type", parent.Type)
 		}
 	}
+}
+
+func (s *ResourceManagerService) findResource(resources []*ResourceID, resource *ResourceID) bool {
+	for _, r := range resources {
+		if cmp.Equal(r, resource) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {

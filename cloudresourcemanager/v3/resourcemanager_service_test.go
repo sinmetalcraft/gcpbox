@@ -224,7 +224,7 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", nil, false, crmbox.ErrPermissionDenied},
 		{"Projectが存在していない", "adoi893lda3fd1", "hoge@example.com", nil, false, crmbox.ErrPermissionDenied},
 		{"Projectが存在して、Projectが所属している祖父のFolderの権限を持っているメンバーが存在しているが、step数的に届かない", "gcpbox-ci", "gcpbox-iam-test-1@sinmetal-ci.iam.gserviceaccount.com", []crmbox.ExistsMemberInheritOptions{crmbox.WithStep(1)}, false, nil},
-		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っているメンバーが存在しているがOrganizationまで見に行かない", "gcpbox-ci", "gcpbox-iam-test-2@sinmetal-ci.iam.gserviceaccount.com", []crmbox.ExistsMemberInheritOptions{crmbox.WithTopNode(&crmbox.ResourceID{Type: "folder", ID: "484650900491"})}, false, nil},
+		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っているメンバーが存在しているがOrganizationまで見に行かない", "gcpbox-ci", "gcpbox-iam-test-2@sinmetal-ci.iam.gserviceaccount.com", []crmbox.ExistsMemberInheritOptions{crmbox.WithTopNodes([]*crmbox.ResourceID{&crmbox.ResourceID{Type: "folder", ID: "484650900491"}})}, false, nil},
 		{"Projectが存在して権限を持っており、メンバーが存在しているが指定されたRoleではない", "sinmetal-ci", "sinmetal@sinmetalcraft.jp", []crmbox.ExistsMemberInheritOptions{crmbox.WithRolesHaveOne("roles/Owner")}, false, nil},
 	}
 

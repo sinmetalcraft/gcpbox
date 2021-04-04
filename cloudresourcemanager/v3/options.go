@@ -1,9 +1,9 @@
 package cloudresourcemanager
 
 type existsMemberInheritOption struct {
-	roles   []string
-	topNode *ResourceID
-	step    int
+	roles    []string
+	topNodes []*ResourceID
+	step     int
 }
 
 // ExistsMemberInheritOptions is ExistsMemberInGCPProjectWithInherit に利用する options
@@ -19,7 +19,14 @@ func WithRolesHaveOne(roles ...string) ExistsMemberInheritOptions {
 // WithTopNode is 階層を遡る時にそこまでいったらやめるポイントを指定する
 func WithTopNode(resource *ResourceID) ExistsMemberInheritOptions {
 	return func(ops *existsMemberInheritOption) {
-		ops.topNode = resource
+		ops.topNodes = append(ops.topNodes, resource)
+	}
+}
+
+// WithTopNodes is 階層を遡る時にそこまでいったらやめるポイントを指定する
+func WithTopNodes(resources []*ResourceID) ExistsMemberInheritOptions {
+	return func(ops *existsMemberInheritOption) {
+		ops.topNodes = append(ops.topNodes, resources...)
 	}
 }
 
