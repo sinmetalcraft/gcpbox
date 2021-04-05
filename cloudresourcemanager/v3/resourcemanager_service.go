@@ -146,7 +146,8 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 		return false, rets, xerrors.Errorf("failed ConvertResourceID. parent=%s, projectID=%s, email=%s, roles=%+v : %w", project.Parent, projectID, email, opt.roles, err)
 	}
 	for {
-		exists, log, err := s.existsMemberInGCPProjectWithInherit(ctx, email, parent, step, opt)
+		step++
+		exists, next, log, err := s.existsMemberInGCPProjectWithInherit(ctx, email, parent, step, opt)
 		rets = append(rets, log)
 		if err != nil {
 			return exists, rets, err
@@ -155,18 +156,21 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 		if exists {
 			return true, rets, nil
 		}
-		step++
+		if next == nil {
+			return exists, rets, nil
+		}
+		parent = next
 	}
 }
 
-func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context.Context, email string, parent *ResourceID, step int, opt existsMemberInheritOption) (bool, *ExistsMemberCheckResult, error) {
+func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context.Context, email string, parent *ResourceID, step int, opt existsMemberInheritOption) (bool, *ResourceID, *ExistsMemberCheckResult, error) {
 	log := &ExistsMemberCheckResult{
 		Resource: parent,
 	}
 
 	if s.findResource(opt.censoredNodes, parent) {
 		log.CensoredNode = true
-		return false, log, nil
+		return false, nil, log, nil
 	}
 
 	var exists bool
@@ -178,49 +182,48 @@ func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context
 		exists, err = s.existsMemberInOrganization(ctx, parent, email, opt.roles...)
 	default:
 		log.Err = fmt.Errorf("%s is unsupported resource type", parent.Type)
-		return false, log, log.Err
+		return false, nil, log, log.Err
 	}
 	if err != nil {
 		log.Err = err
-		return false, log, err
+		return false, nil, log, err
 	}
 	log.Exists = exists
 	if exists {
-		return true, log, nil // 見つかったので、親を遡るのをやめて終了
+		return true, nil, log, nil // 見つかったので、親を遡るのをやめて終了
 	}
 
-	if step >= opt.step {
+	if opt.step != 0 && step >= opt.step {
 		log.StepOver = true
-		return exists, log, nil
+		return exists, nil, log, nil
 	}
 	switch parent.Type {
 	case "folder":
 		if s.findResource(opt.topNodes, parent) {
 			log.TopNode = true
-			return false, log, nil
+			return false, nil, log, nil
 		}
 
 		folder, err := s.GetFolder(ctx, parent)
 		if err != nil {
 			log.Err = xerrors.Errorf("failed get folder : resource=%+v, : %w", parent, err)
-			return false, log, log.Err
+			return false, nil, log, log.Err
 		}
 		if folder.Parent == "" {
-			return false, log, nil
+			return false, nil, log, nil
 		}
-		parent, err = ConvertResourceID(folder.Parent)
+		next, err := ConvertResourceID(folder.Parent)
 		if err != nil {
-			return false, nil, xerrors.Errorf("failed ConvertResourceID. folder.Parent=%s : %w", folder.Parent, err)
+			return false, next, nil, xerrors.Errorf("failed ConvertResourceID. folder.Parent=%s : %w", folder.Parent, err)
 		}
+		return false, next, log, nil
 	case "organization":
 		// orgの親は存在しないので、終了する
-		return false, log, nil
+		return false, nil, log, nil
 	default:
 		log.Err = fmt.Errorf("%s is unsupported resource type", parent.Type)
-		return false, log, log.Err
+		return false, nil, log, log.Err
 	}
-
-	return false, log, nil
 }
 
 func (s *ResourceManagerService) findResource(resources []*ResourceID, resource *ResourceID) bool {
