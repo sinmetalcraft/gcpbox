@@ -107,7 +107,6 @@ func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, p
 // ExistsMemberCheckResult is 上位階層のIAMをチェックした履歴
 type ExistsMemberCheckResult struct {
 	Resource     *ResourceID
-	Parent       *ResourceID
 	Exists       bool
 	TopNode      bool
 	CensoredNode bool
