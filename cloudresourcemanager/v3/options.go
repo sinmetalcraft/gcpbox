@@ -1,9 +1,10 @@
 package cloudresourcemanager
 
 type existsMemberInheritOption struct {
-	roles    []string
-	topNodes []*ResourceID
-	step     int
+	roles         []string
+	topNodes      []*ResourceID
+	censoredNodes []*ResourceID
+	step          int
 }
 
 // ExistsMemberInheritOptions is ExistsMemberInGCPProjectWithInherit に利用する options
@@ -27,6 +28,13 @@ func WithTopNode(resource *ResourceID) ExistsMemberInheritOptions {
 func WithTopNodes(resources []*ResourceID) ExistsMemberInheritOptions {
 	return func(ops *existsMemberInheritOption) {
 		ops.topNodes = append(ops.topNodes, resources...)
+	}
+}
+
+// WithCensoredNodes is 指定したResourceが現れたら、そのResourceの権限はチェックせずに遡るのをやめる
+func WithCensoredNodes(resources []*ResourceID) ExistsMemberInheritOptions {
+	return func(ops *existsMemberInheritOption) {
+		ops.censoredNodes = append(ops.censoredNodes, resources...)
 	}
 }
 

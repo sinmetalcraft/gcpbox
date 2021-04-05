@@ -133,7 +133,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 	var rets []*ExistsMemberCheckResult
 	project, err := s.GetProject(ctx, projectID)
 	if err != nil {
-		return false, nil, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
+		return false, rets, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
 	}
 	if project.Parent == "" {
 		return false, rets, nil
@@ -144,6 +144,10 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 		return false, nil, xerrors.Errorf("failed ConvertResourceID. parent=%s, projectID=%s, email=%s, roles=%+v : %w", project.Parent, projectID, email, opt.roles, err)
 	}
 	for {
+		if s.findResource(opt.censoredNodes, parent) {
+			return false, rets, nil
+		}
+
 		var exists bool
 		var err error
 		switch parent.Type {
