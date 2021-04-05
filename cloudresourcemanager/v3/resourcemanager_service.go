@@ -106,10 +106,12 @@ func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, p
 
 // ExistsMemberCheckResult is 上位階層のIAMをチェックした履歴
 type ExistsMemberCheckResult struct {
-	Resource *ResourceID
-	Parent   *ResourceID
-	Exists   bool
-	Err      error
+	Resource     *ResourceID
+	Exists       bool
+	TopNode      bool
+	CensoredNode bool
+	StepOver     bool
+	Err          error
 }
 
 // ExistsMemberInGCPProjectWithInherit is GCP Projectに指定したユーザが権限を持っているかを返す
@@ -133,7 +135,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 	var rets []*ExistsMemberCheckResult
 	project, err := s.GetProject(ctx, projectID)
 	if err != nil {
-		return false, nil, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
+		return false, rets, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
 	}
 	if project.Parent == "" {
 		return false, rets, nil
@@ -141,64 +143,96 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 
 	parent, err := ConvertResourceID(project.Parent)
 	if err != nil {
-		return false, nil, xerrors.Errorf("failed ConvertResourceID. parent=%s, projectID=%s, email=%s, roles=%+v : %w", project.Parent, projectID, email, opt.roles, err)
+		return false, rets, xerrors.Errorf("failed ConvertResourceID. parent=%s, projectID=%s, email=%s, roles=%+v : %w", project.Parent, projectID, email, opt.roles, err)
 	}
 	for {
-		var exists bool
-		var err error
-		switch parent.Type {
-		case "folder":
-			exists, err = s.existsMemberInFolder(ctx, parent, email, opt.roles...)
-		case "organization":
-			exists, err = s.existsMemberInOrganization(ctx, parent, email, opt.roles...)
-		default:
-			return false, rets, fmt.Errorf("%s is unsupported resource type", parent.Type)
-		}
+		step++
+		exists, next, log, err := s.existsMemberInGCPProjectWithInherit(ctx, email, parent, step, opt)
+		rets = append(rets, log)
 		if err != nil {
-			rets = append(rets, &ExistsMemberCheckResult{
-				Resource: parent,
-				Err:      err,
-			})
-			return false, rets, err
+			return exists, rets, err
 		}
-		ret := &ExistsMemberCheckResult{
-			Resource: parent,
-			Exists:   exists,
-			Err:      nil,
-		}
-		rets = append(rets, ret)
+
 		if exists {
 			return true, rets, nil
 		}
-
-		step++
-		if opt.step > 0 && step >= opt.step {
-			return false, rets, nil
+		if next == nil {
+			return exists, rets, nil
 		}
-		switch parent.Type {
-		case "folder":
-			if cmp.Equal(parent, opt.topNode) {
-				return false, rets, nil
-			}
+		parent = next
+	}
+}
 
-			folder, err := s.GetFolder(ctx, parent)
-			if err != nil {
-				return false, rets, xerrors.Errorf("failed get folder : resource=%+v, : %w", parent, err)
-			}
-			if folder.Parent == "" {
-				return false, rets, nil
-			}
-			parent, err = ConvertResourceID(folder.Parent)
-			if err != nil {
-				return false, nil, xerrors.Errorf("failed ConvertResourceID. folder.Parent=%s : %w", folder.Parent, err)
-			}
-		case "organization":
-			// orgの親は存在しないので、終了する
-			return false, rets, nil
-		default:
-			return false, rets, fmt.Errorf("%s is unsupported resource type", parent.Type)
+func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context.Context, email string, parent *ResourceID, step int, opt existsMemberInheritOption) (bool, *ResourceID, *ExistsMemberCheckResult, error) {
+	log := &ExistsMemberCheckResult{
+		Resource: parent,
+	}
+
+	if s.findResource(opt.censoredNodes, parent) {
+		log.CensoredNode = true
+		return false, nil, log, nil
+	}
+
+	var exists bool
+	var err error
+	switch parent.Type {
+	case "folder":
+		exists, err = s.existsMemberInFolder(ctx, parent, email, opt.roles...)
+	case "organization":
+		exists, err = s.existsMemberInOrganization(ctx, parent, email, opt.roles...)
+	default:
+		log.Err = fmt.Errorf("%s is unsupported resource type", parent.Type)
+		return false, nil, log, log.Err
+	}
+	if err != nil {
+		log.Err = err
+		return false, nil, log, err
+	}
+	log.Exists = exists
+	if exists {
+		return true, nil, log, nil // 見つかったので、親を遡るのをやめて終了
+	}
+
+	if opt.step != 0 && step >= opt.step {
+		log.StepOver = true
+		return exists, nil, log, nil
+	}
+	switch parent.Type {
+	case "folder":
+		if s.findResource(opt.topNodes, parent) {
+			log.TopNode = true
+			return false, nil, log, nil
+		}
+
+		folder, err := s.GetFolder(ctx, parent)
+		if err != nil {
+			log.Err = xerrors.Errorf("failed get folder : resource=%+v, : %w", parent, err)
+			return false, nil, log, log.Err
+		}
+		if folder.Parent == "" {
+			return false, nil, log, nil
+		}
+		next, err := ConvertResourceID(folder.Parent)
+		if err != nil {
+			return false, next, nil, xerrors.Errorf("failed ConvertResourceID. folder.Parent=%s : %w", folder.Parent, err)
+		}
+		return false, next, log, nil
+	case "organization":
+		// orgの親は存在しないので、終了する
+		return false, nil, log, nil
+	default:
+		log.Err = fmt.Errorf("%s is unsupported resource type", parent.Type)
+		return false, nil, log, log.Err
+	}
+}
+
+func (s *ResourceManagerService) findResource(resources []*ResourceID, resource *ResourceID) bool {
+	for _, r := range resources {
+		if cmp.Equal(r, resource) {
+			return true
 		}
 	}
+	return false
 }
 
 func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
