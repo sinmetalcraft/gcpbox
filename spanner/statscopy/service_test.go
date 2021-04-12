@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"math/rand"
 	"os"
 	"strings"
@@ -17,6 +16,7 @@ import (
 	sadInstance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/dgryski/go-farm"
 	spabox "github.com/sinmetalcraft/gcpbox/spanner"
+	"golang.org/x/xerrors"
 	"google.golang.org/api/googleapi"
 	sdbproto "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	protoInstance "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
@@ -79,6 +79,15 @@ CREATE TABLE TRANSACTION_STATS_DUMMY (
     AVG_COMMIT_LATENCY_SECONDS FLOAT64,
     AVG_BYTES FLOAT64,
 ) PRIMARY KEY (INTERVAL_END DESC, FPRINT)`
+
+	lockStatsDummyTable            = "LOCK_STATS_DUMMY"
+	dummyLockStatsTableCreateTable = `
+CREATE
+    INTERVAL_END TIMESTAMP,
+    ROW_RANGE_START_KEY BYTE(MAX),
+    LOCK_WAIT_SECONDS FLOAT64,
+    SAMPLE_LOCK_REQUESTS ARRAY<STRUCT<lock_mode STRING, column STRING>>
+) PRIMARY KEY (INTERVAL_END DESC, ROW_RANGE_START_KEY)`
 )
 
 func TestSplitDatabaseName(t *testing.T) {
@@ -242,6 +251,41 @@ func TestService_CopyTxStats(t *testing.T) {
 	t.Logf("insert count is %d", count)
 }
 
+func TestService_CopyLockStats(t *testing.T) {
+	ctx := context.Background()
+
+	const project = "sinmetal-ci"
+	const instance = "fuga"
+	database := fmt.Sprintf("test%d", rand.Intn(10000000))
+	intervalEnd := time.Date(2020, 8, 20, 1, 1, 0, 0, time.UTC)
+
+	newSpannerDatabase(t, project, instance, fmt.Sprintf("CREATE DATABASE %s", database), []string{dummyLockStatsTableCreateTable})
+	newLockStatsDummyData(t, project, instance, database, intervalEnd)
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_tx_stats"}
+	table := "minutes"
+	if err := s.CreateLockStatsTable(ctx, dataset, table); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 409 {
+				// noop
+			} else {
+				t.Fatal(ae)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+
+	count, err := s.CopyLockStats(ctx, dataset, table, txStatsDummyTable, intervalEnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("insert count is %d", count)
+}
+
 func TestService_CopyQueryStats_Real(t *testing.T) {
 	seh := os.Getenv("SPANNER_EMULATOR_HOST")
 	if len(seh) > 0 {
@@ -391,7 +435,7 @@ func TestService_CopyReadStats_Real_NotFoundError(t *testing.T) {
 
 			dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
 			table := "minutes"
-			if err := s.CreateQueryStatsTable(ctx, dataset, table); err != nil {
+			if err := s.CreateReadStatsTable(ctx, dataset, table); err != nil {
 				var ae *googleapi.Error
 				if ok := errors.As(err, &ae); ok {
 					if ae.Code == 409 {
@@ -476,7 +520,7 @@ func TestService_CopyTxStats_Real_NotFoundError(t *testing.T) {
 
 			dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
 			table := "minutes"
-			if err := s.CreateQueryStatsTable(ctx, dataset, table); err != nil {
+			if err := s.CreateTxStatsTable(ctx, dataset, table); err != nil {
 				var ae *googleapi.Error
 				if ok := errors.As(err, &ae); ok {
 					if ae.Code == 409 {
@@ -490,6 +534,58 @@ func TestService_CopyTxStats_Real_NotFoundError(t *testing.T) {
 			}
 			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
 			_, err := s.CopyTxStats(ctx, dataset, table, statscopy.TxStatsTop10MinuteTable, utc)
+			if !xerrors.Is(err, tt.wantErr) {
+				t.Errorf("want %v but got %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+// TestService_CopyLockStats_Real_NotFoundError
+// 存在しないInstanceを指定した時のErrorハンドリングをチェック
+func TestService_CopyLockStats_Real_NotFoundError(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	project, instance, database := getRealSpanner(t)
+
+	cases := []struct {
+		name     string
+		project  string
+		instance string
+		database string
+		wantErr  error
+	}{
+		{"project not-found", "notfound", instance, database, spabox.ErrNotFound},
+		{"instance not-found", project, "notfound", database, spabox.ErrNotFound},
+		{"database not-found", project, instance, "notfound", spabox.ErrNotFound},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			s := newService(t, project, "notfound", database)
+
+			dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
+			table := "minutes"
+			if err := s.CreateLockStatsTable(ctx, dataset, table); err != nil {
+				var ae *googleapi.Error
+				if ok := errors.As(err, &ae); ok {
+					if ae.Code == 409 {
+						// noop
+					} else {
+						t.Fatal(ae)
+					}
+				} else {
+					t.Fatal(err)
+				}
+			}
+			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
+			_, err := s.CopyLockStats(ctx, dataset, table, statscopy.LockStatsTop10MinuteTable, utc)
 			if !xerrors.Is(err, tt.wantErr) {
 				t.Errorf("want %v but got %v", tt.wantErr, err)
 			}
@@ -744,6 +840,52 @@ func newTxStatsDummyData(t *testing.T, project string, instance string, database
 			AvgBytes:                      rand.Float64(),
 		}
 		mu, err := spanner.InsertStruct("TRANSACTION_STATS_DUMMY", stat)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mus = append(mus, mu)
+	}
+	_, err = sc.Apply(ctx, mus)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newLockStatsDummyData(t *testing.T, project string, instance string, database string, intervalEnd time.Time) {
+	ctx := context.Background()
+
+	createStatement := fmt.Sprintf("CREATE DATABASE %s", database)
+	extraStatements := []string{
+		dummyLockStatsTableCreateTable,
+	}
+	newSpannerDatabase(t, project, instance, createStatement, extraStatements)
+
+	sc, err := spanner.NewClientWithConfig(ctx, fmt.Sprintf("projects/%s/instances/%s/databases/%s", project, instance, database),
+		spanner.ClientConfig{
+			SessionPoolConfig: spanner.SessionPoolConfig{
+				MinOpened:     1,  // 1query投げておしまいので、1でOK
+				MaxOpened:     10, // 1query投げておしまいなので、そんなにたくさんは要らない
+				WriteSessions: 0,  // Readしかしないので、WriteSessionsをPoolする必要はない
+			},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var mus []*spanner.Mutation
+	for i := 0; i < 10; i++ {
+		stat := &statscopy.LockStat{
+			IntervalEnd:      intervalEnd,
+			RowRangeStartKey: []byte{},
+			LockWaitSeconds:  rand.Float64(),
+			SampleLockRequests: []*statscopy.LockStatSampleLockRequest{
+				{
+					LockMode: "ReaderShared",
+					Column:   "hoge.fuga",
+				},
+			},
+		}
+		mu, err := spanner.InsertStruct(lockStatsDummyTable, stat)
 		if err != nil {
 			t.Fatal(err)
 		}
