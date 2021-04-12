@@ -8,8 +8,10 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/spanner"
+	spabox "github.com/sinmetalcraft/gcpbox/spanner"
 	"golang.org/x/xerrors"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
 )
 
 var (
@@ -293,6 +295,9 @@ func (s *Service) CopyQueryStatsWithSpannerClient(ctx context.Context, dataset *
 			break
 		}
 		if err != nil {
+			if spanner.ErrCode(err) == codes.NotFound {
+				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
+			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
 
@@ -345,6 +350,9 @@ func (s *Service) CopyReadStatsWithSpannerClient(ctx context.Context, dataset *b
 			break
 		}
 		if err != nil {
+			if spanner.ErrCode(err) == codes.NotFound {
+				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
+			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
 
@@ -397,6 +405,9 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 			break
 		}
 		if err != nil {
+			if spanner.ErrCode(err) == codes.NotFound {
+				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
+			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
 
