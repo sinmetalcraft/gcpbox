@@ -80,7 +80,9 @@ CREATE TABLE TRANSACTION_STATS_DUMMY (
     AVG_BYTES FLOAT64,
 ) PRIMARY KEY (INTERVAL_END DESC, FPRINT)`
 
-	lockStatsDummyTable            = "LOCK_STATS_DUMMY"
+	lockStatsDummyTable = "LOCK_STATS_DUMMY"
+
+	// SAMPLE_LOCK_REQUESTS は ARRAY<STRUCT<lock_mode STRING, column STRING>> だが、これはTableのColumnとしては指定できないので、DummyTableは諦めた
 	dummyLockStatsTableCreateTable = `
 CREATE TABLE LOCK_STATS_DUMMY (
     INTERVAL_END TIMESTAMP,
@@ -252,6 +254,8 @@ func TestService_CopyTxStats(t *testing.T) {
 }
 
 func TestService_CopyLockStats(t *testing.T) {
+	t.SkipNow() // SAMPLE_LOCK_REQUESTS は ARRAY<STRUCT<lock_mode STRING, column STRING>> だが、これはTableのColumnとしては指定できないので、DummyTableは諦めた
+
 	ctx := context.Background()
 
 	const project = "sinmetal-ci"
@@ -538,6 +542,40 @@ func TestService_CopyTxStats_Real_NotFoundError(t *testing.T) {
 				t.Errorf("want %v but got %v", tt.wantErr, err)
 			}
 		})
+	}
+}
+
+// TestService_CopyLockStats_Real
+func TestService_CopyLockStats_Real(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	project, instance, database := getRealSpanner(t)
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_lock_stats"}
+	table := "minutes"
+	if err := s.CreateLockStatsTable(ctx, dataset, table); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 409 {
+				// noop
+			} else {
+				t.Fatal(ae)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
+	_, err := s.CopyLockStats(ctx, dataset, table, statscopy.LockStatsTop10MinuteTable, utc)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
