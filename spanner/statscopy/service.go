@@ -50,7 +50,7 @@ func NewServiceWithSpannerClient(ctx context.Context, bq *bigquery.Client, spann
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return &Service{
 		queryStatsTopQueryTemplate: queryStatsTmpl,
 		readStatsTopQueryTemplate:  readStatsTmpl,

@@ -82,11 +82,11 @@ CREATE TABLE TRANSACTION_STATS_DUMMY (
 
 	lockStatsDummyTable            = "LOCK_STATS_DUMMY"
 	dummyLockStatsTableCreateTable = `
-CREATE
+CREATE TABLE LOCK_STATS_DUMMY (
     INTERVAL_END TIMESTAMP,
-    ROW_RANGE_START_KEY BYTE(MAX),
+    ROW_RANGE_START_KEY BYTES(MAX),
     LOCK_WAIT_SECONDS FLOAT64,
-    SAMPLE_LOCK_REQUESTS ARRAY<STRUCT<lock_mode STRING, column STRING>>
+    SAMPLE_LOCK_REQUESTS ARRAY<STRING(MAX)>
 ) PRIMARY KEY (INTERVAL_END DESC, ROW_RANGE_START_KEY)`
 )
 
@@ -878,12 +878,6 @@ func newLockStatsDummyData(t *testing.T, project string, instance string, databa
 			IntervalEnd:      intervalEnd,
 			RowRangeStartKey: []byte{},
 			LockWaitSeconds:  rand.Float64(),
-			SampleLockRequests: []*statscopy.LockStatSampleLockRequest{
-				{
-					LockMode: "ReaderShared",
-					Column:   "hoge.fuga",
-				},
-			},
 		}
 		mu, err := spanner.InsertStruct(lockStatsDummyTable, stat)
 		if err != nil {
