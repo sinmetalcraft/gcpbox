@@ -89,7 +89,7 @@ func (s *Service) GetReadStats(ctx context.Context, table ReadStatsTopTable, int
 }
 
 // GetTxStats is SpannerからTxStatsを取得する
-func (s *Service) GetTxStats(ctx context.Context, table TxStatsTopTable, intervalEnd time.Time) ([]*TxStats, error) {
+func (s *Service) GetTxStats(ctx context.Context, table TxStatsTopTable, intervalEnd time.Time) ([]*TxStat, error) {
 	if s.Spanner == nil {
 		return nil, ErrRequiredSpannerClient
 	}
@@ -179,7 +179,7 @@ func (s *Service) GetReadStatsWithSpannerClient(ctx context.Context, table ReadS
 }
 
 // GetTxStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからTxStatsを取得する
-func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*TxStats, error) {
+func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*TxStat, error) {
 	if spannerClient == nil {
 		return nil, ErrRequiredSpannerClient
 	}
@@ -195,7 +195,7 @@ func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStats
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
 
-	rets := []*TxStats{}
+	rets := []*TxStat{}
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
@@ -205,7 +205,7 @@ func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStats
 			return nil, xerrors.Errorf(": %w", err)
 		}
 
-		var result TxStats
+		var result TxStat
 		if err := row.ToStruct(&result); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
@@ -469,7 +469,7 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 	defer iter.Stop()
 
 	var insertCount int
-	var statsList []*TxStats
+	var statsList []*TxStat
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
@@ -482,7 +482,7 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
 
-		var stats TxStats
+		var stats TxStat
 		if err := row.ToStruct(&stats); err != nil {
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
@@ -493,7 +493,7 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 				return insertCount, xerrors.Errorf(": %w", err)
 			}
 			insertCount += len(statsList)
-			statsList = []*TxStats{}
+			statsList = []*TxStat{}
 		}
 	}
 	if len(statsList) > 0 {

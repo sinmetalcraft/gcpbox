@@ -816,7 +816,7 @@ func newTxStatsDummyData(t *testing.T, project string, instance string, database
 
 	var mus []*spanner.Mutation
 	for i := 0; i < 10; i++ {
-		stat := &statscopy.TxStats{
+		stat := &statscopy.TxStat{
 			IntervalEnd:                   intervalEnd,
 			Fprint:                        rand.Int63(),
 			ReadColumns:                   []string{"ReadHoge"},
