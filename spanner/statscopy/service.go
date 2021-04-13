@@ -8,8 +8,10 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/spanner"
+	spabox "github.com/sinmetalcraft/gcpbox/spanner"
 	"golang.org/x/xerrors"
 	"google.golang.org/api/iterator"
+	"google.golang.org/grpc/codes"
 )
 
 var (
@@ -20,6 +22,7 @@ type Service struct {
 	queryStatsTopQueryTemplate *template.Template
 	readStatsTopQueryTemplate  *template.Template
 	txStatsTopQueryTemplate    *template.Template
+	lockStatsTopQueryTemplate  *template.Template
 	Spanner                    *spanner.Client
 	BQ                         *bigquery.Client
 }
@@ -43,11 +46,16 @@ func NewServiceWithSpannerClient(ctx context.Context, bq *bigquery.Client, spann
 	if err != nil {
 		return nil, err
 	}
+	lockStatsTmpl, err := template.New("getLockStatsTopQuery").Parse(lockStatsTopMinute)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Service{
 		queryStatsTopQueryTemplate: queryStatsTmpl,
 		readStatsTopQueryTemplate:  readStatsTmpl,
 		txStatsTopQueryTemplate:    txStatsTmpl,
+		lockStatsTopQueryTemplate:  lockStatsTmpl,
 		Spanner:                    spannerClient,
 		BQ:                         bq,
 	}, nil
@@ -81,11 +89,19 @@ func (s *Service) GetReadStats(ctx context.Context, table ReadStatsTopTable, int
 }
 
 // GetTxStats is SpannerからTxStatsを取得する
-func (s *Service) GetTxStats(ctx context.Context, table TxStatsTopTable, intervalEnd time.Time) ([]*TxStats, error) {
+func (s *Service) GetTxStats(ctx context.Context, table TxStatsTopTable, intervalEnd time.Time) ([]*TxStat, error) {
 	if s.Spanner == nil {
 		return nil, ErrRequiredSpannerClient
 	}
 	return s.GetTxStatsWithSpannerClient(ctx, table, s.Spanner, intervalEnd)
+}
+
+// GetLockStats is SpannerからLockStatsを取得する
+func (s *Service) GetLockStats(ctx context.Context, table TxStatsTopTable, intervalEnd time.Time) ([]*LockStat, error) {
+	if s.Spanner == nil {
+		return nil, ErrRequiredSpannerClient
+	}
+	return s.GetLockStatsWithSpannerClient(ctx, table, s.Spanner, intervalEnd)
 }
 
 // GetQueryStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからQueryStatsを取得する
@@ -163,7 +179,7 @@ func (s *Service) GetReadStatsWithSpannerClient(ctx context.Context, table ReadS
 }
 
 // GetTxStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからTxStatsを取得する
-func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*TxStats, error) {
+func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*TxStat, error) {
 	if spannerClient == nil {
 		return nil, ErrRequiredSpannerClient
 	}
@@ -179,7 +195,7 @@ func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStats
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
 
-	rets := []*TxStats{}
+	rets := []*TxStat{}
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
@@ -189,7 +205,44 @@ func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStats
 			return nil, xerrors.Errorf(": %w", err)
 		}
 
-		var result TxStats
+		var result TxStat
+		if err := row.ToStruct(&result); err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+		rets = append(rets, &result)
+	}
+
+	return rets, nil
+}
+
+// GetLockStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからLockStatsを取得する
+func (s *Service) GetLockStatsWithSpannerClient(ctx context.Context, table TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*LockStat, error) {
+	if spannerClient == nil {
+		return nil, ErrRequiredSpannerClient
+	}
+
+	var tpl bytes.Buffer
+	if err := s.lockStatsTopQueryTemplate.Execute(&tpl, TxStatsParam{Table: string(table)}); err != nil {
+		return nil, err
+	}
+	statement := spanner.NewStatement(tpl.String())
+	statement.Params = map[string]interface{}{
+		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+	}
+	iter := spannerClient.Single().Query(ctx, statement)
+	defer iter.Stop()
+
+	rets := []*LockStat{}
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, xerrors.Errorf(": %w", err)
+		}
+
+		var result LockStat
 		if err := row.ToStruct(&result); err != nil {
 			return nil, xerrors.Errorf(": %w", err)
 		}
@@ -244,6 +297,18 @@ func (s *Service) CreateTxStatsTable(ctx context.Context, dataset *bigquery.Data
 	})
 }
 
+// CreateLockStatsTable is LockStatsをCopyするTableをBigQueryに作成する
+func (s *Service) CreateLockStatsTable(ctx context.Context, dataset *bigquery.Dataset, table string) error {
+
+	return s.BQ.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
+		Name:   table,
+		Schema: LockStatsBigQueryTableSchema,
+		TimePartitioning: &bigquery.TimePartitioning{
+			Type: bigquery.DayPartitioningType,
+		},
+	})
+}
+
 // CopyQueryStats is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
 func (s *Service) CopyQueryStats(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, intervalEnd time.Time) (int, error) {
 	if s.Spanner == nil {
@@ -266,6 +331,14 @@ func (s *Service) CopyTxStats(ctx context.Context, dataset *bigquery.Dataset, bi
 		return 0, ErrRequiredSpannerClient
 	}
 	return s.CopyTxStatsWithSpannerClient(ctx, dataset, bigQueryTable, txStatsTable, s.Spanner, intervalEnd)
+}
+
+// CopyLockStats is SpannerからLock Statsを引っ張ってきて、BigQueryにCopyしていく
+func (s *Service) CopyLockStats(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, lockStatsTable LockStatsTopTable, intervalEnd time.Time) (int, error) {
+	if s.Spanner == nil {
+		return 0, ErrRequiredSpannerClient
+	}
+	return s.CopyLockStatsWithSpannerClient(ctx, dataset, bigQueryTable, lockStatsTable, s.Spanner, intervalEnd)
 }
 
 // CopyQueryStatsWithSpannerClient is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
@@ -293,6 +366,9 @@ func (s *Service) CopyQueryStatsWithSpannerClient(ctx context.Context, dataset *
 			break
 		}
 		if err != nil {
+			if spanner.ErrCode(err) == codes.NotFound {
+				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
+			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
 
@@ -345,6 +421,9 @@ func (s *Service) CopyReadStatsWithSpannerClient(ctx context.Context, dataset *b
 			break
 		}
 		if err != nil {
+			if spanner.ErrCode(err) == codes.NotFound {
+				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
+			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
 
@@ -390,17 +469,20 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 	defer iter.Stop()
 
 	var insertCount int
-	var statsList []*TxStats
+	var statsList []*TxStat
 	for {
 		row, err := iter.Next()
 		if err == iterator.Done {
 			break
 		}
 		if err != nil {
+			if spanner.ErrCode(err) == codes.NotFound {
+				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
+			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
 
-		var stats TxStats
+		var stats TxStat
 		if err := row.ToStruct(&stats); err != nil {
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
@@ -411,7 +493,62 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 				return insertCount, xerrors.Errorf(": %w", err)
 			}
 			insertCount += len(statsList)
-			statsList = []*TxStats{}
+			statsList = []*TxStat{}
+		}
+	}
+	if len(statsList) > 0 {
+		if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
+			return insertCount, xerrors.Errorf(": %w", err)
+		}
+		insertCount += len(statsList)
+	}
+
+	return insertCount, nil
+}
+
+// CopyLockStatsWithSpannerClient is SpannerからLock Statsを引っ張ってきて、BigQueryにCopyしていく
+func (s *Service) CopyLockStatsWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, lockStatsTable LockStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (int, error) {
+	if spannerClient == nil {
+		return 0, ErrRequiredSpannerClient
+	}
+
+	var tpl bytes.Buffer
+	if err := s.lockStatsTopQueryTemplate.Execute(&tpl, LockStatsParam{Table: string(lockStatsTable)}); err != nil {
+		return 0, err
+	}
+	statement := spanner.NewStatement(tpl.String())
+	statement.Params = map[string]interface{}{
+		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+	}
+	iter := spannerClient.Single().Query(ctx, statement)
+	defer iter.Stop()
+
+	var insertCount int
+	var statsList []*LockStat
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			if spanner.ErrCode(err) == codes.NotFound {
+				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
+			}
+			return insertCount, xerrors.Errorf(": %w", err)
+		}
+
+		var stats LockStat
+		if err := row.ToStruct(&stats); err != nil {
+			return insertCount, xerrors.Errorf(": %w", err)
+		}
+
+		statsList = append(statsList, &stats)
+		if len(statsList) > 99 {
+			if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
+				return insertCount, xerrors.Errorf(": %w", err)
+			}
+			insertCount += len(statsList)
+			statsList = []*LockStat{}
 		}
 	}
 	if len(statsList) > 0 {

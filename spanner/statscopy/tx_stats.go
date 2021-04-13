@@ -38,9 +38,9 @@ type TxStatsParam struct {
 	Table string
 }
 
-var _ bigquery.ValueSaver = &TxStats{}
+var _ bigquery.ValueSaver = &TxStat{}
 
-type TxStats struct {
+type TxStat struct {
 	IntervalEnd                   time.Time `spanner:"interval_end"` // End of the time interval that the included query executions occurred in.
 	Fprint                        int64     // Fingerprint is the hash calculated based on the operations involved in the transaction. INTERVAL_END and FPRINT together act as an unique key for these tables.
 	ReadColumns                   []string  `spanner:"read_columns"`                     // The set of columns that were read by the transaction.
@@ -56,7 +56,7 @@ type TxStats struct {
 }
 
 // Save is bigquery.ValueSaver interface
-func (s *TxStats) Save() (map[string]bigquery.Value, string, error) {
+func (s *TxStat) Save() (map[string]bigquery.Value, string, error) {
 	insertID, err := s.InsertID()
 	if err != nil {
 		return nil, "", xerrors.Errorf("failed InsertID() : %w", err)
@@ -78,7 +78,7 @@ func (s *TxStats) Save() (map[string]bigquery.Value, string, error) {
 }
 
 // InsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
-func (s *TxStats) InsertID() (string, error) {
+func (s *TxStat) InsertID() (string, error) {
 	if s.IntervalEnd.IsZero() {
 		return "", xerrors.New("IntervalEnd is required.")
 	}

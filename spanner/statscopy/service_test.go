@@ -16,6 +16,7 @@ import (
 	sadInstance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/dgryski/go-farm"
 	spabox "github.com/sinmetalcraft/gcpbox/spanner"
+	"golang.org/x/xerrors"
 	"google.golang.org/api/googleapi"
 	sdbproto "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	protoInstance "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
@@ -274,6 +275,58 @@ func TestService_CopyQueryStats_Real(t *testing.T) {
 	}
 }
 
+// TestService_CopyQueryStats_Real_NotFoundError
+// 存在しないInstanceを指定した時のErrorハンドリングをチェック
+func TestService_CopyQueryStats_Real_NotFoundError(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	project, instance, database := getRealSpanner(t)
+
+	cases := []struct {
+		name     string
+		project  string
+		instance string
+		database string
+		wantErr  error
+	}{
+		{"project not-found", "notfound", instance, database, spabox.ErrNotFound},
+		{"instance not-found", project, "notfound", database, spabox.ErrNotFound},
+		{"database not-found", project, instance, "notfound", spabox.ErrNotFound},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			s := newService(t, project, "notfound", database)
+
+			dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
+			table := "minutes"
+			if err := s.CreateQueryStatsTable(ctx, dataset, table); err != nil {
+				var ae *googleapi.Error
+				if ok := errors.As(err, &ae); ok {
+					if ae.Code == 409 {
+						// noop
+					} else {
+						t.Fatal(ae)
+					}
+				} else {
+					t.Fatal(err)
+				}
+			}
+			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
+			_, err := s.CopyQueryStats(ctx, dataset, table, statscopy.QueryStatsTopMinuteTable, utc)
+			if !xerrors.Is(err, tt.wantErr) {
+				t.Errorf("want %v but got %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
 func TestService_ReadQueryStats_Real(t *testing.T) {
 	seh := os.Getenv("SPANNER_EMULATOR_HOST")
 	if len(seh) > 0 {
@@ -307,6 +360,58 @@ func TestService_ReadQueryStats_Real(t *testing.T) {
 	}
 }
 
+// TestService_CopyReadStats_Real_NotFoundError
+// 存在しないInstanceを指定した時のErrorハンドリングをチェック
+func TestService_CopyReadStats_Real_NotFoundError(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	project, instance, database := getRealSpanner(t)
+
+	cases := []struct {
+		name     string
+		project  string
+		instance string
+		database string
+		wantErr  error
+	}{
+		{"project not-found", "notfound", instance, database, spabox.ErrNotFound},
+		{"instance not-found", project, "notfound", database, spabox.ErrNotFound},
+		{"database not-found", project, instance, "notfound", spabox.ErrNotFound},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			s := newService(t, project, "notfound", database)
+
+			dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
+			table := "minutes"
+			if err := s.CreateReadStatsTable(ctx, dataset, table); err != nil {
+				var ae *googleapi.Error
+				if ok := errors.As(err, &ae); ok {
+					if ae.Code == 409 {
+						// noop
+					} else {
+						t.Fatal(ae)
+					}
+				} else {
+					t.Fatal(err)
+				}
+			}
+			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
+			_, err := s.CopyReadStats(ctx, dataset, table, statscopy.ReadStatsTop10MinuteTable, utc)
+			if !xerrors.Is(err, tt.wantErr) {
+				t.Errorf("want %v but got %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
 func TestService_TxQueryStats_Real(t *testing.T) {
 	seh := os.Getenv("SPANNER_EMULATOR_HOST")
 	if len(seh) > 0 {
@@ -337,6 +442,145 @@ func TestService_TxQueryStats_Real(t *testing.T) {
 	_, err := s.CopyTxStats(ctx, dataset, table, statscopy.TxStatsTop10MinuteTable, utc)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestService_CopyTxStats_Real_NotFoundError
+// 存在しないInstanceを指定した時のErrorハンドリングをチェック
+func TestService_CopyTxStats_Real_NotFoundError(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	project, instance, database := getRealSpanner(t)
+
+	cases := []struct {
+		name     string
+		project  string
+		instance string
+		database string
+		wantErr  error
+	}{
+		{"project not-found", "notfound", instance, database, spabox.ErrNotFound},
+		{"instance not-found", project, "notfound", database, spabox.ErrNotFound},
+		{"database not-found", project, instance, "notfound", spabox.ErrNotFound},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			s := newService(t, project, "notfound", database)
+
+			dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
+			table := "minutes"
+			if err := s.CreateTxStatsTable(ctx, dataset, table); err != nil {
+				var ae *googleapi.Error
+				if ok := errors.As(err, &ae); ok {
+					if ae.Code == 409 {
+						// noop
+					} else {
+						t.Fatal(ae)
+					}
+				} else {
+					t.Fatal(err)
+				}
+			}
+			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
+			_, err := s.CopyTxStats(ctx, dataset, table, statscopy.TxStatsTop10MinuteTable, utc)
+			if !xerrors.Is(err, tt.wantErr) {
+				t.Errorf("want %v but got %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+// TestService_CopyLockStats_Real
+// SAMPLE_LOCK_REQUESTS は ARRAY<STRUCT<lock_mode STRING, column STRING>> だが、これはTableのColumnとしては指定できないので、DummyTableは諦めて、このTestだけがある
+func TestService_CopyLockStats_Real(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	project, instance, database := getRealSpanner(t)
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_lock_stats"}
+	table := "minutes"
+	if err := s.CreateLockStatsTable(ctx, dataset, table); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 409 {
+				// noop
+			} else {
+				t.Fatal(ae)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
+	_, err := s.CopyLockStats(ctx, dataset, table, statscopy.LockStatsTop10MinuteTable, utc)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestService_CopyLockStats_Real_NotFoundError
+// 存在しないInstanceを指定した時のErrorハンドリングをチェック
+func TestService_CopyLockStats_Real_NotFoundError(t *testing.T) {
+	seh := os.Getenv("SPANNER_EMULATOR_HOST")
+	if len(seh) > 0 {
+		t.SkipNow()
+	}
+
+	ctx := context.Background()
+
+	project, instance, database := getRealSpanner(t)
+
+	cases := []struct {
+		name     string
+		project  string
+		instance string
+		database string
+		wantErr  error
+	}{
+		{"project not-found", "notfound", instance, database, spabox.ErrNotFound},
+		{"instance not-found", project, "notfound", database, spabox.ErrNotFound},
+		{"database not-found", project, instance, "notfound", spabox.ErrNotFound},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			s := newService(t, project, "notfound", database)
+
+			dataset := &bigquery.Dataset{ProjectID: "sinmetal-ci", DatasetID: "spanner_query_stats"}
+			table := "minutes"
+			if err := s.CreateLockStatsTable(ctx, dataset, table); err != nil {
+				var ae *googleapi.Error
+				if ok := errors.As(err, &ae); ok {
+					if ae.Code == 409 {
+						// noop
+					} else {
+						t.Fatal(ae)
+					}
+				} else {
+					t.Fatal(err)
+				}
+			}
+			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
+			_, err := s.CopyLockStats(ctx, dataset, table, statscopy.LockStatsTop10MinuteTable, utc)
+			if !xerrors.Is(err, tt.wantErr) {
+				t.Errorf("want %v but got %v", tt.wantErr, err)
+			}
+		})
 	}
 }
 
@@ -572,7 +816,7 @@ func newTxStatsDummyData(t *testing.T, project string, instance string, database
 
 	var mus []*spanner.Mutation
 	for i := 0; i < 10; i++ {
-		stat := &statscopy.TxStats{
+		stat := &statscopy.TxStat{
 			IntervalEnd:                   intervalEnd,
 			Fprint:                        rand.Int63(),
 			ReadColumns:                   []string{"ReadHoge"},
