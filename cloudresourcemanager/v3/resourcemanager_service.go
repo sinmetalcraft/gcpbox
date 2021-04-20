@@ -429,7 +429,7 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *Resour
 func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *ResourceID, ops ...GetRelatedProjectOptions) ([]*crm.Project, error) {
 	opt := getRelatedProjectOptions{}
 	for _, o := range ops {
-		o(&opt)
+		o.applyGetRelatedProject(&opt)
 	}
 
 	var projects []*crm.Project
