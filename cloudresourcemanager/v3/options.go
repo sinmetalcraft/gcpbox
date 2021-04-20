@@ -1,5 +1,9 @@
 package cloudresourcemanager
 
+import (
+	"time"
+)
+
 type existsMemberInheritOption struct {
 	roles         []string
 	topNodes      []*ResourceID
@@ -43,4 +47,36 @@ func WithStep(step int) ExistsMemberInheritOptions {
 	return func(ops *existsMemberInheritOption) {
 		ops.step = step
 	}
+}
+
+type getRelatedProjectOptions struct {
+	apiCallCount int
+	interval     time.Duration
+}
+
+// GetRelatedProjectOptions is GetRelatedProject()のOptions
+type GetRelatedProjectOptions interface {
+	applyGetRelatedProject(op *getRelatedProjectOptions)
+}
+
+// WithAPICallInterval is Cloud Resource Manager APIを実行する時にIntervalを置くようになる
+// apiCallCountの回数実行後、interval待つ
+// apiCallCountに0を指定すると、毎回interval待つ
+func WithAPICallInterval(apiCallCount int, interval time.Duration) interface {
+	GetRelatedProjectOptions
+} {
+	return &withAPICallIntervalImpl{
+		apiCallCount: apiCallCount,
+		interval:     interval,
+	}
+}
+
+type withAPICallIntervalImpl struct {
+	apiCallCount int
+	interval     time.Duration
+}
+
+func (impl *withAPICallIntervalImpl) applyGetRelatedProject(op *getRelatedProjectOptions) {
+	op.apiCallCount = impl.apiCallCount
+	op.interval = impl.interval
 }

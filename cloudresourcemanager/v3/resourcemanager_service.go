@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/xerrors"
@@ -425,7 +426,12 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *Resour
 // GetRelatedProject is 指定したParent配下のすべてのProjectを返す
 // parentType : folders or organizations
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
-func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *ResourceID) ([]*crm.Project, error) {
+func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *ResourceID, ops ...GetRelatedProjectOptions) ([]*crm.Project, error) {
+	opt := getRelatedProjectOptions{}
+	for _, o := range ops {
+		o.applyGetRelatedProject(&opt)
+	}
+
 	var projects []*crm.Project
 
 	// 直下のProjectを取得
@@ -444,16 +450,35 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 		return nil, xerrors.Errorf("failed get folders. parent=%s: %w", parent.ID, err)
 	}
 
+	var apiCallCount int = 1
 	for _, folder := range folders {
+		if apiCallCount >= opt.apiCallCount {
+			apiCallCount = 1
+			time.Sleep(opt.interval)
+		}
+
 		fn, err := ConvertResourceID(folder.Name)
 		if err != nil {
 			return nil, xerrors.Errorf("invalid folder.Name. name=%s : %w", folder.Name, err)
 		}
-		ps, err := s.GetProjects(ctx, fn)
-		if err != nil {
-			return nil, xerrors.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
+
+		// CloudResourceManagerAPIはQuotaが低いので、QuotaErrorが返ってきたら、しばらく待ってから再度実行してみる
+		for count := 3; count < 6; count++ {
+			ps, err := s.GetProjects(ctx, fn)
+			if err != nil {
+				var errGoogleAPI *googleapi.Error
+				if xerrors.As(err, &errGoogleAPI) {
+					if errGoogleAPI.Code == http.StatusTooManyRequests {
+						time.Sleep(time.Duration(count*count) * time.Second)
+						continue
+					}
+				}
+				return nil, xerrors.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
+			}
+			projects = append(projects, ps...)
+			apiCallCount++
+			break
 		}
-		projects = append(projects, ps...)
 	}
 
 	return projects, nil
