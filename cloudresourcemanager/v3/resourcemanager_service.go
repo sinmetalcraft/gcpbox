@@ -461,12 +461,24 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 		if err != nil {
 			return nil, xerrors.Errorf("invalid folder.Name. name=%s : %w", folder.Name, err)
 		}
-		ps, err := s.GetProjects(ctx, fn)
-		if err != nil {
-			return nil, xerrors.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
+
+		// CloudResourceManagerAPIはQuotaが低いので、QuotaErrorが返ってきたら、しばらく待ってから再度実行してみる
+		for count := 3; count < 6; count++ {
+			ps, err := s.GetProjects(ctx, fn)
+			if err != nil {
+				var errGoogleAPI *googleapi.Error
+				if xerrors.As(err, &errGoogleAPI) {
+					if errGoogleAPI.Code == http.StatusTooManyRequests {
+						time.Sleep(time.Duration(count*count) * time.Second)
+						continue
+					}
+				}
+				return nil, xerrors.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
+			}
+			projects = append(projects, ps...)
+			apiCallCount++
+			break
 		}
-		projects = append(projects, ps...)
-		apiCallCount++
 	}
 
 	return projects, nil
