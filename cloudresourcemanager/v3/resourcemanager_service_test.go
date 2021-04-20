@@ -3,16 +3,15 @@ package cloudresourcemanager_test
 import (
 	"context"
 	"errors"
-	"net/http"
-	"testing"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/k0kubun/pp"
+	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
 	"golang.org/x/xerrors"
 	crm "google.golang.org/api/cloudresourcemanager/v3"
 	"google.golang.org/api/googleapi"
-
-	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
+	"net/http"
+	"testing"
+	"time"
 )
 
 const (
@@ -114,12 +113,14 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 	cases := []struct {
 		name         string
 		parent       *crmbox.ResourceID
+		ops          []crmbox.GetRelatedProjectOptions
 		wantCountMin int
 		wantErr      error
 	}{
-		{"正常系 folder", crmbox.NewResourceID(crmbox.ResourceTypeFolder, metalTileFolder), 2, nil},
-		{"正常系 organization", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg), 10, nil},
-		{"権限がないparent", crmbox.NewResourceID(crmbox.ResourceTypeFolder, "105058807061166"), 0, crmbox.ErrPermissionDenied},
+		{"正常系 folder", crmbox.NewResourceID(crmbox.ResourceTypeFolder, metalTileFolder), []crmbox.GetRelatedProjectOptions{}, 2, nil},
+		{"正常系 organization", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg), []crmbox.GetRelatedProjectOptions{}, 10, nil},
+		{"権限がないparent", crmbox.NewResourceID(crmbox.ResourceTypeFolder, "105058807061166"), []crmbox.GetRelatedProjectOptions{}, 0, crmbox.ErrPermissionDenied},
+		{"WithInterval", crmbox.NewResourceID(crmbox.ResourceTypeFolder, metalTileFolder), []crmbox.GetRelatedProjectOptions{crmbox.WithIntervalRelatedProject(1, 10*time.Microsecond)}, 2, nil},
 	}
 
 	for _, tt := range cases {
