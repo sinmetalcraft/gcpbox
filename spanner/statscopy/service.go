@@ -285,6 +285,15 @@ func (s *Service) CreateReadStatsTable(ctx context.Context, dataset *bigquery.Da
 	})
 }
 
+// UpdateReadStatsTable is BigQuery上にあるReadStats TableのSchemaをUpdateする
+// 途中でColumnが追加された時に使う
+func (s *Service) UpdateReadStatsTable(ctx context.Context, dataset *bigquery.Dataset, table string) (*bigquery.TableMetadata, error) {
+
+	return s.BQ.Dataset(dataset.DatasetID).Table(table).Update(ctx, bigquery.TableMetadataToUpdate{
+		Schema: ReadStatsBigQueryTableSchema,
+	}, "")
+}
+
 // CreateTxStatsTable is TxStatsをCopyするTableをBigQueryに作成する
 func (s *Service) CreateTxStatsTable(ctx context.Context, dataset *bigquery.Dataset, table string) error {
 
@@ -297,6 +306,15 @@ func (s *Service) CreateTxStatsTable(ctx context.Context, dataset *bigquery.Data
 	})
 }
 
+// UpdateTxStatsTable is BigQuery上にあるTxStats TableのSchemaをUpdateする
+// 途中でColumnが追加された時に使う
+func (s *Service) UpdateTxStatsTable(ctx context.Context, dataset *bigquery.Dataset, table string) (*bigquery.TableMetadata, error) {
+
+	return s.BQ.Dataset(dataset.DatasetID).Table(table).Update(ctx, bigquery.TableMetadataToUpdate{
+		Schema: TxStatsBigQueryTableSchema,
+	}, "")
+}
+
 // CreateLockStatsTable is LockStatsをCopyするTableをBigQueryに作成する
 func (s *Service) CreateLockStatsTable(ctx context.Context, dataset *bigquery.Dataset, table string) error {
 
@@ -307,6 +325,15 @@ func (s *Service) CreateLockStatsTable(ctx context.Context, dataset *bigquery.Da
 			Type: bigquery.DayPartitioningType,
 		},
 	})
+}
+
+// UpdateLockStatsTable is BigQuery上にあるTxStats TableのSchemaをUpdateする
+// 途中でColumnが追加された時に使う
+func (s *Service) UpdateLockStatsTable(ctx context.Context, dataset *bigquery.Dataset, table string) (*bigquery.TableMetadata, error) {
+
+	return s.BQ.Dataset(dataset.DatasetID).Table(table).Update(ctx, bigquery.TableMetadataToUpdate{
+		Schema: LockStatsBigQueryTableSchema,
+	}, "")
 }
 
 // CopyQueryStats is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく

@@ -662,6 +662,123 @@ func TestService_UpdateQueryStatsTable(t *testing.T) {
 	}
 }
 
+func TestService_UpdateReadStatsTable(t *testing.T) {
+	ctx := context.Background()
+
+	const project = "sinmetal-ci"
+	const instance = "fuga"
+	database := fmt.Sprintf("test%d", rand.Intn(10000000))
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_read_stats"}
+	table := "table_migration"
+
+	if err := s.BQ.Dataset(dataset.DatasetID).Table(table).Delete(ctx); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 404 {
+				// 前回のTestのTableを消そうとしているので、存在しなかったら、何もしない
+			} else {
+				t.Fatal(err)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	if err := s.BQ.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
+		Name:   table,
+		Schema: statscopy.ReadStatsBigQueryTableSchema,
+		TimePartitioning: &bigquery.TimePartitioning{
+			Type: bigquery.DayPartitioningType,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.UpdateReadStatsTable(ctx, dataset, table)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestService_UpdateTxStatsTable(t *testing.T) {
+	ctx := context.Background()
+
+	const project = "sinmetal-ci"
+	const instance = "fuga"
+	database := fmt.Sprintf("test%d", rand.Intn(10000000))
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_tx_stats"}
+	table := "table_migration"
+
+	if err := s.BQ.Dataset(dataset.DatasetID).Table(table).Delete(ctx); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 404 {
+				// 前回のTestのTableを消そうとしているので、存在しなかったら、何もしない
+			} else {
+				t.Fatal(err)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	if err := s.BQ.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
+		Name:   table,
+		Schema: statscopy.TxStatsBigQueryTableSchema,
+		TimePartitioning: &bigquery.TimePartitioning{
+			Type: bigquery.DayPartitioningType,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.UpdateTxStatsTable(ctx, dataset, table)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestService_UpdateLockStatsTable(t *testing.T) {
+	ctx := context.Background()
+
+	const project = "sinmetal-ci"
+	const instance = "fuga"
+	database := fmt.Sprintf("test%d", rand.Intn(10000000))
+
+	s := newService(t, project, instance, database)
+
+	dataset := &bigquery.Dataset{ProjectID: projectID, DatasetID: "spanner_lock_stats"}
+	table := "table_migration"
+
+	if err := s.BQ.Dataset(dataset.DatasetID).Table(table).Delete(ctx); err != nil {
+		var ae *googleapi.Error
+		if ok := errors.As(err, &ae); ok {
+			if ae.Code == 404 {
+				// 前回のTestのTableを消そうとしているので、存在しなかったら、何もしない
+			} else {
+				t.Fatal(err)
+			}
+		} else {
+			t.Fatal(err)
+		}
+	}
+	if err := s.BQ.Dataset(dataset.DatasetID).Table(table).Create(ctx, &bigquery.TableMetadata{
+		Name:   table,
+		Schema: statscopy.LockStatsBigQueryTableSchema,
+		TimePartitioning: &bigquery.TimePartitioning{
+			Type: bigquery.DayPartitioningType,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.UpdateLockStatsTable(ctx, dataset, table)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func newService(t *testing.T, project string, instance string, database string) *statscopy.Service {
 	ctx := context.Background()
 
