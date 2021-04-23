@@ -38,6 +38,14 @@ type LockStatSampleLockRequest struct {
 	Column   string `spanner:"column"`
 }
 
+// Save is bigquery.ValueSaver interface
+func (s *LockStatSampleLockRequest) ToBQValue() map[string]bigquery.Value {
+	return map[string]bigquery.Value{
+		"lock_mode": s.LockMode,
+		"column":    s.Column,
+	}
+}
+
 type LockStat struct {
 	// End of the time interval that the included query executions occurred in.
 	IntervalEnd time.Time `spanner:"interval_end"`
@@ -72,11 +80,17 @@ func (s *LockStat) Save() (map[string]bigquery.Value, string, error) {
 	if err != nil {
 		return nil, "", xerrors.Errorf("failed InsertID() : %w", err)
 	}
+
+	var lockReqs []map[string]bigquery.Value
+	for _, lockReq := range s.SampleLockRequests {
+		lockReqs = append(lockReqs, lockReq.ToBQValue())
+	}
+
 	return map[string]bigquery.Value{
 		"interval_end":         s.IntervalEnd,
 		"row_range_start_key":  s.RowRangeStartKey,
 		"lock_wait_seconds":    s.LockWaitSeconds,
-		"sample_lock_requests": s.SampleLockRequests,
+		"sample_lock_requests": lockReqs,
 	}, insertID, nil
 }
 
