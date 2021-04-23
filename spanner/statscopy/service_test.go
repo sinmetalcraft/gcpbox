@@ -526,11 +526,15 @@ func TestService_CopyLockStats_Real(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
-	_, err := s.CopyLockStats(ctx, dataset, table, statscopy.LockStatsTop10MinuteTable, utc)
+	utc := time.Date(2021, 4, 22, 19, 00, 00, 00, time.UTC) // その時対象のSpannerにデータがあった時刻を指定している
+	count, err := s.CopyLockStats(ctx, dataset, table, statscopy.LockStatsTopHourTable, utc)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if count < 1 {
+		t.Errorf("no data...")
+	}
+	t.Logf("InsertCount:%d\n", count)
 }
 
 // TestService_CopyLockStats_Real_NotFoundError
