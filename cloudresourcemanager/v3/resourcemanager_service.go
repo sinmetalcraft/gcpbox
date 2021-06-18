@@ -98,6 +98,9 @@ func NewResourceID(resourceType string, id string) *ResourceID {
 // ExistsMemberInGCPProject is GCP Projectに指定したユーザが権限を持っているかを返す
 // defaultだと何らかのroleを持っているかを返す。rolesを指定するといずれか1つ以上を持っているかを返す。
 func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
+	ctx, span := startSpan(ctx, "ExistsMemberInGCPProject")
+	defer span.End()
+
 	exists, err := s.existsMemberInGCPProject(ctx, projectID, email, roles...)
 	if err != nil {
 		return false, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
@@ -118,6 +121,9 @@ type ExistsMemberCheckResult struct {
 // ExistsMemberInGCPProjectWithInherit is GCP Projectに指定したユーザが権限を持っているかを返す
 // 対象のProjectの上位階層のIAMもチェックする。
 func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context.Context, projectID string, email string, ops ...ExistsMemberInheritOptions) (bool, []*ExistsMemberCheckResult, error) {
+	ctx, span := startSpan(ctx, "ExistsMemberInGCPProjectWithInherit")
+	defer span.End()
+
 	opt := existsMemberInheritOption{}
 	for _, o := range ops {
 		o(&opt)
@@ -165,6 +171,9 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 }
 
 func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context.Context, email string, parent *ResourceID, step int, opt existsMemberInheritOption) (bool, *ResourceID, *ExistsMemberCheckResult, error) {
+	ctx, span := startSpan(ctx, "existsMemberInGCPProjectWithInherit")
+	defer span.End()
+
 	log := &ExistsMemberCheckResult{
 		Resource: parent,
 	}
@@ -237,6 +246,9 @@ func (s *ResourceManagerService) findResource(resources []*ResourceID, resource 
 }
 
 func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
+	ctx, span := startSpan(ctx, "existsMemberInGCPProject")
+	defer span.End()
+
 	resource, err := s.crm.Projects.GetIamPolicy(fmt.Sprintf("projects/%s", projectID), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
@@ -252,6 +264,9 @@ func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, p
 }
 
 func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folder *ResourceID, email string, roles ...string) (bool, error) {
+	ctx, span := startSpan(ctx, "existsMemberInFolder")
+	defer span.End()
+
 	resource, err := s.crm.Folders.GetIamPolicy(folder.Name(), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
@@ -267,6 +282,9 @@ func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folde
 }
 
 func (s *ResourceManagerService) existsMemberInOrganization(ctx context.Context, organization *ResourceID, email string, roles ...string) (bool, error) {
+	ctx, span := startSpan(ctx, "existsMemberInOrganization")
+	defer span.End()
+
 	resource, err := s.crm.Organizations.GetIamPolicy(organization.Name(), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
@@ -364,6 +382,9 @@ func (s *ResourceManagerService) ConvertIamMember(member string) (*IamMember, er
 // parent は `folders/{folder_id}` or `organizations/{org_id}` の形式で指定する
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
 func (s *ResourceManagerService) GetFolders(ctx context.Context, parent *ResourceID) ([]*crm.Folder, error) {
+	ctx, span := startSpan(ctx, "GetFolders")
+	defer span.End()
+
 	l, err := s.folders(ctx, parent, "", []*crm.Folder{})
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
@@ -378,6 +399,9 @@ func (s *ResourceManagerService) GetFolders(ctx context.Context, parent *Resourc
 }
 
 func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID, pageToken string, dst []*crm.Folder) ([]*crm.Folder, error) {
+	ctx, span := startSpan(ctx, "folders")
+	defer span.End()
+
 	req := s.crm.Folders.List().Parent(parent.Name()).PageSize(1000).Context(ctx)
 	if pageToken != "" {
 		req = req.PageToken(pageToken)
@@ -412,6 +436,9 @@ func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID
 // Projects is 指定したリソース以下のProject一覧を返す
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
 func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *ResourceID) ([]*crm.Project, error) {
+	ctx, span := startSpan(ctx, "GetProjects")
+	defer span.End()
+
 	var ret []*crm.Project
 	var pageToken string
 	for {
@@ -446,6 +473,9 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *Resour
 // parentType : folders or organizations
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
 func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *ResourceID, ops ...GetRelatedProjectOptions) ([]*crm.Project, error) {
+	ctx, span := startSpan(ctx, "GetRelatedProject")
+	defer span.End()
+
 	opt := getRelatedProjectOptions{}
 	for _, o := range ops {
 		o.applyGetRelatedProject(&opt)
@@ -505,6 +535,9 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 // GetProject is 指定したProjectIDのProjectを取得する
 // projectID は "my-project-id" という値を渡されるのを期待している
 func (s *ResourceManagerService) GetProject(ctx context.Context, projectID string) (*crm.Project, error) {
+	ctx, span := startSpan(ctx, "GetProject")
+	defer span.End()
+
 	project, err := s.crm.Projects.Get(fmt.Sprintf("projects/%s", projectID)).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
@@ -520,6 +553,9 @@ func (s *ResourceManagerService) GetProject(ctx context.Context, projectID strin
 
 // GetFolder is 指定したFolderIDのFolderを取得する
 func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *ResourceID) (*crm.Folder, error) {
+	ctx, span := startSpan(ctx, "GetFolder")
+	defer span.End()
+
 	fol, err := s.crm.Folders.Get(folder.Name()).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
@@ -535,6 +571,9 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *Resource
 
 // GetOrganization is Organizationを取得する
 func (s *ResourceManagerService) GetOrganization(ctx context.Context, organization *ResourceID) (*crm.Organization, error) {
+	ctx, span := startSpan(ctx, "GetOrganization")
+	defer span.End()
+
 	org, err := s.crm.Organizations.Get(organization.Name()).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
