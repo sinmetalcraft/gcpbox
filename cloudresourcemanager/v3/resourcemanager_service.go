@@ -412,24 +412,6 @@ func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID
 // Projects is 指定したリソース以下のProject一覧を返す
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
 func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *ResourceID) ([]*crm.Project, error) {
-	req := s.crm.Projects.List().Context(ctx)
-	if parent != nil {
-		req = req.Parent(parent.Name())
-	}
-	resp, err := req.Do()
-	if err != nil {
-		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
-			if errGoogleAPI.Code == http.StatusForbidden {
-				return nil, NewErrPermissionDenied("failed get projects", map[string]interface{}{"parent": parent}, err)
-			}
-		}
-		return nil, xerrors.Errorf("failed get projects. parent=%v : %w", parent, err)
-	}
-	return resp.Projects, nil
-}
-
-func (s *ResourceManagerService) projects(ctx context.Context, parent *ResourceID) ([]*crm.Project, error) {
 	var ret []*crm.Project
 	var pageToken string
 	for {
