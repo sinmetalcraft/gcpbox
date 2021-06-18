@@ -7,11 +7,13 @@ import (
 	"testing"
 	"time"
 
+	adcplusts "github.com/apstndb/adcplus/tokensource"
 	"github.com/google/go-cmp/cmp"
 	"github.com/k0kubun/pp"
 	"golang.org/x/xerrors"
 	crm "google.golang.org/api/cloudresourcemanager/v3"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 
 	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
 )
@@ -19,14 +21,47 @@ import (
 const (
 	metalTileFolder    = "1050500061186"
 	sinmetalcraftJPOrg = "190932998497"
-	// gcpalcatrazLandOrg = "69098872916"
-	// sinmetalJPOrg      = "870462276916"
 
-	// gcpboxFolderSinmetalcraftJPOrg = "484650900491"
-	// gcpboxFolderSinmetalJPOrg      = "167285374874"
+	gcpboxFolderSinmetalcraftJPOrg = "484650900491"
 )
 
 func TestResourceManagerService_GetFolders(t *testing.T) {
+	ctx := context.Background()
+
+	s := newResourceManagerService(t)
+
+	cases := []struct {
+		name         string
+		parent       *crmbox.ResourceID
+		wantMinCount int // Folderを新たに作ったりすることがあるので、最低この数以上は取得できるという数を取っている
+	}{
+		{"Organizationを指定して取得", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg), 5},
+		{"Folderを指定して取得", crmbox.NewResourceID(crmbox.ResourceTypeFolder, gcpboxFolderSinmetalcraftJPOrg), 2},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := s.GetFolders(ctx, tt.parent)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if e, g := tt.wantMinCount, len(got); e > g {
+				t.Errorf("want min count %d but got %d", e, g)
+			}
+			m := map[string]bool{}
+			for _, v := range got {
+				_, ok := m[v.Name]
+				if ok {
+					t.Errorf("duplicate folder")
+				}
+				m[v.Name] = true
+			}
+		})
+	}
+}
+
+func TestResourceManagerService_GetFolders_StatusFailed(t *testing.T) {
 	ctx := context.Background()
 
 	s := newResourceManagerService(t)
@@ -36,27 +71,20 @@ func TestResourceManagerService_GetFolders(t *testing.T) {
 		parent  *crmbox.ResourceID
 		wantErr error
 	}{
-		{"正常系", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg), nil},
 		{"権限がないparent", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, "1050507061166"), crmbox.ErrPermissionDenied},
 	}
 
 	for _, tt := range cases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.GetFolders(ctx, tt.parent)
-			if tt.wantErr != nil {
-				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
-					t.Errorf("want error %T but got %T", e, g)
-				}
-				var errPermissionDenied *crmbox.Error
-				if xerrors.As(err, &errPermissionDenied) {
-					if errPermissionDenied.KV["parent"] == "" {
-						t.Errorf("ErrPermissionDenied.Target is empty...")
-					}
-				}
-			} else {
-				if len(got) < 1 {
-					t.Errorf("folder list length is zero.")
+			_, err := s.GetFolders(ctx, tt.parent)
+			if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
+				t.Errorf("want error %T but got %T", e, g)
+			}
+			var errPermissionDenied *crmbox.Error
+			if xerrors.As(err, &errPermissionDenied) {
+				if errPermissionDenied.KV["parent"] == "" {
+					t.Errorf("ErrPermissionDenied.Target is empty...")
 				}
 			}
 		})
@@ -140,6 +168,9 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 					}
 				}
 			} else {
+				if err != nil {
+					t.Fatal(err)
+				}
 				if e, g := tt.wantCountMin, len(got); e > g {
 					t.Errorf("want %d but got %d", e, g)
 				}
@@ -311,7 +342,11 @@ func TestResourceManagerService_GetOrganization(t *testing.T) {
 func newResourceManagerService(t *testing.T) *crmbox.ResourceManagerService {
 	ctx := context.Background()
 
-	crmService, err := crm.NewService(ctx)
+	ts, err := adcplusts.SmartAccessTokenSource(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	crmService, err := crm.NewService(ctx, option.WithTokenSource(ts))
 	if err != nil {
 		t.Fatal(err)
 	}
