@@ -377,10 +377,10 @@ func (s *ResourceManagerService) GetFolders(ctx context.Context, parent *Resourc
 	return l, nil
 }
 
-func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID, nextPageToken string, dst []*crm.Folder) ([]*crm.Folder, error) {
-	req := s.crm.Folders.List().Parent(parent.Name()).Context(ctx)
-	if nextPageToken != "" {
-		req = req.PageToken(nextPageToken)
+func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID, pageToken string, dst []*crm.Folder) ([]*crm.Folder, error) {
+	req := s.crm.Folders.List().Parent(parent.Name()).PageSize(1000).Context(ctx)
+	if pageToken != "" {
+		req = req.PageToken(pageToken)
 	}
 	resp, err := req.Do()
 	if err != nil {
@@ -427,6 +427,37 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *Resour
 		return nil, xerrors.Errorf("failed get projects. parent=%v : %w", parent, err)
 	}
 	return resp.Projects, nil
+}
+
+func (s *ResourceManagerService) projects(ctx context.Context, parent *ResourceID) ([]*crm.Project, error) {
+	var ret []*crm.Project
+	var pageToken string
+	for {
+		req := s.crm.Projects.List().PageSize(1000).Context(ctx)
+		if parent != nil {
+			req = req.Parent(parent.Name())
+		}
+
+		if pageToken != "" {
+			req = req.PageToken(pageToken)
+		}
+		resp, err := req.Do()
+		if err != nil {
+			var errGoogleAPI *googleapi.Error
+			if xerrors.As(err, &errGoogleAPI) {
+				if errGoogleAPI.Code == http.StatusForbidden {
+					return nil, NewErrPermissionDenied("failed get projects", map[string]interface{}{"parent": parent}, err)
+				}
+			}
+			return nil, xerrors.Errorf("failed get projects. parent=%v : %w", parent, err)
+		}
+		ret = append(ret, resp.Projects...)
+		if resp.NextPageToken == "" {
+			break
+		}
+		pageToken = resp.NextPageToken
+	}
+	return ret, nil
 }
 
 // GetRelatedProject is 指定したParent配下のすべてのProjectを返す
