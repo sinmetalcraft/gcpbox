@@ -6,8 +6,7 @@ import (
 
 	compute "cloud.google.com/go/compute/apiv1"
 	"github.com/google/uuid"
-
-	computebox "github.com/sinmetalcraft/gcpbox/compute"
+	computebox "github.com/sinmetalcraft/gcpbox/compute/v0"
 )
 
 const (
