@@ -14,6 +14,8 @@ require (
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.3.0
 	github.com/googleapis/gax-go/v2 v2.1.1 // indirect
+	github.com/gostaticanalysis/vetgen v0.1.0
+	github.com/gostaticanalysis/wraperrfmt v0.0.0-20190308090456-74aac36802ea
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/mattn/go-colorable v0.1.8 // indirect
@@ -22,6 +24,7 @@ require (
 	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf // indirect
 	golang.org/x/sys v0.0.0-20210921065528-437939a70204 // indirect
 	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/tools v0.1.5
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	google.golang.org/api v0.57.0
 	google.golang.org/genproto v0.0.0-20210920155426-26f343e4c215

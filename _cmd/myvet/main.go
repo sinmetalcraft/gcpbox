@@ -10,12 +10,10 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/unitchecker"
 
-	"github.com/gostaticanalysis/nilerr"     // add by vetgen
 	"github.com/gostaticanalysis/wraperrfmt" // add by vetgen
 )
 
 var myAnayzers = []*analysis.Analyzer{
-	nilerr.Analyzer,
 	wraperrfmt.Analyzer,
 }
 
