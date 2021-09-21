@@ -13,6 +13,7 @@ import (
 )
 
 // NewResourceManagerService is return ResourceManagerService
+// Deprecated: should not be used.
 func NewResourceManagerService(ctx context.Context, crmv1Service *crmv1.Service, crmv2Service *crmv2.Service) (*ResourceManagerService, error) {
 	return &ResourceManagerService{
 		crmv1: crmv1Service,
@@ -35,6 +36,8 @@ type IamMember struct {
 
 // ExistsMemberInGCPProject is GCP Projectに指定したユーザが権限を持っているかを返す
 // defaultだと何らかのroleを持っているかを返す。rolesを指定するといずれか1つ以上を持っているかを返す。
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
 	p, err := s.crmv1.Projects.GetIamPolicy(projectID, &crmv1.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
@@ -89,6 +92,8 @@ func (s *ResourceManagerService) existsIamMember(members []string, email string)
 
 // ConvertIamMember is IAM RoleのAPIで取得できるMember文字列をIamMember structに変換して返す
 // 削除済みのメンバーのフォーマットは https://cloud.google.com/iam/docs/policies#handle-deleted-members
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) ConvertIamMember(member string) (*IamMember, error) {
 	l := strings.Split(member, ":")
 	if len(l) < 1 {
@@ -291,6 +296,8 @@ type ResourceID struct {
 // 階層構造は保持せずにフラットにすべてのFolderを返す
 // parent は `folders/{folder_id}` or `organizations/{org_id}` の形式で指定する
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) Folders(ctx context.Context, parent string) ([]*Folder, error) {
 	var folders []*Folder
 	var err error
@@ -333,6 +340,7 @@ func (s *ResourceManagerService) folders(ctx context.Context, parent string, dst
 
 // Projects is 指定したリソース以下のProject一覧を返す
 // 権限がない (存在しない) parentID を指定しても 空のList を返す
+// Deprecated: should not be used.
 func (s *ResourceManagerService) Projects(ctx context.Context, parentID string) ([]*Project, error) {
 	req := s.crmv1.Projects.List()
 	if len(parentID) > 0 {
@@ -370,6 +378,8 @@ func (s *ResourceManagerService) Projects(ctx context.Context, parentID string) 
 // GetRelatedProject is 指定したParent配下のすべてのProjectを返す
 // parentType : folders or organizations
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parentType string, parentID string) ([]*Project, error) {
 	var projects []*Project
 

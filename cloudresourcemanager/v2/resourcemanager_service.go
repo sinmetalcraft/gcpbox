@@ -25,6 +25,7 @@ const (
 )
 
 // NewResourceManagerService is return ResourceManagerService
+// Deprecated: should not be used.
 func NewResourceManagerService(ctx context.Context, crmv1Service *crmv1.Service, crmv2Service *crmv2.Service) (*ResourceManagerService, error) {
 	return &ResourceManagerService{
 		crmv1: crmv1Service,
@@ -487,11 +488,13 @@ type ResourceID struct {
 
 // Name is type/id 形式の文字列を返す
 // e.g. organizations/1234, folders/1234
+// Deprecated: should not be used.
 func (r *ResourceID) Name() string {
 	return fmt.Sprintf("%ss/%s", r.Type, r.ID)
 }
 
 // NewResourceID is ResourceIDを生成する
+// Deprecated: should not be used.
 func NewResourceID(resourceType string, id string) *ResourceID {
 	switch resourceType {
 	case "projects":
@@ -519,6 +522,7 @@ func NewResourceID(resourceType string, id string) *ResourceID {
 
 // ExistsMemberInGCPProject is GCP Projectに指定したユーザが権限を持っているかを返す
 // defaultだと何らかのroleを持っているかを返す。rolesを指定するといずれか1つ以上を持っているかを返す。
+// Deprecated: should not be used.
 func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
 	exists, err := s.existsMemberInGCPProject(ctx, projectID, email, roles...)
 	if err != nil {
@@ -537,6 +541,8 @@ type ExistsMemberCheckResult struct {
 
 // ExistsMemberInGCPProjectWithInherit is GCP Projectに指定したユーザが権限を持っているかを返す
 // 対象のProjectの上位階層のIAMもチェックする。
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context.Context, projectID string, email string, ops ...ExistsMemberInheritOptions) (bool, []*ExistsMemberCheckResult, error) {
 	opt := existsMemberInheritOption{}
 	for _, o := range ops {
@@ -702,6 +708,8 @@ func (s *ResourceManagerService) existsIamMember(members []string, email string)
 
 // ConvertIamMember is IAM RoleのAPIで取得できるMember文字列をIamMember structに変換して返す
 // 削除済みのメンバーのフォーマットは https://cloud.google.com/iam/docs/policies#handle-deleted-members
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) ConvertIamMember(member string) (*IamMember, error) {
 	l := strings.Split(member, ":")
 	if len(l) < 1 {
@@ -745,6 +753,8 @@ func (s *ResourceManagerService) ConvertIamMember(member string) (*IamMember, er
 // 階層構造は保持せずにフラットにすべてのFolderを返す
 // parent は `folders/{folder_id}` or `organizations/{org_id}` の形式で指定する
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) GetFolders(ctx context.Context, parent *ResourceID) ([]*Folder, error) {
 	var folders []*Folder
 	var err error
@@ -799,6 +809,8 @@ func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID
 
 // Projects is 指定したリソース以下のProject一覧を返す
 // 権限がない (存在しない) parentID を指定しても 空のList を返す
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) GetProjects(ctx context.Context, parentID string) ([]*Project, error) {
 	req := s.crmv1.Projects.List().Context(ctx)
 	if len(parentID) > 0 {
@@ -832,6 +844,8 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parentID strin
 // GetRelatedProject is 指定したParent配下のすべてのProjectを返す
 // parentType : folders or organizations
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *ResourceID) ([]*Project, error) {
 	var projects []*Project
 
@@ -868,6 +882,8 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 
 // GetProject is 指定したProjectIDのProjectを取得する
 // projectID は "my-project-id" という値を渡されるのを期待している
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) GetProject(ctx context.Context, projectID string) (*Project, error) {
 	project, err := s.crmv1.Projects.Get(projectID).Context(ctx).Do()
 	if err != nil {
@@ -891,6 +907,8 @@ func (s *ResourceManagerService) GetProject(ctx context.Context, projectID strin
 }
 
 // GetFolder is 指定したFolderIDのFolderを取得する
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *ResourceID) (*Folder, error) {
 	fol, err := s.crmv2.Folders.Get(folder.Name()).Context(ctx).Do()
 	if err != nil {
@@ -914,6 +932,8 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *Resource
 }
 
 // GetOrganization is Organizationを取得する
+//
+// Deprecated: should not be used.
 func (s *ResourceManagerService) GetOrganization(ctx context.Context, organization *ResourceID) (*Organization, error) {
 	org, err := s.crmv1.Organizations.Get(organization.Name()).Context(ctx).Do()
 	if err != nil {
