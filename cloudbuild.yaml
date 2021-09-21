@@ -6,7 +6,7 @@ steps:
   - name: jwilder/dockerize:0.6.1
     args: ['dockerize', '-timeout=60s', '-wait=tcp://spanner-emulator:9010']
     waitFor: ['spanner-emulator']
-  - name: 'golang:1.14-stretch'
+  - name: 'golang:1.16-stretch'
     id: setup
     entrypoint: 'bash'
     args:
@@ -15,7 +15,7 @@ steps:
       - 'GO111MODULE=on'
       - 'GOBIN=/workspace/build-cmd'
     waitFor: ['-']
-  - name: 'golang:1.14-stretch'
+  - name: 'golang:1.16-stretch'
     entrypoint: 'bash'
     args:
       - './lint.sh'
@@ -24,7 +24,7 @@ steps:
       - 'GOBIN=/workspace/build-cmd'
       - 'SPANNER_EMULATOR_HOST=spanner-emulator:9010'
     waitFor: ['setup']
-  - name: 'golang:1.14-stretch'
+  - name: 'golang:1.16-stretch'
     entrypoint: 'bash'
     args:
       - './test.sh'
