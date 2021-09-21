@@ -8,6 +8,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/spanner"
+	"github.com/sinmetalcraft/gcpbox/internal/trace"
 	spabox "github.com/sinmetalcraft/gcpbox/spanner"
 	"golang.org/x/xerrors"
 	"google.golang.org/api/iterator"
@@ -105,7 +106,19 @@ func (s *Service) GetLockStats(ctx context.Context, table TxStatsTopTable, inter
 }
 
 // GetQueryStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからQueryStatsを取得する
-func (s *Service) GetQueryStatsWithSpannerClient(ctx context.Context, table QueryStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*QueryStat, error) {
+func (s *Service) GetQueryStatsWithSpannerClient(ctx context.Context, table QueryStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (stats []*QueryStat, err error) {
+	intervalEndParam := intervalEnd.Format("2006-01-02 15:04:05")
+
+	ctx = trace.StartSpan(ctx, "spanner.statscopy.GetQueryStatsWithSpannerClient")
+	defer func() {
+		trace.SetAttributesKV(ctx, map[string]interface{}{
+			"statsCount":  len(stats),
+			"table":       table,
+			"intervalEnd": intervalEndParam,
+		})
+		trace.EndSpan(ctx, err)
+	}()
+
 	if spannerClient == nil {
 		return nil, ErrRequiredSpannerClient
 	}
@@ -116,7 +129,7 @@ func (s *Service) GetQueryStatsWithSpannerClient(ctx context.Context, table Quer
 	}
 	statement := spanner.NewStatement(tpl.String())
 	statement.Params = map[string]interface{}{
-		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+		"IntervalEnd": intervalEndParam,
 	}
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
@@ -142,7 +155,19 @@ func (s *Service) GetQueryStatsWithSpannerClient(ctx context.Context, table Quer
 }
 
 // GetReadStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからQueryStatsを取得する
-func (s *Service) GetReadStatsWithSpannerClient(ctx context.Context, table ReadStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*ReadStat, error) {
+func (s *Service) GetReadStatsWithSpannerClient(ctx context.Context, table ReadStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (stats []*ReadStat, err error) {
+	intervalEndParam := intervalEnd.Format("2006-01-02 15:04:05")
+
+	ctx = trace.StartSpan(ctx, "spanner.statscopy.GetReadStatsWithSpannerClient")
+	defer func() {
+		trace.SetAttributesKV(ctx, map[string]interface{}{
+			"statsCount":  len(stats),
+			"table":       table,
+			"intervalEnd": intervalEndParam,
+		})
+		trace.EndSpan(ctx, err)
+	}()
+
 	if spannerClient == nil {
 		return nil, ErrRequiredSpannerClient
 	}
@@ -153,7 +178,7 @@ func (s *Service) GetReadStatsWithSpannerClient(ctx context.Context, table ReadS
 	}
 	statement := spanner.NewStatement(tpl.String())
 	statement.Params = map[string]interface{}{
-		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+		"IntervalEnd": intervalEndParam,
 	}
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
@@ -179,7 +204,19 @@ func (s *Service) GetReadStatsWithSpannerClient(ctx context.Context, table ReadS
 }
 
 // GetTxStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからTxStatsを取得する
-func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*TxStat, error) {
+func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (stats []*TxStat, err error) {
+	intervalEndParam := intervalEnd.Format("2006-01-02 15:04:05")
+
+	ctx = trace.StartSpan(ctx, "spanner.statscopy.GetTxStatsWithSpannerClient")
+	defer func() {
+		trace.SetAttributesKV(ctx, map[string]interface{}{
+			"statsCount":  len(stats),
+			"table":       table,
+			"intervalEnd": intervalEndParam,
+		})
+		trace.EndSpan(ctx, err)
+	}()
+
 	if spannerClient == nil {
 		return nil, ErrRequiredSpannerClient
 	}
@@ -190,7 +227,7 @@ func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStats
 	}
 	statement := spanner.NewStatement(tpl.String())
 	statement.Params = map[string]interface{}{
-		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+		"IntervalEnd": intervalEndParam,
 	}
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
@@ -216,7 +253,19 @@ func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStats
 }
 
 // GetLockStatsWithSpannerClient is 指定したSpannerClientを利用して、SpannerからLockStatsを取得する
-func (s *Service) GetLockStatsWithSpannerClient(ctx context.Context, table TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) ([]*LockStat, error) {
+func (s *Service) GetLockStatsWithSpannerClient(ctx context.Context, table TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (stats []*LockStat, err error) {
+	intervalEndParam := intervalEnd.Format("2006-01-02 15:04:05")
+
+	ctx = trace.StartSpan(ctx, "spanner.statscopy.GetLockStatsWithSpannerClient")
+	defer func() {
+		trace.SetAttributesKV(ctx, map[string]interface{}{
+			"statsCount":  len(stats),
+			"table":       table,
+			"intervalEnd": intervalEndParam,
+		})
+		trace.EndSpan(ctx, err)
+	}()
+
 	if spannerClient == nil {
 		return nil, ErrRequiredSpannerClient
 	}
@@ -227,7 +276,7 @@ func (s *Service) GetLockStatsWithSpannerClient(ctx context.Context, table TxSta
 	}
 	statement := spanner.NewStatement(tpl.String())
 	statement.Params = map[string]interface{}{
-		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+		"IntervalEnd": intervalEndParam,
 	}
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
@@ -369,7 +418,27 @@ func (s *Service) CopyLockStats(ctx context.Context, dataset *bigquery.Dataset, 
 }
 
 // CopyQueryStatsWithSpannerClient is SpannerからQuery Statsを引っ張ってきて、BigQueryにCopyしていく
-func (s *Service) CopyQueryStatsWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (int, error) {
+func (s *Service) CopyQueryStatsWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, queryStatsTable QueryStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (insertCount int, err error) {
+	var readRowCount int
+
+	ctx = trace.StartSpan(ctx, "spanner.statscopy.CopyQueryStatsWithSpannerClient")
+	defer func() {
+		trace.SetAttributesKV(ctx, map[string]interface{}{
+			"insertCount":  insertCount,
+			"readRowCount": readRowCount,
+		})
+		trace.EndSpan(ctx, err)
+	}()
+
+	intervalEndParam := intervalEnd.Format("2006-01-02 15:04:05")
+	trace.SetAttributesKV(ctx, map[string]interface{}{
+		"dstDatasetProjectID": dataset.ProjectID,
+		"dstDatasetID":        dataset.DatasetID,
+		"dstTable":            bigQueryTable,
+		"queryStatsTable":     queryStatsTable,
+		"intervalEnd":         intervalEndParam,
+	})
+
 	if spannerClient == nil {
 		return 0, ErrRequiredSpannerClient
 	}
@@ -385,7 +454,6 @@ func (s *Service) CopyQueryStatsWithSpannerClient(ctx context.Context, dataset *
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
 
-	var insertCount int
 	var statsList []*QueryStat
 	for {
 		row, err := iter.Next()
@@ -398,6 +466,7 @@ func (s *Service) CopyQueryStatsWithSpannerClient(ctx context.Context, dataset *
 			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
+		readRowCount++
 
 		var stats QueryStat
 		if err := row.ToStruct(&stats); err != nil {
@@ -424,7 +493,27 @@ func (s *Service) CopyQueryStatsWithSpannerClient(ctx context.Context, dataset *
 }
 
 // CopyReadStatsWithSpannerClient is SpannerからRead Statsを引っ張ってきて、BigQueryにCopyしていく
-func (s *Service) CopyReadStatsWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, readStatsTable ReadStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (int, error) {
+func (s *Service) CopyReadStatsWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, readStatsTable ReadStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (insertCount int, err error) {
+	var readRowCount int
+
+	ctx = trace.StartSpan(ctx, "spanner.statscopy.CopyReadStatsWithSpannerClient")
+	defer func() {
+		trace.SetAttributesKV(ctx, map[string]interface{}{
+			"insertCount":  insertCount,
+			"readRowCount": readRowCount,
+		})
+		trace.EndSpan(ctx, err)
+	}()
+
+	intervalEndParam := intervalEnd.Format("2006-01-02 15:04:05")
+	trace.SetAttributesKV(ctx, map[string]interface{}{
+		"dstDatasetProjectID": dataset.ProjectID,
+		"dstDatasetID":        dataset.DatasetID,
+		"dstTable":            bigQueryTable,
+		"readStatsTable":      readStatsTable,
+		"intervalEnd":         intervalEndParam,
+	})
+
 	if spannerClient == nil {
 		return 0, ErrRequiredSpannerClient
 	}
@@ -435,12 +524,11 @@ func (s *Service) CopyReadStatsWithSpannerClient(ctx context.Context, dataset *b
 	}
 	statement := spanner.NewStatement(tpl.String())
 	statement.Params = map[string]interface{}{
-		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+		"IntervalEnd": intervalEndParam,
 	}
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
 
-	var insertCount int
 	var statsList []*ReadStat
 	for {
 		row, err := iter.Next()
@@ -453,6 +541,7 @@ func (s *Service) CopyReadStatsWithSpannerClient(ctx context.Context, dataset *b
 			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
+		readRowCount++
 
 		var stats ReadStat
 		if err := row.ToStruct(&stats); err != nil {
@@ -479,7 +568,27 @@ func (s *Service) CopyReadStatsWithSpannerClient(ctx context.Context, dataset *b
 }
 
 // CopyTxStatsWithSpannerClient is SpannerからTx Statsを引っ張ってきて、BigQueryにCopyしていく
-func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, txStatsTable TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (int, error) {
+func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, txStatsTable TxStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (insertCount int, err error) {
+	var readRowCount int
+
+	ctx = trace.StartSpan(ctx, "spanner.statscopy.CopyTxStatsWithSpannerClient")
+	defer func() {
+		trace.SetAttributesKV(ctx, map[string]interface{}{
+			"insertCount":  insertCount,
+			"readRowCount": readRowCount,
+		})
+		trace.EndSpan(ctx, err)
+	}()
+
+	intervalEndParam := intervalEnd.Format("2006-01-02 15:04:05")
+	trace.SetAttributesKV(ctx, map[string]interface{}{
+		"dstDatasetProjectID": dataset.ProjectID,
+		"dstDatasetID":        dataset.DatasetID,
+		"dstTable":            bigQueryTable,
+		"txStatsTable":        txStatsTable,
+		"intervalEnd":         intervalEndParam,
+	})
+
 	if spannerClient == nil {
 		return 0, ErrRequiredSpannerClient
 	}
@@ -490,12 +599,11 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 	}
 	statement := spanner.NewStatement(tpl.String())
 	statement.Params = map[string]interface{}{
-		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+		"IntervalEnd": intervalEndParam,
 	}
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
 
-	var insertCount int
 	var statsList []*TxStat
 	for {
 		row, err := iter.Next()
@@ -508,6 +616,7 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
+		readRowCount++
 
 		var stats TxStat
 		if err := row.ToStruct(&stats); err != nil {
@@ -534,7 +643,27 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 }
 
 // CopyLockStatsWithSpannerClient is SpannerからLock Statsを引っ張ってきて、BigQueryにCopyしていく
-func (s *Service) CopyLockStatsWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, lockStatsTable LockStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (int, error) {
+func (s *Service) CopyLockStatsWithSpannerClient(ctx context.Context, dataset *bigquery.Dataset, bigQueryTable string, lockStatsTable LockStatsTopTable, spannerClient *spanner.Client, intervalEnd time.Time) (insertCount int, err error) {
+	var readRowCount int
+
+	ctx = trace.StartSpan(ctx, "spanner.statscopy.CopyLockStatsWithSpannerClient")
+	defer func() {
+		trace.SetAttributesKV(ctx, map[string]interface{}{
+			"insertCount":  insertCount,
+			"readRowCount": readRowCount,
+		})
+		trace.EndSpan(ctx, err)
+	}()
+
+	intervalEndParam := intervalEnd.Format("2006-01-02 15:04:05")
+	trace.SetAttributesKV(ctx, map[string]interface{}{
+		"dstDatasetProjectID": dataset.ProjectID,
+		"dstDatasetID":        dataset.DatasetID,
+		"dstTable":            bigQueryTable,
+		"lockStatsTable":      lockStatsTable,
+		"intervalEnd":         intervalEndParam,
+	})
+
 	if spannerClient == nil {
 		return 0, ErrRequiredSpannerClient
 	}
@@ -545,12 +674,11 @@ func (s *Service) CopyLockStatsWithSpannerClient(ctx context.Context, dataset *b
 	}
 	statement := spanner.NewStatement(tpl.String())
 	statement.Params = map[string]interface{}{
-		"IntervalEnd": intervalEnd.Format("2006-01-02 15:04:05"),
+		"IntervalEnd": intervalEndParam,
 	}
 	iter := spannerClient.Single().Query(ctx, statement)
 	defer iter.Stop()
 
-	var insertCount int
 	var statsList []*LockStat
 	for {
 		row, err := iter.Next()
@@ -563,6 +691,7 @@ func (s *Service) CopyLockStatsWithSpannerClient(ctx context.Context, dataset *b
 			}
 			return insertCount, xerrors.Errorf(": %w", err)
 		}
+		readRowCount++
 
 		var stats LockStat
 		if err := row.ToStruct(&stats); err != nil {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/sinmetalcraft/gcpbox/internal/trace"
 	"golang.org/x/xerrors"
 	crm "google.golang.org/api/cloudresourcemanager/v3"
 	"google.golang.org/api/googleapi"
@@ -97,11 +98,11 @@ func NewResourceID(resourceType string, id string) *ResourceID {
 
 // ExistsMemberInGCPProject is GCP Projectに指定したユーザが権限を持っているかを返す
 // defaultだと何らかのroleを持っているかを返す。rolesを指定するといずれか1つ以上を持っているかを返す。
-func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
-	ctx, span := startSpan(ctx, "ExistsMemberInGCPProject")
-	defer span.End()
+func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (exists bool, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.ExistsMemberInGCPProject")
+	defer trace.EndSpan(ctx, err)
 
-	exists, err := s.existsMemberInGCPProject(ctx, projectID, email, roles...)
+	exists, err = s.existsMemberInGCPProject(ctx, projectID, email, roles...)
 	if err != nil {
 		return false, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
 	}
@@ -120,16 +121,16 @@ type ExistsMemberCheckResult struct {
 
 // ExistsMemberInGCPProjectWithInherit is GCP Projectに指定したユーザが権限を持っているかを返す
 // 対象のProjectの上位階層のIAMもチェックする。
-func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context.Context, projectID string, email string, ops ...ExistsMemberInheritOptions) (bool, []*ExistsMemberCheckResult, error) {
-	ctx, span := startSpan(ctx, "ExistsMemberInGCPProjectWithInherit")
-	defer span.End()
+func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context.Context, projectID string, email string, ops ...ExistsMemberInheritOptions) (exists bool, results []*ExistsMemberCheckResult, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.ExistsMemberInGCPProjectWithInherit")
+	defer trace.EndSpan(ctx, err)
 
 	opt := existsMemberInheritOption{}
 	for _, o := range ops {
 		o(&opt)
 	}
 
-	exists, err := s.existsMemberInGCPProject(ctx, projectID, email, opt.roles...)
+	exists, err = s.existsMemberInGCPProject(ctx, projectID, email, opt.roles...)
 	if err != nil {
 		return false, nil, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
 	}
@@ -170,9 +171,9 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 	}
 }
 
-func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context.Context, email string, parent *ResourceID, step int, opt existsMemberInheritOption) (bool, *ResourceID, *ExistsMemberCheckResult, error) {
-	ctx, span := startSpan(ctx, "existsMemberInGCPProjectWithInherit")
-	defer span.End()
+func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context.Context, email string, parent *ResourceID, step int, opt existsMemberInheritOption) (exists bool, resourceID *ResourceID, result *ExistsMemberCheckResult, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.existsMemberInGCPProjectWithInherit")
+	defer trace.EndSpan(ctx, err)
 
 	log := &ExistsMemberCheckResult{
 		Resource: parent,
@@ -183,8 +184,6 @@ func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context
 		return false, nil, log, nil
 	}
 
-	var exists bool
-	var err error
 	switch parent.Type {
 	case "folder":
 		exists, err = s.existsMemberInFolder(ctx, parent, email, opt.roles...)
@@ -245,9 +244,9 @@ func (s *ResourceManagerService) findResource(resources []*ResourceID, resource 
 	return false
 }
 
-func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
-	ctx, span := startSpan(ctx, "existsMemberInGCPProject")
-	defer span.End()
+func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (exists bool, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.existsMemberInGCPProject")
+	defer trace.EndSpan(ctx, err)
 
 	resource, err := s.crm.Projects.GetIamPolicy(fmt.Sprintf("projects/%s", projectID), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
@@ -263,9 +262,9 @@ func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, p
 	return s.existsIamMemberInBindings(email, resource.Bindings, roles...)
 }
 
-func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folder *ResourceID, email string, roles ...string) (bool, error) {
-	ctx, span := startSpan(ctx, "existsMemberInFolder")
-	defer span.End()
+func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folder *ResourceID, email string, roles ...string) (exists bool, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.existsMemberInFolder")
+	defer trace.EndSpan(ctx, err)
 
 	resource, err := s.crm.Folders.GetIamPolicy(folder.Name(), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
@@ -281,9 +280,9 @@ func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folde
 	return s.existsIamMemberInBindings(email, resource.Bindings, roles...)
 }
 
-func (s *ResourceManagerService) existsMemberInOrganization(ctx context.Context, organization *ResourceID, email string, roles ...string) (bool, error) {
-	ctx, span := startSpan(ctx, "existsMemberInOrganization")
-	defer span.End()
+func (s *ResourceManagerService) existsMemberInOrganization(ctx context.Context, organization *ResourceID, email string, roles ...string) (exists bool, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.existsMemberInOrganization")
+	defer trace.EndSpan(ctx, err)
 
 	resource, err := s.crm.Organizations.GetIamPolicy(organization.Name(), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
@@ -381,9 +380,9 @@ func (s *ResourceManagerService) ConvertIamMember(member string) (*IamMember, er
 // 階層構造は保持せずにフラットにすべてのFolderを返す
 // parent は `folders/{folder_id}` or `organizations/{org_id}` の形式で指定する
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
-func (s *ResourceManagerService) GetFolders(ctx context.Context, parent *ResourceID) ([]*crm.Folder, error) {
-	ctx, span := startSpan(ctx, "GetFolders")
-	defer span.End()
+func (s *ResourceManagerService) GetFolders(ctx context.Context, parent *ResourceID) (folders []*crm.Folder, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.GetFolders")
+	defer trace.EndSpan(ctx, err)
 
 	l, err := s.folders(ctx, parent, "", []*crm.Folder{})
 	if err != nil {
@@ -398,9 +397,9 @@ func (s *ResourceManagerService) GetFolders(ctx context.Context, parent *Resourc
 	return l, nil
 }
 
-func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID, pageToken string, dst []*crm.Folder) ([]*crm.Folder, error) {
-	ctx, span := startSpan(ctx, "folders")
-	defer span.End()
+func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID, pageToken string, dst []*crm.Folder) (folders []*crm.Folder, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.folders")
+	defer trace.EndSpan(ctx, err)
 
 	req := s.crm.Folders.List().Parent(parent.Name()).PageSize(1000).Context(ctx)
 	if pageToken != "" {
@@ -435,9 +434,9 @@ func (s *ResourceManagerService) folders(ctx context.Context, parent *ResourceID
 
 // Projects is 指定したリソース以下のProject一覧を返す
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
-func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *ResourceID) ([]*crm.Project, error) {
-	ctx, span := startSpan(ctx, "GetProjects")
-	defer span.End()
+func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *ResourceID) (projects []*crm.Project, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.GetProjects")
+	defer trace.EndSpan(ctx, err)
 
 	var ret []*crm.Project
 	var pageToken string
@@ -472,16 +471,14 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *Resour
 // GetRelatedProject is 指定したParent配下のすべてのProjectを返す
 // parentType : folders or organizations
 // 対象のparentの権限がない場合、 ErrPermissionDenied を返す
-func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *ResourceID, ops ...GetRelatedProjectOptions) ([]*crm.Project, error) {
-	ctx, span := startSpan(ctx, "GetRelatedProject")
-	defer span.End()
+func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *ResourceID, ops ...GetRelatedProjectOptions) (projects []*crm.Project, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.GetRelatedProject")
+	defer trace.EndSpan(ctx, err)
 
 	opt := getRelatedProjectOptions{}
 	for _, o := range ops {
 		o.applyGetRelatedProject(&opt)
 	}
-
-	var projects []*crm.Project
 
 	// 直下のProjectを取得
 	{
@@ -534,11 +531,11 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 
 // GetProject is 指定したProjectIDのProjectを取得する
 // projectID は "my-project-id" という値を渡されるのを期待している
-func (s *ResourceManagerService) GetProject(ctx context.Context, projectID string) (*crm.Project, error) {
-	ctx, span := startSpan(ctx, "GetProject")
-	defer span.End()
+func (s *ResourceManagerService) GetProject(ctx context.Context, projectID string) (project *crm.Project, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.GetProject")
+	defer trace.EndSpan(ctx, err)
 
-	project, err := s.crm.Projects.Get(fmt.Sprintf("projects/%s", projectID)).Context(ctx).Do()
+	project, err = s.crm.Projects.Get(fmt.Sprintf("projects/%s", projectID)).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
@@ -552,11 +549,11 @@ func (s *ResourceManagerService) GetProject(ctx context.Context, projectID strin
 }
 
 // GetFolder is 指定したFolderIDのFolderを取得する
-func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *ResourceID) (*crm.Folder, error) {
-	ctx, span := startSpan(ctx, "GetFolder")
-	defer span.End()
+func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *ResourceID) (fol *crm.Folder, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.GetFolder")
+	defer trace.EndSpan(ctx, err)
 
-	fol, err := s.crm.Folders.Get(folder.Name()).Context(ctx).Do()
+	fol, err = s.crm.Folders.Get(folder.Name()).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
@@ -570,11 +567,11 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *Resource
 }
 
 // GetOrganization is Organizationを取得する
-func (s *ResourceManagerService) GetOrganization(ctx context.Context, organization *ResourceID) (*crm.Organization, error) {
-	ctx, span := startSpan(ctx, "GetOrganization")
-	defer span.End()
+func (s *ResourceManagerService) GetOrganization(ctx context.Context, organization *ResourceID) (org *crm.Organization, err error) {
+	ctx = trace.StartSpan(ctx, "cloudresourcemanager.v3.GetOrganization")
+	defer trace.EndSpan(ctx, err)
 
-	org, err := s.crm.Organizations.Get(organization.Name()).Context(ctx).Do()
+	org, err = s.crm.Organizations.Get(organization.Name()).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
 		if xerrors.As(err, &errGoogleAPI) {
