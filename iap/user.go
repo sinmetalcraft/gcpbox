@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/sinmetalcraft/gcpbox/cloudresourcemanager"
+	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
 	"github.com/sinmetalcraft/gcpbox/metadata"
 )
 
@@ -70,11 +70,11 @@ func CurrentUser(ctx context.Context) *User {
 
 // UserService is App Engine User Serviceっぽいものを実装している
 type UserService struct {
-	crmService *cloudresourcemanager.ResourceManagerService
+	crmService *crmbox.ResourceManagerService
 }
 
 // NewUserService is return UserService
-func NewUserService(ctx context.Context, crmService *cloudresourcemanager.ResourceManagerService) (*UserService, error) {
+func NewUserService(ctx context.Context, crmService *crmbox.ResourceManagerService) (*UserService, error) {
 	return &UserService{
 		crmService: crmService,
 	}, nil
