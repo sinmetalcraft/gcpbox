@@ -6,10 +6,9 @@ import (
 	"net/http"
 	"testing"
 
-	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager"
+	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
 	iapbox "github.com/sinmetalcraft/gcpbox/iap"
-	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
-	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
+	crm "google.golang.org/api/cloudresourcemanager/v3"
 )
 
 func TestCurrentUserWithContext(t *testing.T) {
@@ -117,15 +116,11 @@ func TestUserService_IsAdmin(t *testing.T) {
 func newTestUserService(t *testing.T) *iapbox.UserService {
 	ctx := context.Background()
 
-	crmv1Service, err := crmv1.NewService(ctx)
+	crmService, err := crm.NewService(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	crmv2Service, err := crmv2.NewService(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rmService, err := crmbox.NewResourceManagerService(ctx, crmv1Service, crmv2Service)
+	rmService, err := crmbox.NewResourceManagerService(ctx, crmService)
 	if err != nil {
 		t.Fatal(err)
 	}
