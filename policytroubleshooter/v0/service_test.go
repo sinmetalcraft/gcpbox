@@ -9,7 +9,7 @@ import (
 	"google.golang.org/api/option"
 	ptpb "google.golang.org/genproto/googleapis/cloud/policytroubleshooter/v1"
 
-	policytroubleshooterbox "github.com/sinmetalcraft/gcpbox/policytroubleshooter"
+	policytroubleshooterbox "github.com/sinmetalcraft/gcpbox/policytroubleshooter/v0"
 )
 
 func TestService_HasPermission(t *testing.T) {
