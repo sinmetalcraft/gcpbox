@@ -153,6 +153,32 @@ func ExtractionZone(metaZone string) (string, error) {
 	return l[len(l)-1], nil
 }
 
+// InstanceID is Metadata ServerからInstanceIDを取得する
+// /computeMetadata/v1/instance/id
+func InstanceID() (string, error) {
+	if !OnGCP() {
+		return os.Getenv("INSTANCE_ID"), nil
+	}
+	id, err := getMetadata("id")
+	if err != nil {
+		return "", xerrors.Errorf("failed get instance id : %w", err)
+	}
+	return string(id), nil
+}
+
+// ServiceAccountDefaultToken is Metadata ServerからServiceAccountDefaultTokenを取得する
+// /computeMetadata/v1/instance/service-accounts/default/token
+func ServiceAccountDefaultToken() (string, error) {
+	if !OnGCP() {
+		return os.Getenv("SERVICE_ACCOUNTS_DEFAULT_TOKEN"), nil
+	}
+	v, err := getMetadata("service-accounts/default/token")
+	if err != nil {
+		return "", xerrors.Errorf("failed get service account default token : %w", err)
+	}
+	return string(v), nil
+}
+
 // GetInstanceAttribute is Instance Metadataを取得する
 // GCP以外で動いている時は、環境変数を取得する
 func GetInstanceAttribute(key string) (string, error) {
