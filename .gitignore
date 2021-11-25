@@ -16,3 +16,5 @@
 
 # create build command dir
 build-cmd/
+
+.envrc

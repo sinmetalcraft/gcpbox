@@ -23,6 +23,7 @@ steps:
       - 'GO111MODULE=on'
       - 'GOBIN=/workspace/build-cmd'
       - 'SPANNER_EMULATOR_HOST=spanner-emulator:9010'
+      - 'GCPBOX_CI_PROJECT=$PROJECT_ID'
     waitFor: ['setup']
   - name: 'golang:1.16-stretch'
     entrypoint: 'bash'
@@ -32,5 +33,6 @@ steps:
       - 'GO111MODULE=on'
       - 'GOBIN=/workspace/build-cmd'
       - 'SPANNER_EMULATOR_HOST=spanner-emulator:9010'
+      - 'GCPBOX_CI_PROJECT=$PROJECT_ID'
     waitFor: ['spanner-emulator', 'setup']
 
