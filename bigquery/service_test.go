@@ -35,18 +35,9 @@ func TestService_DeleteTablesByTablePrefix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	streamLog := make(chan string, 10)
-	go func(ctx context.Context) {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case v := <-streamLog:
-				t.Log(v)
-
-			}
-		}
-	}(ctx)
+	streamLogFn := func(msg string) {
+		t.Log(msg)
+	}
 
 	// DryRunの確認
 	{
@@ -67,7 +58,7 @@ func TestService_DeleteTablesByTablePrefix(t *testing.T) {
 
 	// 削除することを確認
 	{
-		got, err := s.DeleteTablesByTablePrefix(ctx, testProjectID(t), bqboxDatasetID, tableIDPrefix, bqbox.WithStreamLog(streamLog))
+		got, err := s.DeleteTablesByTablePrefix(ctx, testProjectID(t), bqboxDatasetID, tableIDPrefix, bqbox.WithStreamLogFn(streamLogFn))
 		if err != nil {
 			t.Fatal(err)
 		}

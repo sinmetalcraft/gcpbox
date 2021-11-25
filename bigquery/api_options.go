@@ -1,8 +1,8 @@
 package bigquery
 
 type apiOptions struct {
-	dryRun    bool
-	streamLog chan string
+	dryRun      bool
+	streamLogFn func(msg string)
 }
 
 type APIOptions func(options *apiOptions)
@@ -14,9 +14,9 @@ func WithDryRun() APIOptions {
 	}
 }
 
-// WithStreamLog is Query結果を元にAPIを実行するような場合、変更を行うAPIを1件ずつLog出力する
-func WithStreamLog(streamLog chan string) APIOptions {
+// WithStreamLogFn is Query結果を元にAPIを実行した時にログを処理できる関数を指定できる
+func WithStreamLogFn(f func(msg string)) APIOptions {
 	return func(ops *apiOptions) {
-		ops.streamLog = streamLog
+		ops.streamLogFn = f
 	}
 }

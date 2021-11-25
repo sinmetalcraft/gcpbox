@@ -46,8 +46,8 @@ func (s *Service) DeleteTablesByTablePrefix(ctx context.Context, projectID strin
 			return deleteTableIDs, fmt.Errorf("failed list tables : %w", err)
 		}
 		if !strings.HasPrefix(table.TableID, tablePrefix) {
-			if opt.streamLog != nil {
-				opt.streamLog <- fmt.Sprintf("%s is has not prefix", table.TableID)
+			if opt.streamLogFn != nil {
+				opt.streamLogFn(fmt.Sprintf("%s is has not prefix", table.TableID))
 			}
 			continue
 		}
@@ -59,8 +59,8 @@ func (s *Service) DeleteTablesByTablePrefix(ctx context.Context, projectID strin
 				return deleteTableIDs, fmt.Errorf("failed delete table %s.%s.%s : %w", projectID, datasetID, table.TableID, err)
 			}
 		}
-		if opt.streamLog != nil {
-			opt.streamLog <- msg
+		if opt.streamLogFn != nil {
+			opt.streamLogFn(msg)
 		}
 		deleteTableIDs = append(deleteTableIDs, table.TableID)
 	}
