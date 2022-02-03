@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
@@ -45,7 +46,7 @@ func (q *Queue) Parent() string {
 // CreateTask is add to task
 // 一番 Primitive なやつ
 // taskName は中で projects/{PROJECT_ID}/locations/{LOCATION}/queues/{QUEUE_ID}/tasks/{TASK_ID} 形式にしているので指定するのは {TASK_ID} の部分だけ
-func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string, req *taskspb.HttpRequest, scheduledTime time.Time, deadline time.Duration, ops ...CreateTaskOptions) (*taskspb.Task, error) {
+func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string, req *taskspb.HttpRequest, scheduleTime time.Time, deadline time.Duration, ops ...CreateTaskOptions) (*taskspb.Task, error) {
 	opt := createTaskOptions{}
 	for _, o := range ops {
 		o(&opt)
@@ -62,8 +63,8 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string,
 	if len(taskName) > 0 {
 		taskReq.GetTask().Name = fmt.Sprintf("projects/%s/locations/%s/queues/%s/tasks/%s", queue.ProjectID, queue.Region, queue.Name, taskName)
 	}
-	if !scheduledTime.IsZero() {
-		taskReq.Task.ScheduleTime = timestamppb.New(scheduledTime)
+	if !scheduleTime.IsZero() {
+		taskReq.Task.ScheduleTime = timestamppb.New(scheduleTime)
 	}
 	if deadline != 0 {
 		taskReq.Task.DispatchDeadline = durationpb.New(deadline)
@@ -84,8 +85,8 @@ func (s *Service) CreateTask(ctx context.Context, queue *Queue, taskName string,
 	return task, nil
 }
 
-// JsonPostTask is JsonをBodyに入れるTask
-type JsonPostTask struct {
+// Task is Response Task
+type Task struct {
 	// OIDC の Audience
 	//
 	// IAPに向けて投げる時は、IAPのClient IDを指定する
@@ -94,11 +95,18 @@ type JsonPostTask struct {
 	// Cloud Run.Invokerに投げる場合は RelativeURI と同じものを指定する
 	Audience string
 
+	// Task Request の Header
+	Headers map[string]string
+
 	// Task が到達する Handler の URL
 	RelativeURI string
 
-	// ScheduledTime is estimated time of arrival
-	ScheduledTime time.Time
+	// HTTP Method
+	// optional 省略した場合は POST になる
+	Method string
+
+	// ScheduleTime is estimated time of arrival
+	ScheduleTime time.Time
 
 	// HandlerのDeadline
 	// default は 10min 最長は 30min
@@ -116,8 +124,78 @@ type JsonPostTask struct {
 	Name string
 }
 
+// HttpMethodProtoToHttpMethod is HttpMethodProto から HttpMethod に変換する
+func HttpMethodProtoToHttpMethod(method taskspb.HttpMethod) (string, error) {
+	switch method {
+	case taskspb.HttpMethod_POST:
+		return http.MethodPost, nil
+	case taskspb.HttpMethod_GET:
+		return http.MethodGet, nil
+	case taskspb.HttpMethod_PUT:
+		return http.MethodPut, nil
+	case taskspb.HttpMethod_DELETE:
+		return http.MethodDelete, nil
+	default:
+		return "", xerrors.Errorf("unsupported method %s", method.String())
+	}
+}
+
+// JsonPostTask is JsonをBodyに入れるTask
+type JsonPostTask struct {
+	// OIDC の Audience
+	//
+	// IAPに向けて投げる時は、IAPのClient IDを指定する
+	// https://cloud.google.com/iap/docs/authentication-howto#authenticating_from_a_service_account
+	//
+	// Cloud Run.Invokerに投げる場合は RelativeURI と同じものを指定する
+	Audience string
+
+	// Task が到達する Handler の URL
+	RelativeURI string
+
+	// Deprecated: should not be used
+	// ScheduledTime is estimated time of arrival
+	ScheduledTime time.Time
+
+	// ScheduleTime is estimated time of arrival
+	ScheduleTime time.Time
+
+	// HandlerのDeadline
+	// default は 10min 最長は 30min
+	Deadline time.Duration
+
+	// Task Body
+	// 中で JSON に変換する
+	Body interface{}
+
+	// Name is Task Name
+	// optional
+	// Task の重複を抑制するために指定するTaskのName
+	// 中で projects/{PROJECT_ID}/locations/{LOCATION}/queues/{QUEUE_ID}/tasks/{TASK_ID} 形式にしているので指定するのは {TASK_ID} の部分だけ
+	// 未指定の場合は自動的に設定される
+	Name string
+}
+
+// ToTask is JsonPostTask convert to Task
+func (jpTask *JsonPostTask) ToTask() (*Task, error) {
+	return &Task{
+		Audience:     jpTask.Audience,
+		RelativeURI:  jpTask.RelativeURI,
+		Method:       http.MethodPost,
+		ScheduleTime: jpTask.ScheduleTime,
+		Deadline:     jpTask.Deadline,
+		Body:         nil,
+		Name:         jpTask.Name,
+	}, nil
+}
+
 // CreateJsonPostTask is BodyにJsonを入れるTaskを作る
 func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error) {
+	// ScheduledTimeを使っている古いものへの対応
+	if task.ScheduleTime.IsZero() && !task.ScheduledTime.IsZero() {
+		task.ScheduleTime = task.ScheduledTime
+	}
+
 	body, err := json.Marshal(task.Body)
 	if err != nil {
 		return "", xerrors.Errorf("failed json.Marshal(). body=%+v : %w", task.Body, err)
@@ -133,7 +211,7 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 				Audience:            task.Audience,
 			},
 		},
-	}, task.ScheduledTime, task.Deadline, ops...)
+	}, task.ScheduleTime, task.Deadline, ops...)
 	if err != nil {
 		return "", xerrors.Errorf("failed CreateJsonPostTask(). queue=%+v, body=%+v : %w", queue, task.Body, err)
 	}
@@ -182,8 +260,12 @@ type GetTask struct {
 	// Task が到達する Handler の URL
 	RelativeURI string
 
+	// Deprecated: should not be used
 	// ScheduledTime is estimated time of arrival
 	ScheduledTime time.Time
+
+	// ScheduleTime is estimated time of arrival
+	ScheduleTime time.Time
 
 	// HandlerのDeadline
 	// default は 10min 最長は 30min
@@ -197,8 +279,27 @@ type GetTask struct {
 	Name string
 }
 
+// ToTask is GetTask convert to Task
+func (gTask *GetTask) ToTask() (*Task, error) {
+	return &Task{
+		Audience:     gTask.Audience,
+		RelativeURI:  gTask.RelativeURI,
+		Headers:      gTask.Headers,
+		Method:       http.MethodGet,
+		ScheduleTime: gTask.ScheduleTime,
+		Deadline:     gTask.Deadline,
+		Body:         nil,
+		Name:         gTask.Name,
+	}, nil
+}
+
 // CreateGetTask is Get Request 用の Task を作る
 func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error) {
+	// ScheduledTimeを使っている古いものへの対応
+	if task.ScheduleTime.IsZero() && !task.ScheduledTime.IsZero() {
+		task.ScheduleTime = task.ScheduledTime
+	}
+
 	got, err := s.CreateTask(ctx, queue, task.Name, &taskspb.HttpRequest{
 		Url:        task.RelativeURI,
 		Headers:    task.Headers,
