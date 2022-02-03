@@ -64,6 +64,7 @@ func (s *Faker) GetTask(i int) (*tasksbox.Task, error) {
 	return &tasksbox.Task{
 		Audience:     "", // TODO AuthorizationHeader
 		RelativeURI:  httpReq.Url,
+		Headers:      httpReq.Headers,
 		Method:       method,
 		ScheduleTime: t.GetScheduleTime().AsTime(),
 		Deadline:     t.GetDispatchDeadline().AsDuration(),
