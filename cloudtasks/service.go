@@ -112,9 +112,8 @@ type Task struct {
 	// default は 10min 最長は 30min
 	Deadline time.Duration
 
-	// Task Body
-	// 中で JSON に変換する
-	Body interface{}
+	// Body is Task Body
+	Body []byte
 
 	// Name is Task Name
 	// optional
@@ -178,13 +177,21 @@ type JsonPostTask struct {
 
 // ToTask is JsonPostTask convert to Task
 func (jpTask *JsonPostTask) ToTask() (*Task, error) {
+	var body []byte
+	if jpTask.Body != nil {
+		b, err := json.Marshal(jpTask.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed JsonPostTask convert to Task :%w", err)
+		}
+		body = b
+	}
 	return &Task{
 		Audience:     jpTask.Audience,
 		RelativeURI:  jpTask.RelativeURI,
 		Method:       http.MethodPost,
 		ScheduleTime: jpTask.ScheduleTime,
 		Deadline:     jpTask.Deadline,
-		Body:         nil,
+		Body:         body,
 		Name:         jpTask.Name,
 	}, nil
 }
