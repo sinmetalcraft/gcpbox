@@ -4,20 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"github.com/google/go-cmp/cmp"
 	"google.golang.org/api/googleapi"
 
 	bqbox "github.com/sinmetalcraft/gcpbox/bigquery"
 )
 
-func TestService_DeleteTablesByTablePrefix(t *testing.T) {
+const bqboxDatasetID = "bqbox"
+
+func TestTableService_DeleteTablesByTablePrefix(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	s := newService(ctx, t)
+	s := newTableService(ctx, t)
 	defer func() {
 		if err := s.Close(ctx); err != nil {
 			t.Logf("failed Service.Close %s", err)
@@ -38,7 +42,7 @@ func TestService_DeleteTablesByTablePrefix(t *testing.T) {
 
 	// DryRunの確認
 	{
-		got, err := s.DeleteTablesByTablePrefix(ctx, testProjectID(t), bqboxDatasetID, tableIDPrefix, bqbox.WithDryRun())
+		got, err := s.DeleteByPrefix(ctx, testProjectID(t), bqboxDatasetID, tableIDPrefix, bqbox.WithDryRun())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -55,7 +59,7 @@ func TestService_DeleteTablesByTablePrefix(t *testing.T) {
 
 	// 削除することを確認
 	{
-		got, err := s.DeleteTablesByTablePrefix(ctx, testProjectID(t), bqboxDatasetID, tableIDPrefix, bqbox.WithStreamLogFn(streamLogFn))
+		got, err := s.DeleteByPrefix(ctx, testProjectID(t), bqboxDatasetID, tableIDPrefix, bqbox.WithStreamLogFn(streamLogFn))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -78,12 +82,57 @@ func TestService_DeleteTablesByTablePrefix(t *testing.T) {
 	}
 }
 
-func newService(ctx context.Context, t *testing.T) *bqbox.Service {
+func TestTableService_ExistTargetColumn(t *testing.T) {
+	ctx := context.Background()
+
+	cases := []struct {
+		name         string
+		project      string
+		dataset      string
+		table        string
+		targetColumn string
+		want         bool
+	}{
+		{"1階層目", testProjectID(t), "bqtool", "json",
+			"id",
+			true,
+		},
+		{"2階層以上潜る", testProjectID(t), "bqtool", "json",
+			"request.meta.dragon.hp",
+			true,
+		},
+	}
+
+	for _, tt := range cases {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			s := newTableService(ctx, t)
+
+			got, err := s.ExistColumn(ctx, tt.project, tt.dataset, tt.table, tt.targetColumn)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if df := cmp.Diff(tt.want, got); len(df) > 0 {
+				t.Errorf("%s\n", df)
+			}
+		})
+	}
+}
+
+func testProjectID(t *testing.T) string {
+	pID := os.Getenv("GCPBOX_CI_PROJECT")
+	if pID == "" {
+		t.Fatal("GCPBOX_CI_PROJECT is required")
+	}
+	return pID
+}
+
+func newTableService(ctx context.Context, t *testing.T) *bqbox.TableService {
 	bq, err := bigquery.NewClient(ctx, "sinmetal-ci")
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := bqbox.NewService(ctx, bq)
+	s, err := bqbox.NewTableService(ctx, bq)
 	if err != nil {
 		t.Fatal(err)
 	}
