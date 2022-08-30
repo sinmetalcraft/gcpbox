@@ -3,7 +3,6 @@ module github.com/sinmetalcraft/gcpbox
 go 1.16
 
 require (
-	cloud.google.com/go v0.100.2
 	cloud.google.com/go/bigquery v1.27.0
 	cloud.google.com/go/cloudtasks v1.1.0
 	cloud.google.com/go/compute v1.1.0
@@ -12,7 +11,6 @@ require (
 	cloud.google.com/go/spanner v1.29.0
 	cloud.google.com/go/storage v1.19.0
 	github.com/apstndb/adcplus v0.0.0-20210615091706-c0983920581f
-	github.com/census-instrumentation/opencensus-proto v0.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe // indirect
 	github.com/cncf/xds/go v0.0.0-20220121163655-4a2b9fdd466b // indirect
@@ -21,7 +19,6 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v0.6.3 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-cmp v0.5.7
-	github.com/google/pprof v0.0.0-20210804190019-f964ff605595 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/gostaticanalysis/forcetypeassert v0.1.0 // indirect
 	github.com/gostaticanalysis/nilerr v0.1.1 // indirect
@@ -34,7 +31,6 @@ require (
 	github.com/sinmetalcraft/gcpfaker v0.1.0
 	go.opencensus.io v0.23.0
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27 // indirect
 	golang.org/x/tools v0.1.9
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
@@ -42,5 +38,4 @@ require (
 	google.golang.org/genproto v0.0.0-20220202230416-2a053f022f0d
 	google.golang.org/grpc v1.44.0
 	google.golang.org/protobuf v1.27.1
-	honnef.co/go/tools v0.0.1-2020.1.4 // indirect
 )
