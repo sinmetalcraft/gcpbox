@@ -2,6 +2,7 @@
 // Do NOT modify this file.
 //
 // You can run this tool with go vet such as:
+//
 //	go vet -vettool=$(which myvet) pkgname
 package main
 

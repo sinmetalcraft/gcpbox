@@ -35,7 +35,6 @@ var (
 	ErrRequiredSpannerClient = xerrors.New("required spanner client.")
 )
 
-//
 // deprecated
 type QueryStatsTopTable string
 
@@ -53,7 +52,6 @@ const (
 	QueryStatsTopHourTable QueryStatsTopTable = "spanner_sys.query_stats_top_hour"
 )
 
-//
 // deprecated
 type QueryStatsParam struct {
 	Table string
