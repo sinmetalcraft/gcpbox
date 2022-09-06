@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -138,15 +138,17 @@ func TestRunDMLToShardingTables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dml, err := ioutil.ReadAll(f)
+	dml, err := io.ReadAll(f)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	end := time.Now().Add(48 * time.Hour).Format("20060102") // streaming insertされてる最中のtableはUPDATE/DELETEできないので、前々日までにする
 	_, err = s.RunDMLToShardingTables(ctx, pID, "bqbox",
 		&bqbox.DateShardingTableTarget{
 			Prefix: "cloudaudit_googleapis_com_activity_",
 			Start:  "20220830",
-			End:    "20291231",
+			End:    end,
 		}, string(dml),
 		bqbox.WithWait(), bqbox.WithStreamLogFn(func(msg string) {
 			fmt.Println(msg)
