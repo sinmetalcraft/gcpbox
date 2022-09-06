@@ -143,7 +143,7 @@ func TestRunDMLToShardingTables(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	end := time.Now().Add(48 * time.Hour).Format("20060102") // streaming insertされてる最中のtableはUPDATE/DELETEできないので、前々日までにする
+	end := time.Now().Add(-48 * time.Hour).Format("20060102") // streaming insertされてる最中のtableはUPDATE/DELETEできないので、前々日までにする
 	_, err = s.RunDMLToShardingTables(ctx, pID, "bqbox",
 		&bqbox.DateShardingTableTarget{
 			Prefix: "cloudaudit_googleapis_com_activity_",
