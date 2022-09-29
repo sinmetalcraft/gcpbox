@@ -3,13 +3,12 @@ package storage
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
-
-	"golang.org/x/xerrors"
 )
 
 // MessageBody is PubSubからPushされたMessageのBody
@@ -143,25 +142,25 @@ func ReadPubSubNotifyBody(body io.Reader) (*MessageBody, error) {
 
 	sct, err := ParseStorageClassType(md.StorageClass)
 	if err != nil {
-		return nil, xerrors.Errorf("failed ParseStorageClassType. v=%s : %w", md.StorageClass, err)
+		return nil, fmt.Errorf("failed ParseStorageClassType. v=%s : %w", md.StorageClass, err)
 	}
 	psmd.StorageClass = sct
 
 	size, err := strconv.ParseInt(md.Size, 10, 64)
 	if err != nil {
-		return nil, xerrors.Errorf("failed Size ParseInt. Size=%s : %w", md.Size, err)
+		return nil, fmt.Errorf("failed Size ParseInt. Size=%s : %w", md.Size, err)
 	}
 	psmd.Size = size
 
 	g, err := strconv.Atoi(md.Generation)
 	if err != nil {
-		return nil, xerrors.Errorf("failed Generation Atoi. Generation=%s : %w", md.Generation, err)
+		return nil, fmt.Errorf("failed Generation Atoi. Generation=%s : %w", md.Generation, err)
 	}
 	psmd.Generation = g
 
 	mg, err := strconv.Atoi(md.Metageneration)
 	if err != nil {
-		return nil, xerrors.Errorf("failed Metageneration Atoi. Metageneration=%s : %w", md.Metageneration, err)
+		return nil, fmt.Errorf("failed Metageneration Atoi. Metageneration=%s : %w", md.Metageneration, err)
 	}
 	psmd.Metageneration = mg
 
@@ -177,7 +176,7 @@ func ReadPubSubNotifyBody(body io.Reader) (*MessageBody, error) {
 	}
 	et, err := ParseStorageNotifyEventType(b.Message.Attributes.EventType)
 	if err != nil {
-		return nil, xerrors.Errorf("failed ParseStorageNotifyEventType. v=%s : %w", b.Message.Attributes.EventType, err)
+		return nil, fmt.Errorf("failed ParseStorageNotifyEventType. v=%s : %w", b.Message.Attributes.EventType, err)
 	}
 	a.EventType = et
 

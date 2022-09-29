@@ -1,10 +1,10 @@
 package cloudrun_test
 
 import (
+	"errors"
 	"testing"
 
 	metadatabox "github.com/sinmetalcraft/gcpbox/metadata"
-	"golang.org/x/xerrors"
 
 	cloudrunmetadatabox "github.com/sinmetalcraft/gcpbox/metadata/cloudrun"
 )
@@ -18,7 +18,7 @@ func TestOnCloudRunReal(t *testing.T) {
 
 func TestCloudRunService(t *testing.T) {
 	_, err := cloudrunmetadatabox.Service()
-	if !xerrors.Is(err, metadatabox.ErrNotFound) {
+	if !errors.Is(err, metadatabox.ErrNotFound) {
 		t.Errorf("want ErrNotFound but got %v", err) // Cloud RunではTestを回さないので、NotFoundになる
 	}
 }

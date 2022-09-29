@@ -2,12 +2,12 @@ package cloudrun_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 
 	"github.com/sinmetalcraft/gcpbox"
 	runbox "github.com/sinmetalcraft/gcpbox/cloudrun"
-	"golang.org/x/xerrors"
 	"google.golang.org/api/googleapi"
 )
 
@@ -53,7 +53,7 @@ func TestAdminService_GetRunService(t *testing.T) {
 					t.Fatalf("want error %v but got nil", tt.wantError)
 				}
 				var errGoogleAPI *googleapi.Error
-				if xerrors.As(err, &errGoogleAPI) {
+				if errors.As(err, &errGoogleAPI) {
 					if e, g := tt.wantErrorCode, errGoogleAPI.Code; e != g {
 						t.Errorf("want error code %d but got %d", e, g)
 					}

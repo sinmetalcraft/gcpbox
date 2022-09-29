@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -153,7 +153,7 @@ func openFile(t *testing.T) ([]byte, *FileInfo) {
 	ret.Name = fi.Name()
 	ret.Size = fi.Size()
 
-	body, err := ioutil.ReadAll(file)
+	body, err := io.ReadAll(file)
 	if err != nil {
 		t.Fatal(err)
 	}

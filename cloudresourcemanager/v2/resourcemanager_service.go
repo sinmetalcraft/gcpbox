@@ -2,12 +2,12 @@ package cloudresourcemanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
-	"golang.org/x/xerrors"
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
 	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/googleapi"
@@ -531,7 +531,7 @@ func NewResourceID(resourceType string, id string) *ResourceID {
 func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, projectID string, email string, roles ...string) (bool, error) {
 	exists, err := s.existsMemberInGCPProject(ctx, projectID, email, roles...)
 	if err != nil {
-		return false, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
+		return false, fmt.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
 	}
 	return exists, nil
 }
@@ -556,7 +556,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 
 	exists, err := s.existsMemberInGCPProject(ctx, projectID, email, opt.roles...)
 	if err != nil {
-		return false, nil, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
+		return false, nil, fmt.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
 	}
 	if exists {
 		return true, nil, nil
@@ -567,7 +567,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 	var rets []*ExistsMemberCheckResult
 	project, err := s.GetProject(ctx, projectID)
 	if err != nil {
-		return false, nil, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
+		return false, nil, fmt.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
 	}
 	if project.Parent == nil {
 		return false, rets, nil
@@ -614,7 +614,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 
 			folder, err := s.GetFolder(ctx, parent)
 			if err != nil {
-				return false, rets, xerrors.Errorf("failed get folder : resource=%+v, : %w", parent, err)
+				return false, rets, fmt.Errorf("failed get folder : resource=%+v, : %w", parent, err)
 			}
 			if folder.Parent == nil {
 				return false, rets, nil
@@ -633,13 +633,13 @@ func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, p
 	resource, err := s.crmv1.Projects.GetIamPolicy(projectID, &crmv1.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden || errGoogleAPI.Code == http.StatusNotFound {
 				return false, NewErrPermissionDenied("failed Projects.GetIamPolicy", map[string]interface{}{"input_project": projectID}, err)
 			}
 		}
 
-		return false, xerrors.Errorf("failed Projects.GetIamPolicy: projectID=%s, : %w", projectID, err)
+		return false, fmt.Errorf("failed Projects.GetIamPolicy: projectID=%s, : %w", projectID, err)
 	}
 	return s.existsIamMemberInBindings(email, s.convertCrmV1Bindings(resource.Bindings), roles...)
 }
@@ -648,13 +648,13 @@ func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folde
 	resource, err := s.crmv2.Folders.GetIamPolicy(folder.Name(), &crmv2.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden || errGoogleAPI.Code == http.StatusNotFound {
 				return false, NewErrPermissionDenied("failed Folders.GetIamPolicy", map[string]interface{}{"input_folder": folder}, err)
 			}
 		}
 
-		return false, xerrors.Errorf("failed Folders.GetIamPolicy: folder=%+v, : %w", folder, err)
+		return false, fmt.Errorf("failed Folders.GetIamPolicy: folder=%+v, : %w", folder, err)
 	}
 	return s.existsIamMemberInBindings(email, s.convertCrmV2Bindings(resource.Bindings), roles...)
 }
@@ -663,13 +663,13 @@ func (s *ResourceManagerService) existsMemberInOrganization(ctx context.Context,
 	resource, err := s.crmv1.Organizations.GetIamPolicy(organization.Name(), &crmv1.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden || errGoogleAPI.Code == http.StatusNotFound {
 				return false, NewErrPermissionDenied("failed Organizations.GetIamPolicy", map[string]interface{}{"input_organization": organization}, err)
 			}
 		}
 
-		return false, xerrors.Errorf("failed Organizations.GetIamPolicy: organization=%+v, : %w", organization, err)
+		return false, fmt.Errorf("failed Organizations.GetIamPolicy: organization=%+v, : %w", organization, err)
 	}
 	return s.existsIamMemberInBindings(email, s.convertCrmV1Bindings(resource.Bindings), roles...)
 }
@@ -744,7 +744,7 @@ func (s *ResourceManagerService) ConvertIamMember(member string) (*IamMember, er
 		}
 		im, err := s.ConvertIamMember(fmt.Sprintf("%s:%s", l[1], accountTxts[0]))
 		if err != nil {
-			return nil, xerrors.Errorf("invalid deleted iam member text. text=%v : %w", member, err)
+			return nil, fmt.Errorf("invalid deleted iam member text. text=%v : %w", member, err)
 		}
 		im.Deleted = true
 		im.UID = uids[1]
@@ -766,12 +766,12 @@ func (s *ResourceManagerService) GetFolders(ctx context.Context, parent *Resourc
 	folders, err = s.folders(ctx, parent, folders)
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
 				return nil, NewErrPermissionDenied("failed get folders", map[string]interface{}{"parent": parent}, err)
 			}
 		}
-		return nil, xerrors.Errorf("failed get folders : %w", err)
+		return nil, fmt.Errorf("failed get folders : %w", err)
 	}
 	return folders, nil
 }
@@ -840,7 +840,7 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parentID strin
 		}
 		return nil
 	}); err != nil {
-		return nil, xerrors.Errorf("failed get projects : %w", err)
+		return nil, fmt.Errorf("failed get projects : %w", err)
 	}
 
 	return list, nil
@@ -858,7 +858,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 	{
 		ps, err := s.GetProjects(ctx, parent.ID)
 		if err != nil {
-			return nil, xerrors.Errorf("failed get projects. parent=%s: %w", parent.ID, err)
+			return nil, fmt.Errorf("failed get projects. parent=%s: %w", parent.ID, err)
 		}
 
 		projects = append(projects, ps...)
@@ -867,17 +867,17 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 	// 配下の全Folderを取得して、その中のProjectを全部引っ張ってくる
 	folders, err := s.GetFolders(ctx, parent)
 	if err != nil {
-		return nil, xerrors.Errorf("failed get folders. parent=%s: %w", parent.ID, err)
+		return nil, fmt.Errorf("failed get folders. parent=%s: %w", parent.ID, err)
 	}
 
 	for _, folder := range folders {
 		fn, err := ConvertResourceID(folder.Name)
 		if err != nil {
-			return nil, xerrors.Errorf("invalid folder.Name. name=%s : %w", folder.Name, err)
+			return nil, fmt.Errorf("invalid folder.Name. name=%s : %w", folder.Name, err)
 		}
 		ps, err := s.GetProjects(ctx, fn.ID)
 		if err != nil {
-			return nil, xerrors.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
+			return nil, fmt.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
 		}
 		projects = append(projects, ps...)
 	}
@@ -892,7 +892,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 func (s *ResourceManagerService) GetProject(ctx context.Context, projectID string) (*Project, error) {
 	project, err := s.crmv1.Projects.Get(projectID).Context(ctx).Do()
 	if err != nil {
-		return nil, xerrors.Errorf("failed get project. projectID=%s: %w", projectID, err)
+		return nil, fmt.Errorf("failed get project. projectID=%s: %w", projectID, err)
 	}
 	p := &Project{
 		ProjectID:      project.ProjectId,
@@ -917,7 +917,7 @@ func (s *ResourceManagerService) GetProject(ctx context.Context, projectID strin
 func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *ResourceID) (*Folder, error) {
 	fol, err := s.crmv2.Folders.Get(folder.Name()).Context(ctx).Do()
 	if err != nil {
-		return nil, xerrors.Errorf("failed get folder. folder=%+v: %w", folder, err)
+		return nil, fmt.Errorf("failed get folder. folder=%+v: %w", folder, err)
 	}
 	ret := &Folder{
 		CreateTime:     fol.CreateTime,
@@ -929,7 +929,7 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *Resource
 	if fol.Parent != "" {
 		parent, err := ConvertResourceID(fol.Parent)
 		if err != nil {
-			return nil, xerrors.Errorf("failed ConvertResourceID(). folder.Name=%s : %w", folder.Name(), err)
+			return nil, fmt.Errorf("failed ConvertResourceID(). folder.Name=%s : %w", folder.Name(), err)
 		}
 		ret.Parent = parent
 	}
@@ -942,7 +942,7 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *Resource
 func (s *ResourceManagerService) GetOrganization(ctx context.Context, organization *ResourceID) (*Organization, error) {
 	org, err := s.crmv1.Organizations.Get(organization.Name()).Context(ctx).Do()
 	if err != nil {
-		return nil, xerrors.Errorf("failed get organization. organization=%+v: %w", organization, err)
+		return nil, fmt.Errorf("failed get organization. organization=%+v: %w", organization, err)
 	}
 
 	return &Organization{
@@ -962,7 +962,7 @@ func (s *ResourceManagerService) GetOrganization(ctx context.Context, organizati
 func ConvertResourceID(name string) (*ResourceID, error) {
 	vl := strings.Split(name, "/")
 	if len(vl) < 2 {
-		return nil, xerrors.Errorf("invalid resource name. name=%s", name)
+		return nil, fmt.Errorf("invalid resource name. name=%s", name)
 	}
 	return NewResourceID(vl[0], vl[1]), nil
 }

@@ -16,7 +16,6 @@ import (
 	sadInstance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	"github.com/dgryski/go-farm"
 	spabox "github.com/sinmetalcraft/gcpbox/spanner"
-	"golang.org/x/xerrors"
 	"google.golang.org/api/googleapi"
 	sdbproto "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
 	protoInstance "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
@@ -321,7 +320,7 @@ func TestService_CopyQueryStats_Real_NotFoundError(t *testing.T) {
 			}
 			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
 			_, err := s.CopyQueryStats(ctx, dataset, table, statscopy.QueryStatsTopMinuteTable, utc)
-			if !xerrors.Is(err, tt.wantErr) {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("want %v but got %v", tt.wantErr, err)
 			}
 		})
@@ -406,7 +405,7 @@ func TestService_CopyReadStats_Real_NotFoundError(t *testing.T) {
 			}
 			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
 			_, err := s.CopyReadStats(ctx, dataset, table, statscopy.ReadStatsTop10MinuteTable, utc)
-			if !xerrors.Is(err, tt.wantErr) {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("want %v but got %v", tt.wantErr, err)
 			}
 		})
@@ -491,7 +490,7 @@ func TestService_CopyTxStats_Real_NotFoundError(t *testing.T) {
 			}
 			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
 			_, err := s.CopyTxStats(ctx, dataset, table, statscopy.TxStatsTop10MinuteTable, utc)
-			if !xerrors.Is(err, tt.wantErr) {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("want %v but got %v", tt.wantErr, err)
 			}
 		})
@@ -582,7 +581,7 @@ func TestService_CopyLockStats_Real_NotFoundError(t *testing.T) {
 			}
 			utc := time.Date(2021, 1, 15, 1, 1, 0, 0, time.UTC)
 			_, err := s.CopyLockStats(ctx, dataset, table, statscopy.LockStatsTop10MinuteTable, utc)
-			if !xerrors.Is(err, tt.wantErr) {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("want %v but got %v", tt.wantErr, err)
 			}
 		})

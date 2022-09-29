@@ -3,13 +3,13 @@ package appengine
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
-	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -70,7 +70,7 @@ func HttpMethodProtoToHttpMethod(method taskspb.HttpMethod) (string, error) {
 	case taskspb.HttpMethod_DELETE:
 		return http.MethodDelete, nil
 	default:
-		return "", xerrors.Errorf("unsupported method %s", method.String())
+		return "", fmt.Errorf("unsupported method %s", method.String())
 	}
 }
 
@@ -128,7 +128,7 @@ func (task *Task) ToCreateTaskRequestProto(queue *Queue) (*taskspb.CreateTaskReq
 	case http.MethodDelete:
 		method = taskspb.HttpMethod_DELETE
 	default:
-		return nil, xerrors.Errorf("unsupported HttpMethod : %v", task.Method)
+		return nil, fmt.Errorf("unsupported HttpMethod : %v", task.Method)
 	}
 
 	appEngineRequest := &taskspb.AppEngineHttpRequest{
@@ -205,7 +205,7 @@ func (s *Service) CreateTaskMulti(ctx context.Context, queue *Queue, tasks []*Ta
 			tn, err := s.CreateTask(ctx, queue, task, ops...)
 			if err != nil {
 				appErr := &Error{}
-				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+				if errors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
 					appErr.KV["index"] = i
 					merr.Append(appErr)
 					return
@@ -258,7 +258,7 @@ type JsonPostTask struct {
 func (jpTask *JsonPostTask) ToTask() (*Task, error) {
 	body, err := json.Marshal(jpTask.Body)
 	if err != nil {
-		return nil, xerrors.Errorf("failed json.Marshal(). task=%#v : %w", jpTask, err)
+		return nil, fmt.Errorf("failed json.Marshal(). task=%#v : %w", jpTask, err)
 	}
 	var header map[string]string
 	if jpTask.Headers != nil {
@@ -283,7 +283,7 @@ func (jpTask *JsonPostTask) ToTask() (*Task, error) {
 // CreateJsonPostTask is BodyにJsonを入れるTaskを作る
 func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *JsonPostTask, ops ...CreateTaskOptions) (string, error) {
 	if task == nil {
-		return "", xerrors.Errorf("failed CreateJsonPostTask. task is nil")
+		return "", fmt.Errorf("failed CreateJsonPostTask. task is nil")
 	}
 
 	t, err := task.ToTask()
@@ -306,7 +306,7 @@ func (s *Service) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tas
 			tn, err := s.CreateJsonPostTask(ctx, queue, task, ops...)
 			if err != nil {
 				appErr := &Error{}
-				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+				if errors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
 					appErr.KV["index"] = i
 					merr.Append(appErr)
 					return
@@ -370,7 +370,7 @@ func (gTask *GetTask) ToTask() (*Task, error) {
 // CreateGetTask is Get Request 用の Task を作る
 func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask, ops ...CreateTaskOptions) (string, error) {
 	if task == nil {
-		return "", xerrors.Errorf("failed CreateGetTask. task is nil")
+		return "", fmt.Errorf("failed CreateGetTask. task is nil")
 	}
 
 	t, err := task.ToTask()
@@ -393,7 +393,7 @@ func (s *Service) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []
 			tn, err := s.CreateGetTask(ctx, queue, task, ops...)
 			if err != nil {
 				appErr := &Error{}
-				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+				if errors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
 					appErr.KV["index"] = i
 					merr.Append(appErr)
 					return

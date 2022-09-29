@@ -1,11 +1,11 @@
 package statscopy
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	"golang.org/x/xerrors"
 )
 
 const queryStatsTopMinute = `
@@ -63,7 +63,7 @@ type QueryStat struct {
 func (s *QueryStat) Save() (map[string]bigquery.Value, string, error) {
 	insertID, err := s.InsertID()
 	if err != nil {
-		return nil, "", xerrors.Errorf("failed InsertID() : %w", err)
+		return nil, "", fmt.Errorf("failed InsertID() : %w", err)
 	}
 	return map[string]bigquery.Value{
 		"interval_end":                   s.IntervalEnd,
@@ -86,10 +86,10 @@ func (s *QueryStat) Save() (map[string]bigquery.Value, string, error) {
 // InsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *QueryStat) InsertID() (string, error) {
 	if s.IntervalEnd.IsZero() {
-		return "", xerrors.New("IntervalEnd is required.")
+		return "", errors.New("IntervalEnd is required.")
 	}
 	if s.TextFingerprint == 0 {
-		return "", xerrors.New("TextFingerprint is required.")
+		return "", errors.New("TextFingerprint is required.")
 	}
 	return fmt.Sprintf("GCPBOX_SpannerQueryStat-_-%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint), nil
 }

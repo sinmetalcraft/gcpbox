@@ -2,6 +2,7 @@ package cloudresourcemanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sinmetalcraft/gcpbox/internal/trace"
-	"golang.org/x/xerrors"
 	crm "google.golang.org/api/cloudresourcemanager/v3"
 	"google.golang.org/api/googleapi"
 )
@@ -104,7 +104,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, p
 
 	exists, err = s.existsMemberInGCPProject(ctx, projectID, email, roles...)
 	if err != nil {
-		return false, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
+		return false, fmt.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, roles, err)
 	}
 	return exists, nil
 }
@@ -132,7 +132,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 
 	exists, err = s.existsMemberInGCPProject(ctx, projectID, email, opt.roles...)
 	if err != nil {
-		return false, nil, xerrors.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
+		return false, nil, fmt.Errorf("failed existsMemberInGCPProject: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
 	}
 	if exists {
 		return true, nil, nil
@@ -143,7 +143,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 	var rets []*ExistsMemberCheckResult
 	project, err := s.GetProject(ctx, projectID)
 	if err != nil {
-		return false, rets, xerrors.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
+		return false, rets, fmt.Errorf("failed get project: projectID=%s, email=%s, roles=%+v : %w", projectID, email, opt.roles, err)
 	}
 	if project.Parent == "" {
 		return false, rets, nil
@@ -151,7 +151,7 @@ func (s *ResourceManagerService) ExistsMemberInGCPProjectWithInherit(ctx context
 
 	parent, err := ConvertResourceID(project.Parent)
 	if err != nil {
-		return false, rets, xerrors.Errorf("failed ConvertResourceID. parent=%s, projectID=%s, email=%s, roles=%+v : %w", project.Parent, projectID, email, opt.roles, err)
+		return false, rets, fmt.Errorf("failed ConvertResourceID. parent=%s, projectID=%s, email=%s, roles=%+v : %w", project.Parent, projectID, email, opt.roles, err)
 	}
 	for {
 		step++
@@ -215,7 +215,7 @@ func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context
 
 		folder, err := s.GetFolder(ctx, parent)
 		if err != nil {
-			log.Err = xerrors.Errorf("failed get folder : resource=%+v, : %w", parent, err)
+			log.Err = fmt.Errorf("failed get folder : resource=%+v, : %w", parent, err)
 			return false, nil, log, log.Err
 		}
 		if folder.Parent == "" {
@@ -223,7 +223,7 @@ func (s *ResourceManagerService) existsMemberInGCPProjectWithInherit(ctx context
 		}
 		next, err := ConvertResourceID(folder.Parent)
 		if err != nil {
-			return false, next, nil, xerrors.Errorf("failed ConvertResourceID. folder.Parent=%s : %w", folder.Parent, err)
+			return false, next, nil, fmt.Errorf("failed ConvertResourceID. folder.Parent=%s : %w", folder.Parent, err)
 		}
 		return false, next, log, nil
 	case "organization":
@@ -251,13 +251,13 @@ func (s *ResourceManagerService) existsMemberInGCPProject(ctx context.Context, p
 	resource, err := s.crm.Projects.GetIamPolicy(fmt.Sprintf("projects/%s", projectID), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden || errGoogleAPI.Code == http.StatusNotFound {
 				return false, NewErrPermissionDenied("failed Projects.GetIamPolicy", map[string]interface{}{"input_project": projectID}, err)
 			}
 		}
 
-		return false, xerrors.Errorf("failed Projects.GetIamPolicy: projectID=%s, : %w", projectID, err)
+		return false, fmt.Errorf("failed Projects.GetIamPolicy: projectID=%s, : %w", projectID, err)
 	}
 	return s.existsIamMemberInBindings(email, resource.Bindings, roles...)
 }
@@ -269,13 +269,13 @@ func (s *ResourceManagerService) existsMemberInFolder(ctx context.Context, folde
 	resource, err := s.crm.Folders.GetIamPolicy(folder.Name(), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden || errGoogleAPI.Code == http.StatusNotFound {
 				return false, NewErrPermissionDenied("failed Folders.GetIamPolicy", map[string]interface{}{"input_folder": folder}, err)
 			}
 		}
 
-		return false, xerrors.Errorf("failed Folders.GetIamPolicy: folder=%+v, : %w", folder, err)
+		return false, fmt.Errorf("failed Folders.GetIamPolicy: folder=%+v, : %w", folder, err)
 	}
 	return s.existsIamMemberInBindings(email, resource.Bindings, roles...)
 }
@@ -287,13 +287,13 @@ func (s *ResourceManagerService) existsMemberInOrganization(ctx context.Context,
 	resource, err := s.crm.Organizations.GetIamPolicy(organization.Name(), &crm.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden || errGoogleAPI.Code == http.StatusNotFound {
 				return false, NewErrPermissionDenied("failed Organizations.GetIamPolicy", map[string]interface{}{"input_organization": organization}, err)
 			}
 		}
 
-		return false, xerrors.Errorf("failed Organizations.GetIamPolicy: organization=%+v, : %w", organization, err)
+		return false, fmt.Errorf("failed Organizations.GetIamPolicy: organization=%+v, : %w", organization, err)
 	}
 	return s.existsIamMemberInBindings(email, resource.Bindings, roles...)
 }
@@ -366,7 +366,7 @@ func (s *ResourceManagerService) ConvertIamMember(member string) (*IamMember, er
 		}
 		im, err := s.ConvertIamMember(fmt.Sprintf("%s:%s", l[1], accountTxts[0]))
 		if err != nil {
-			return nil, xerrors.Errorf("invalid deleted iam member text. text=%v : %w", member, err)
+			return nil, fmt.Errorf("invalid deleted iam member text. text=%v : %w", member, err)
 		}
 		im.Deleted = true
 		im.UID = uids[1]
@@ -387,12 +387,12 @@ func (s *ResourceManagerService) GetFolders(ctx context.Context, parent *Resourc
 	l, err := s.folders(ctx, parent, "", []*crm.Folder{})
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
 				return nil, NewErrPermissionDenied("failed get folders", map[string]interface{}{"parent": parent}, err)
 			}
 		}
-		return nil, xerrors.Errorf("failed get folders : %w", err)
+		return nil, fmt.Errorf("failed get folders : %w", err)
 	}
 	return l, nil
 }
@@ -452,12 +452,12 @@ func (s *ResourceManagerService) GetProjects(ctx context.Context, parent *Resour
 		resp, err := req.Do()
 		if err != nil {
 			var errGoogleAPI *googleapi.Error
-			if xerrors.As(err, &errGoogleAPI) {
+			if errors.As(err, &errGoogleAPI) {
 				if errGoogleAPI.Code == http.StatusForbidden {
 					return nil, NewErrPermissionDenied("failed get projects", map[string]interface{}{"parent": parent}, err)
 				}
 			}
-			return nil, xerrors.Errorf("failed get projects. parent=%v : %w", parent, err)
+			return nil, fmt.Errorf("failed get projects. parent=%v : %w", parent, err)
 		}
 		ret = append(ret, resp.Projects...)
 		if resp.NextPageToken == "" {
@@ -484,7 +484,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 	{
 		ps, err := s.GetProjects(ctx, parent)
 		if err != nil {
-			return nil, xerrors.Errorf("failed get projects. parent=%v: %w", parent, err)
+			return nil, fmt.Errorf("failed get projects. parent=%v: %w", parent, err)
 		}
 		projects = append(projects, ps...)
 	}
@@ -492,7 +492,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 	// 配下の全Folderを取得して、その中のProjectを全部引っ張ってくる
 	folders, err := s.GetFolders(ctx, parent)
 	if err != nil {
-		return nil, xerrors.Errorf("failed get folders. parent=%s: %w", parent.ID, err)
+		return nil, fmt.Errorf("failed get folders. parent=%s: %w", parent.ID, err)
 	}
 
 	var apiCallCount int = 1
@@ -504,7 +504,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 
 		fn, err := ConvertResourceID(folder.Name)
 		if err != nil {
-			return nil, xerrors.Errorf("invalid folder.Name. name=%s : %w", folder.Name, err)
+			return nil, fmt.Errorf("invalid folder.Name. name=%s : %w", folder.Name, err)
 		}
 
 		// CloudResourceManagerAPIはQuotaが低いので、QuotaErrorが返ってきたら、しばらく待ってから再度実行してみる
@@ -512,13 +512,13 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 			ps, err := s.GetProjects(ctx, fn)
 			if err != nil {
 				var errGoogleAPI *googleapi.Error
-				if xerrors.As(err, &errGoogleAPI) {
+				if errors.As(err, &errGoogleAPI) {
 					if errGoogleAPI.Code == http.StatusTooManyRequests {
 						time.Sleep(time.Duration(count*count) * time.Second)
 						continue
 					}
 				}
-				return nil, xerrors.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
+				return nil, fmt.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
 			}
 			projects = append(projects, ps...)
 			apiCallCount++
@@ -538,12 +538,12 @@ func (s *ResourceManagerService) GetProject(ctx context.Context, projectID strin
 	project, err = s.crm.Projects.Get(fmt.Sprintf("projects/%s", projectID)).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
 				return nil, NewErrPermissionDenied("failed get project", map[string]interface{}{"projectID": projectID}, err)
 			}
 		}
-		return nil, xerrors.Errorf("failed get project. projectID=%s: %w", projectID, err)
+		return nil, fmt.Errorf("failed get project. projectID=%s: %w", projectID, err)
 	}
 	return project, nil
 }
@@ -556,12 +556,12 @@ func (s *ResourceManagerService) GetFolder(ctx context.Context, folder *Resource
 	fol, err = s.crm.Folders.Get(folder.Name()).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
 				return nil, NewErrPermissionDenied("failed get folder", map[string]interface{}{"folder": folder}, err)
 			}
 		}
-		return nil, xerrors.Errorf("failed get folder. folder=%+v: %w", folder, err)
+		return nil, fmt.Errorf("failed get folder. folder=%+v: %w", folder, err)
 	}
 	return fol, nil
 }
@@ -574,12 +574,12 @@ func (s *ResourceManagerService) GetOrganization(ctx context.Context, organizati
 	org, err = s.crm.Organizations.Get(organization.Name()).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
 				return nil, NewErrPermissionDenied("failed get organization", map[string]interface{}{"organization": organization}, err)
 			}
 		}
-		return nil, xerrors.Errorf("failed get organization. organization=%+v: %w", organization, err)
+		return nil, fmt.Errorf("failed get organization. organization=%+v: %w", organization, err)
 	}
 	return org, nil
 }
@@ -589,7 +589,7 @@ func (s *ResourceManagerService) GetOrganization(ctx context.Context, organizati
 func ConvertResourceID(name string) (*ResourceID, error) {
 	vl := strings.Split(name, "/")
 	if len(vl) < 2 {
-		return nil, xerrors.Errorf("invalid resource name. name=%s", name)
+		return nil, fmt.Errorf("invalid resource name. name=%s", name)
 	}
 	return NewResourceID(vl[0], vl[1]), nil
 }

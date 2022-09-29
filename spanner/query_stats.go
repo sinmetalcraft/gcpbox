@@ -3,13 +3,13 @@ package spanner
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"text/template"
 	"time"
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/spanner"
-	"golang.org/x/xerrors"
 	"google.golang.org/api/iterator"
 )
 
@@ -32,7 +32,7 @@ WHERE interval_end = TIMESTAMP(@IntervalEnd, "UTC")
 var (
 	//
 	// deprecated
-	ErrRequiredSpannerClient = xerrors.New("required spanner client.")
+	ErrRequiredSpannerClient = errors.New("required spanner client.")
 )
 
 // deprecated
@@ -111,7 +111,7 @@ type QueryStat struct {
 func (s *QueryStat) Save() (map[string]bigquery.Value, string, error) {
 	insertID, err := s.InsertID()
 	if err != nil {
-		return nil, "", xerrors.Errorf("failed InsertID() : %w", err)
+		return nil, "", fmt.Errorf("failed InsertID() : %w", err)
 	}
 	return map[string]bigquery.Value{
 		"interval_end":        s.IntervalEnd,
@@ -130,10 +130,10 @@ func (s *QueryStat) Save() (map[string]bigquery.Value, string, error) {
 // InsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *QueryStat) InsertID() (string, error) {
 	if s.IntervalEnd.IsZero() {
-		return "", xerrors.New("IntervalEnd is required.")
+		return "", errors.New("IntervalEnd is required.")
 	}
 	if s.TextFingerprint == 0 {
-		return "", xerrors.New("TextFingerprint is required.")
+		return "", errors.New("TextFingerprint is required.")
 	}
 	return fmt.Sprintf("GCPBOX_SpannerQueryStat-_-%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint), nil
 }
@@ -185,12 +185,12 @@ func (s *QueryStatsCopyService) GetQueryStatsWithSpannerClient(ctx context.Conte
 			break
 		}
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 
 		var result QueryStat
 		if err := row.ToStruct(&result); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 		rets = append(rets, &result)
 	}
@@ -265,18 +265,18 @@ func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, datas
 			break
 		}
 		if err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 
 		var qs QueryStat
 		if err := row.ToStruct(&qs); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 
 		qss = append(qss, &qs)
 		if len(qss) > 99 {
 			if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, qss); err != nil {
-				return insertCount, xerrors.Errorf(": %w", err)
+				return insertCount, fmt.Errorf(": %w", err)
 			}
 			insertCount += len(qss)
 			qss = []*QueryStat{}
@@ -284,7 +284,7 @@ func (s *QueryStatsCopyService) CopyWithSpannerClient(ctx context.Context, datas
 	}
 	if len(qss) > 0 {
 		if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, qss); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 		insertCount += len(qss)
 	}

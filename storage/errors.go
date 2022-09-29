@@ -1,9 +1,8 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
-
-	"golang.org/x/xerrors"
 )
 
 // ErrInvalidFormat is Format Error
@@ -32,7 +31,7 @@ func (e *Error) Error() string {
 // Is is err equal check
 func (e *Error) Is(target error) bool {
 	var appErr *Error
-	if !xerrors.As(target, &appErr) {
+	if !errors.As(target, &appErr) {
 		return false
 	}
 	return e.Code == appErr.Code
