@@ -2,7 +2,7 @@ package metadata
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -216,7 +216,7 @@ func getMetadata(path string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed http.SendReq. path=%s : %w", path, err)
 	}
-	b, err := ioutil.ReadAll(res.Body)
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed read response.Body. path=%s : %w", path, err)
 	}

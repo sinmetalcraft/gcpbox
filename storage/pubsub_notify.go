@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"time"
@@ -105,7 +104,7 @@ type attributes struct {
 
 // ReadPubSubNotifyBody is PubSubからPushされたリクエストのBodyを読み込む
 func ReadPubSubNotifyBody(body io.Reader) (*MessageBody, error) {
-	buf, err := ioutil.ReadAll(body)
+	buf, err := io.ReadAll(body)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +115,7 @@ func ReadPubSubNotifyBody(body io.Reader) (*MessageBody, error) {
 	}
 
 	r := base64.NewDecoder(base64.StdEncoding, strings.NewReader(b.Message.Data))
-	d, err := ioutil.ReadAll(r)
+	d, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
