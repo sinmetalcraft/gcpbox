@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"golang.org/x/xerrors"
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
@@ -118,6 +119,7 @@ func (s *ServiceUsageService) list(ctx context.Context, projectID string, state 
 		}
 		if nextPageToken != "" {
 			call.PageToken(nextPageToken)
+			time.Sleep(1 * time.Second) // requests per minute 60 に引っかからないように少し待つ
 		}
 		resp, err := call.Do()
 		if err != nil {
