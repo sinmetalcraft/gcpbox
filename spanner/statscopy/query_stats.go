@@ -86,10 +86,10 @@ func (s *QueryStat) Save() (map[string]bigquery.Value, string, error) {
 // InsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *QueryStat) InsertID() (string, error) {
 	if s.IntervalEnd.IsZero() {
-		return "", errors.New("IntervalEnd is required.")
+		return "", errors.New("IntervalEnd is required")
 	}
 	if s.TextFingerprint == 0 {
-		return "", errors.New("TextFingerprint is required.")
+		return "", errors.New("TextFingerprint is required")
 	}
 	return fmt.Sprintf("GCPBOX_SpannerQueryStat-_-%v-_-%v", s.IntervalEnd.Unix(), s.TextFingerprint), nil
 }

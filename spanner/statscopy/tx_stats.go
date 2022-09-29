@@ -93,10 +93,10 @@ func (s *TxStat) Save() (map[string]bigquery.Value, string, error) {
 // InsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *TxStat) InsertID() (string, error) {
 	if s.IntervalEnd.IsZero() {
-		return "", errors.New("IntervalEnd is required.")
+		return "", errors.New("IntervalEnd is required")
 	}
 	if s.Fprint == 0 {
-		return "", errors.New("Fprint is required.")
+		return "", errors.New("Fprint is required")
 	}
 	return fmt.Sprintf("GCPBOX_SpannerTxStat-_-%d-_-%d", s.IntervalEnd.Unix(), s.Fprint), nil
 }

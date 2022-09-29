@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	ErrRequiredSpannerClient = errors.New("required spanner client.")
+	ErrRequiredSpannerClient = errors.New("required spanner client")
 )
 
 type Service struct {

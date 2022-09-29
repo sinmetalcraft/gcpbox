@@ -22,11 +22,11 @@ func TestServiceUsageService_ListAll(t *testing.T) {
 }
 
 func TestServiceUsageService_ListByDiff(t *testing.T) {
-	ctx := context.Background()
-
 	// List available/disabled services requests per minute に引っかかるので、普段はSkipする
 	// TestServiceUsageService_SetState でも呼んでいるので、基本的には問題ないだろう。
 	t.SkipNow()
+
+	ctx := context.Background()
 
 	sus := newTestServiceUsageService(t)
 

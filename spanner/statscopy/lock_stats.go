@@ -97,7 +97,7 @@ func (s *LockStat) Save() (map[string]bigquery.Value, string, error) {
 // InsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *LockStat) InsertID() (string, error) {
 	if s.IntervalEnd.IsZero() {
-		return "", errors.New("IntervalEnd is required.")
+		return "", errors.New("IntervalEnd is required")
 	}
 	k := base64.URLEncoding.EncodeToString(s.RowRangeStartKey)
 	return fmt.Sprintf("GCPBOX_SpannerLockStat-_-%d-_-%s", s.IntervalEnd.Unix(), k), nil
