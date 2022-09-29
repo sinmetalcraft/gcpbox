@@ -3,6 +3,8 @@ package statscopy
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"text/template"
 	"time"
 
@@ -10,13 +12,12 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/sinmetalcraft/gcpbox/internal/trace"
 	spabox "github.com/sinmetalcraft/gcpbox/spanner"
-	"golang.org/x/xerrors"
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 )
 
 var (
-	ErrRequiredSpannerClient = xerrors.New("required spanner client.")
+	ErrRequiredSpannerClient = errors.New("required spanner client")
 )
 
 type Service struct {
@@ -141,12 +142,12 @@ func (s *Service) GetQueryStatsWithSpannerClient(ctx context.Context, table Quer
 			break
 		}
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 
 		var result QueryStat
 		if err := row.ToStruct(&result); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 		rets = append(rets, &result)
 	}
@@ -190,12 +191,12 @@ func (s *Service) GetReadStatsWithSpannerClient(ctx context.Context, table ReadS
 			break
 		}
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 
 		var result ReadStat
 		if err := row.ToStruct(&result); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 		rets = append(rets, &result)
 	}
@@ -239,12 +240,12 @@ func (s *Service) GetTxStatsWithSpannerClient(ctx context.Context, table TxStats
 			break
 		}
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 
 		var result TxStat
 		if err := row.ToStruct(&result); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 		rets = append(rets, &result)
 	}
@@ -288,12 +289,12 @@ func (s *Service) GetLockStatsWithSpannerClient(ctx context.Context, table TxSta
 			break
 		}
 		if err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 
 		var result LockStat
 		if err := row.ToStruct(&result); err != nil {
-			return nil, xerrors.Errorf(": %w", err)
+			return nil, fmt.Errorf(": %w", err)
 		}
 		rets = append(rets, &result)
 	}
@@ -464,19 +465,19 @@ func (s *Service) CopyQueryStatsWithSpannerClient(ctx context.Context, dataset *
 			if spanner.ErrCode(err) == codes.NotFound {
 				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
 			}
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 		readRowCount++
 
 		var stats QueryStat
 		if err := row.ToStruct(&stats); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 
 		statsList = append(statsList, &stats)
 		if len(statsList) > 99 {
 			if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
-				return insertCount, xerrors.Errorf(": %w", err)
+				return insertCount, fmt.Errorf(": %w", err)
 			}
 			insertCount += len(statsList)
 			statsList = []*QueryStat{}
@@ -484,7 +485,7 @@ func (s *Service) CopyQueryStatsWithSpannerClient(ctx context.Context, dataset *
 	}
 	if len(statsList) > 0 {
 		if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 		insertCount += len(statsList)
 	}
@@ -539,19 +540,19 @@ func (s *Service) CopyReadStatsWithSpannerClient(ctx context.Context, dataset *b
 			if spanner.ErrCode(err) == codes.NotFound {
 				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
 			}
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 		readRowCount++
 
 		var stats ReadStat
 		if err := row.ToStruct(&stats); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 
 		statsList = append(statsList, &stats)
 		if len(statsList) > 99 {
 			if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
-				return insertCount, xerrors.Errorf(": %w", err)
+				return insertCount, fmt.Errorf(": %w", err)
 			}
 			insertCount += len(statsList)
 			statsList = []*ReadStat{}
@@ -559,7 +560,7 @@ func (s *Service) CopyReadStatsWithSpannerClient(ctx context.Context, dataset *b
 	}
 	if len(statsList) > 0 {
 		if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 		insertCount += len(statsList)
 	}
@@ -614,19 +615,19 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 			if spanner.ErrCode(err) == codes.NotFound {
 				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
 			}
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 		readRowCount++
 
 		var stats TxStat
 		if err := row.ToStruct(&stats); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 
 		statsList = append(statsList, &stats)
 		if len(statsList) > 99 {
 			if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
-				return insertCount, xerrors.Errorf(": %w", err)
+				return insertCount, fmt.Errorf(": %w", err)
 			}
 			insertCount += len(statsList)
 			statsList = []*TxStat{}
@@ -634,7 +635,7 @@ func (s *Service) CopyTxStatsWithSpannerClient(ctx context.Context, dataset *big
 	}
 	if len(statsList) > 0 {
 		if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 		insertCount += len(statsList)
 	}
@@ -689,19 +690,19 @@ func (s *Service) CopyLockStatsWithSpannerClient(ctx context.Context, dataset *b
 			if spanner.ErrCode(err) == codes.NotFound {
 				return insertCount, spabox.NewErrNotFound("", err) // Spanner Instanceの情報はspannerClientが保持していて分からないので、Keyが空
 			}
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 		readRowCount++
 
 		var stats LockStat
 		if err := row.ToStruct(&stats); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 
 		statsList = append(statsList, &stats)
 		if len(statsList) > 99 {
 			if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
-				return insertCount, xerrors.Errorf(": %w", err)
+				return insertCount, fmt.Errorf(": %w", err)
 			}
 			insertCount += len(statsList)
 			statsList = []*LockStat{}
@@ -709,7 +710,7 @@ func (s *Service) CopyLockStatsWithSpannerClient(ctx context.Context, dataset *b
 	}
 	if len(statsList) > 0 {
 		if err := s.BQ.DatasetInProject(dataset.ProjectID, dataset.DatasetID).Table(bigQueryTable).Inserter().Put(ctx, statsList); err != nil {
-			return insertCount, xerrors.Errorf(": %w", err)
+			return insertCount, fmt.Errorf(": %w", err)
 		}
 		insertCount += len(statsList)
 	}

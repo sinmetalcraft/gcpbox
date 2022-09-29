@@ -1,12 +1,12 @@
 package metadata_test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"testing"
 
 	metadatabox "github.com/sinmetalcraft/gcpbox/metadata"
-	"golang.org/x/xerrors"
 )
 
 const (
@@ -87,7 +87,7 @@ func TestExtractionRegion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := metadatabox.ExtractionRegion(tt.metaZone)
 			if err != nil {
-				if !xerrors.Is(err, tt.wantErr) {
+				if !errors.Is(err, tt.wantErr) {
 					t.Errorf("want error %v but got %v", tt.wantErr, err)
 				}
 				return
@@ -117,7 +117,7 @@ func TestExtractionZone(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := metadatabox.ExtractionZone(tt.metaZone)
 			if err != nil {
-				if !xerrors.Is(err, tt.wantErr) {
+				if !errors.Is(err, tt.wantErr) {
 					t.Errorf("want error %v but got %v", tt.wantErr, err)
 				}
 				return

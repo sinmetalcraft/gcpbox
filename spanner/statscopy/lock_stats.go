@@ -2,11 +2,11 @@ package statscopy
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	"golang.org/x/xerrors"
 )
 
 const lockStatsTopMinute = `
@@ -78,7 +78,7 @@ type LockStat struct {
 func (s *LockStat) Save() (map[string]bigquery.Value, string, error) {
 	insertID, err := s.InsertID()
 	if err != nil {
-		return nil, "", xerrors.Errorf("failed InsertID() : %w", err)
+		return nil, "", fmt.Errorf("failed InsertID() : %w", err)
 	}
 
 	var lockReqs []map[string]bigquery.Value
@@ -97,7 +97,7 @@ func (s *LockStat) Save() (map[string]bigquery.Value, string, error) {
 // InsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *LockStat) InsertID() (string, error) {
 	if s.IntervalEnd.IsZero() {
-		return "", xerrors.New("IntervalEnd is required.")
+		return "", errors.New("IntervalEnd is required")
 	}
 	k := base64.URLEncoding.EncodeToString(s.RowRangeStartKey)
 	return fmt.Sprintf("GCPBOX_SpannerLockStat-_-%d-_-%s", s.IntervalEnd.Unix(), k), nil

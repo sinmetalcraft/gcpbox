@@ -2,13 +2,13 @@ package cloudtasks_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"github.com/google/uuid"
-	"golang.org/x/xerrors"
 
 	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks"
 )
@@ -125,7 +125,7 @@ func TestService_CreateJsonPostTaskMulti_Retry(t *testing.T) {
 	}
 	_, err = s.CreateJsonPostTaskMulti(ctx, queue, tasks)
 	merr := &tasksbox.MultiError{}
-	if xerrors.As(err, &merr) {
+	if errors.As(err, &merr) {
 		for _, ierr := range merr.Errors {
 			index, ok := ierr.KV["index"].(int)
 			if !ok {
@@ -285,7 +285,7 @@ func TestService_CreateGetTaskMulti_Error(t *testing.T) {
 	}
 	_, err = s.CreateGetTaskMulti(ctx, queue, tasks)
 	merr := &tasksbox.MultiError{}
-	if xerrors.As(err, &merr) {
+	if errors.As(err, &merr) {
 		for _, ierr := range merr.Errors {
 			index, ok := ierr.KV["index"].(int)
 			if !ok {

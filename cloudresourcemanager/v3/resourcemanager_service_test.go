@@ -10,7 +10,6 @@ import (
 	adcplusts "github.com/apstndb/adcplus/tokensource"
 	"github.com/google/go-cmp/cmp"
 	"github.com/k0kubun/pp"
-	"golang.org/x/xerrors"
 	crm "google.golang.org/api/cloudresourcemanager/v3"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
@@ -78,11 +77,11 @@ func TestResourceManagerService_GetFolders_StatusFailed(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := s.GetFolders(ctx, tt.parent)
-			if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
+			if e, g := tt.wantErr, err; !errors.Is(g, e) {
 				t.Errorf("want error %T but got %T", e, g)
 			}
 			var errPermissionDenied *crmbox.Error
-			if xerrors.As(err, &errPermissionDenied) {
+			if errors.As(err, &errPermissionDenied) {
 				if errPermissionDenied.KV["parent"] == "" {
 					t.Errorf("ErrPermissionDenied.Target is empty...")
 				}
@@ -111,11 +110,11 @@ func TestResourceManagerService_GetProjects(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := s.GetProjects(ctx, tt.parent)
 			if tt.wantErr != nil {
-				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
+				if e, g := tt.wantErr, err; !errors.Is(g, e) {
 					t.Errorf("want error %T but got %T", e, g)
 				}
 				var errPermissionDenied *crmbox.Error
-				if xerrors.As(err, &errPermissionDenied) {
+				if errors.As(err, &errPermissionDenied) {
 					if errPermissionDenied.KV["parent"] == "" {
 						t.Errorf("ErrPermissionDenied.Target is empty...")
 					}
@@ -158,11 +157,11 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := s.GetRelatedProject(ctx, tt.parent)
 			if tt.wantErr != nil {
-				if e, g := tt.wantErr, err; !xerrors.Is(g, e) {
+				if e, g := tt.wantErr, err; !errors.Is(g, e) {
 					t.Errorf("want error %T but got %T", e, g)
 				}
 				var errPermissionDenied *crmbox.Error
-				if xerrors.As(err, &errPermissionDenied) {
+				if errors.As(err, &errPermissionDenied) {
 					if errPermissionDenied.KV["parent"] == "" {
 						t.Errorf("ErrPermissionDenied.Target is empty...")
 					}
@@ -216,14 +215,14 @@ func TestResourceManagerService_ExistsMemberInGCPProject(t *testing.T) {
 
 				t.Errorf("want error %T but got %T", tt.wantErr, err)
 				var errPermissionDenied *crmbox.Error
-				if xerrors.As(err, &errPermissionDenied) {
+				if errors.As(err, &errPermissionDenied) {
 					if errPermissionDenied.KV["input_project"] == "" {
 						t.Errorf("ErrPermissionDenied.input_project is empty...")
 					}
 				}
 
 				var errGoogleAPI *googleapi.Error
-				if xerrors.As(err, &errGoogleAPI) {
+				if errors.As(err, &errGoogleAPI) {
 					if errGoogleAPI.Code != http.StatusForbidden {
 						t.Errorf("want StatusForbidden but got %v", errGoogleAPI.Code)
 					}
@@ -276,7 +275,7 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 				pp.Println(logs)
 			}
 			if tt.wantErr != nil {
-				if e, g := tt.wantErr, err; xerrors.Is(g, e) {
+				if e, g := tt.wantErr, err; errors.Is(g, e) {
 					return
 				}
 				t.Errorf("want error %T, %s but got %T %s", tt.wantErr, tt.wantErr, err, err)

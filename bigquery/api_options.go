@@ -2,6 +2,7 @@ package bigquery
 
 type apiOptions struct {
 	dryRun      bool
+	wait        bool
 	streamLogFn func(msg string)
 }
 
@@ -11,6 +12,13 @@ type APIOptions func(options *apiOptions)
 func WithDryRun() APIOptions {
 	return func(ops *apiOptions) {
 		ops.dryRun = true
+	}
+}
+
+// WithWait is Jobが一つずつ完了するのを待ってから、次のJobを投入する
+func WithWait() APIOptions {
+	return func(ops *apiOptions) {
+		ops.wait = true
 	}
 }
 

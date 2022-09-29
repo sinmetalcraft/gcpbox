@@ -1,9 +1,8 @@
 package spanner
 
 import (
+	"errors"
 	"fmt"
-
-	"golang.org/x/xerrors"
 )
 
 // ErrNotFound is 見つからなかった時に返す
@@ -39,7 +38,7 @@ func (e *Error) Error() string {
 // Is is err equal check
 func (e *Error) Is(target error) bool {
 	var appErr *Error
-	if !xerrors.As(target, &appErr) {
+	if !errors.As(target, &appErr) {
 		return false
 	}
 	return e.Code == appErr.Code

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"golang.org/x/xerrors"
 	"google.golang.org/api/option"
 	"google.golang.org/api/run/v1"
 )
@@ -71,7 +70,7 @@ func (s *AdminService) ListRunService(ctx context.Context, projectID string) ([]
 		}
 		res, err := call.Do()
 		if err != nil {
-			return nil, xerrors.Errorf("failed AdminService.ListRunService. projectID:%s : %w", projectID, err)
+			return nil, fmt.Errorf("failed AdminService.ListRunService. projectID:%s : %w", projectID, err)
 		}
 		for _, item := range res.Items {
 			results = append(results, &RunService{
@@ -93,7 +92,7 @@ func (s *AdminService) ListRunService(ctx context.Context, projectID string) ([]
 func (s *AdminService) GetRunService(ctx context.Context, projectID string, name string) (*RunService, error) {
 	item, err := s.Client.Namespaces.Services.Get(fmt.Sprintf("namespaces/%s/services/%s", projectID, name)).Context(ctx).Do()
 	if err != nil {
-		return nil, xerrors.Errorf("failed AdminService.GetRunService. projectID:%s,name=%s : %w", projectID, name, err)
+		return nil, fmt.Errorf("failed AdminService.GetRunService. projectID:%s,name=%s : %w", projectID, name, err)
 	}
 	return &RunService{
 		Namespace:          item.Metadata.Namespace,

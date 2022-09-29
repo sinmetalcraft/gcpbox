@@ -1,11 +1,10 @@
 package appengine
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
-
-	"golang.org/x/xerrors"
 )
 
 var _ error = &MultiError{}
@@ -58,7 +57,7 @@ func (e *Error) Error() string {
 // Is is err equal check
 func (e *Error) Is(target error) bool {
 	var appErr *Error
-	if !xerrors.As(target, &appErr) {
+	if !errors.As(target, &appErr) {
 		return false
 	}
 	return e.Code == appErr.Code
@@ -89,7 +88,7 @@ func (e *MultiError) Error() string {
 // Is is err equal check
 func (e *MultiError) Is(target error) bool {
 	var appErr *MultiError
-	return xerrors.As(target, &appErr)
+	return errors.As(target, &appErr)
 }
 
 // Unwrap is return unwrap error

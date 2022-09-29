@@ -2,11 +2,11 @@ package cloudresourcemanager
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
-	"golang.org/x/xerrors"
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
 	crmv2 "google.golang.org/api/cloudresourcemanager/v2"
 	"google.golang.org/api/googleapi"
@@ -42,13 +42,13 @@ func (s *ResourceManagerService) ExistsMemberInGCPProject(ctx context.Context, p
 	p, err := s.crmv1.Projects.GetIamPolicy(projectID, &crmv1.GetIamPolicyRequest{}).Context(ctx).Do()
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
 				return false, NewErrPermissionDenied("failed Projects.GetIamPolicy", map[string]interface{}{"input_project": projectID}, err)
 			}
 		}
 
-		return false, xerrors.Errorf("failed Projects.GetIamPolicy: projectID=%s, : %w", projectID, err)
+		return false, fmt.Errorf("failed Projects.GetIamPolicy: projectID=%s, : %w", projectID, err)
 	}
 	roleMap := map[string]bool{}
 	for _, role := range roles {
@@ -123,7 +123,7 @@ func (s *ResourceManagerService) ConvertIamMember(member string) (*IamMember, er
 		}
 		im, err := s.ConvertIamMember(fmt.Sprintf("%s:%s", l[1], accountTxts[0]))
 		if err != nil {
-			return nil, xerrors.Errorf("invalid deleted iam member text. text=%v : %w", member, err)
+			return nil, fmt.Errorf("invalid deleted iam member text. text=%v : %w", member, err)
 		}
 		im.Deleted = true
 		im.UID = uids[1]
@@ -304,12 +304,12 @@ func (s *ResourceManagerService) Folders(ctx context.Context, parent string) ([]
 	folders, err = s.folders(ctx, parent, folders)
 	if err != nil {
 		var errGoogleAPI *googleapi.Error
-		if xerrors.As(err, &errGoogleAPI) {
+		if errors.As(err, &errGoogleAPI) {
 			if errGoogleAPI.Code == http.StatusForbidden {
 				return nil, NewErrPermissionDenied("failed get folders", map[string]interface{}{"parent": parent}, err)
 			}
 		}
-		return nil, xerrors.Errorf("failed get folders : %w", err)
+		return nil, fmt.Errorf("failed get folders : %w", err)
 	}
 	return folders, nil
 }
@@ -369,7 +369,7 @@ func (s *ResourceManagerService) Projects(ctx context.Context, parentID string) 
 		}
 		return nil
 	}); err != nil {
-		return nil, xerrors.Errorf("failed get projects : %w", err)
+		return nil, fmt.Errorf("failed get projects : %w", err)
 	}
 
 	return list, nil
@@ -387,7 +387,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parentTy
 	{
 		ps, err := s.Projects(ctx, parentID)
 		if err != nil {
-			return nil, xerrors.Errorf("failed get projects. parent=%s: %w", parentID, err)
+			return nil, fmt.Errorf("failed get projects. parent=%s: %w", parentID, err)
 		}
 
 		projects = append(projects, ps...)
@@ -396,17 +396,17 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parentTy
 	// 配下の全Folderを取得して、その中のProjectを全部引っ張ってくる
 	folders, err := s.Folders(ctx, fmt.Sprintf("%s/%s", parentType, parentID))
 	if err != nil {
-		return nil, xerrors.Errorf("failed get folders. parent=%s: %w", parentID, err)
+		return nil, fmt.Errorf("failed get folders. parent=%s: %w", parentID, err)
 	}
 
 	for _, folder := range folders {
 		fn := strings.Split(folder.Name, "/")
 		if len(fn) < 2 {
-			return nil, xerrors.Errorf("invalid folder.Name. name=%s", folder.Name)
+			return nil, fmt.Errorf("invalid folder.Name. name=%s", folder.Name)
 		}
 		ps, err := s.Projects(ctx, fn[1])
 		if err != nil {
-			return nil, xerrors.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
+			return nil, fmt.Errorf("failed get projects. parent=%v: %w", folder.Name, err)
 		}
 		projects = append(projects, ps...)
 	}

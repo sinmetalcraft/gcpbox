@@ -1,10 +1,9 @@
 package bigquery_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
-
-	"golang.org/x/xerrors"
 
 	. "github.com/sinmetalcraft/gcpbox/bigquery"
 )
@@ -17,7 +16,7 @@ func TestStreamingInsertError_Error(t *testing.T) {
 	var err error = org
 
 	var sierr *StreamingInsertError
-	if !xerrors.As(err, &sierr) {
+	if !errors.As(err, &sierr) {
 		t.Error("err is not StreamingInsertError")
 	} else {
 		if e, g := org.InsertID, sierr.InsertID; e != g {
@@ -42,7 +41,7 @@ func TestStreamingInsertErrors_Error(t *testing.T) {
 	var err error = org
 
 	var sierr *StreamingInsertErrors
-	if !xerrors.As(err, &sierr) {
+	if !errors.As(err, &sierr) {
 		t.Error("err is not StreamingInsertErrors")
 	} else {
 		if e, g := 2, len(sierr.Errors); e != g {

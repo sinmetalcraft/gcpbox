@@ -3,13 +3,13 @@ package cloudtasks
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
-	"golang.org/x/xerrors"
 	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -135,7 +135,7 @@ func HttpMethodProtoToHttpMethod(method taskspb.HttpMethod) (string, error) {
 	case taskspb.HttpMethod_DELETE:
 		return http.MethodDelete, nil
 	default:
-		return "", xerrors.Errorf("unsupported method %s", method.String())
+		return "", fmt.Errorf("unsupported method %s", method.String())
 	}
 }
 
@@ -205,7 +205,7 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 
 	body, err := json.Marshal(task.Body)
 	if err != nil {
-		return "", xerrors.Errorf("failed json.Marshal(). body=%+v : %w", task.Body, err)
+		return "", fmt.Errorf("failed json.Marshal(). body=%+v : %w", task.Body, err)
 	}
 	got, err := s.CreateTask(ctx, queue, task.Name, &taskspb.HttpRequest{
 		Url:        task.RelativeURI,
@@ -220,7 +220,7 @@ func (s *Service) CreateJsonPostTask(ctx context.Context, queue *Queue, task *Js
 		},
 	}, task.ScheduleTime, task.Deadline, ops...)
 	if err != nil {
-		return "", xerrors.Errorf("failed CreateJsonPostTask(). queue=%+v, body=%+v : %w", queue, task.Body, err)
+		return "", fmt.Errorf("failed CreateJsonPostTask(). queue=%+v, body=%+v : %w", queue, task.Body, err)
 	}
 	return got.Name, nil
 }
@@ -237,7 +237,7 @@ func (s *Service) CreateJsonPostTaskMulti(ctx context.Context, queue *Queue, tas
 			tn, err := s.CreateJsonPostTask(ctx, queue, task, ops...)
 			if err != nil {
 				appErr := &Error{}
-				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+				if errors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
 					appErr.KV["index"] = i
 					merr.Append(appErr)
 					return
@@ -319,7 +319,7 @@ func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask
 		},
 	}, task.ScheduledTime, task.Deadline, ops...)
 	if err != nil {
-		return "", xerrors.Errorf("failed CreateJsonPostTask(). queue=%+v, url=%s : %w", queue, task.RelativeURI, err)
+		return "", fmt.Errorf("failed CreateJsonPostTask(). queue=%+v, url=%s : %w", queue, task.RelativeURI, err)
 	}
 	return got.Name, nil
 }
@@ -336,7 +336,7 @@ func (s *Service) CreateGetTaskMulti(ctx context.Context, queue *Queue, tasks []
 			tn, err := s.CreateGetTask(ctx, queue, task, ops...)
 			if err != nil {
 				appErr := &Error{}
-				if xerrors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
+				if errors.As(err, &appErr) && appErr.Code == ErrAlreadyExists.Code {
 					appErr.KV["index"] = i
 					merr.Append(appErr)
 					return

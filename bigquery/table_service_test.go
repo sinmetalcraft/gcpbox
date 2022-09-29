@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -116,6 +118,43 @@ func TestTableService_ExistTargetColumn(t *testing.T) {
 				t.Errorf("%s\n", df)
 			}
 		})
+	}
+}
+
+func TestRunDMLToShardingTables(t *testing.T) {
+	ctx := context.Background()
+
+	pID := testProjectID(t)
+	bq, err := bigquery.NewClient(ctx, pID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := bqbox.NewTableService(ctx, bq)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	f, err := os.Open(filepath.Join("testdata", "test_dml_to_sharding_tables.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dml, err := io.ReadAll(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	end := time.Now().Add(-48 * time.Hour).Format("20060102") // streaming insertされてる最中のtableはUPDATE/DELETEできないので、前々日までにする
+	_, err = s.RunDMLToShardingTables(ctx, pID, "bqbox",
+		&bqbox.DateShardingTableTarget{
+			Prefix: "cloudaudit_googleapis_com_activity_",
+			Start:  "20220830",
+			End:    end,
+		}, string(dml),
+		bqbox.WithWait(), bqbox.WithStreamLogFn(func(msg string) {
+			fmt.Println(msg)
+		}))
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

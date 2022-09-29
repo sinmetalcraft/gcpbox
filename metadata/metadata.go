@@ -2,13 +2,12 @@ package metadata
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
 
 	"cloud.google.com/go/compute/metadata"
-	"golang.org/x/xerrors"
 )
 
 // OnGCP is GCP上で動いているかどうかを返す
@@ -37,7 +36,7 @@ func ProjectID() (string, error) {
 
 	projectID, err := metadata.ProjectID()
 	if err != nil {
-		return "", xerrors.Errorf("failed get project id from metadata server: %w", err)
+		return "", fmt.Errorf("failed get project id from metadata server: %w", err)
 	}
 	if projectID == "" {
 		return "", NewErrNotFound("project id is not found", nil, nil)
@@ -57,7 +56,7 @@ func NumericProjectID() (string, error) {
 	}
 	numericProjectID, err := metadata.NumericProjectID()
 	if err != nil {
-		return "", xerrors.Errorf("failed get numeric project id from metadata server: %w", err)
+		return "", fmt.Errorf("failed get numeric project id from metadata server: %w", err)
 	}
 	return numericProjectID, nil
 }
@@ -70,7 +69,7 @@ func ServiceAccountEmail() (string, error) {
 	}
 	sa, err := getMetadata("service-accounts/default/email")
 	if err != nil {
-		return "", xerrors.Errorf("failed get ServiceAccountEmail : %w", err)
+		return "", fmt.Errorf("failed get ServiceAccountEmail : %w", err)
 	}
 	return string(sa), nil
 }
@@ -111,7 +110,7 @@ func Region() (string, error) {
 	}
 	zone, err := getMetadata("zone")
 	if err != nil {
-		return "", xerrors.Errorf("failed get Zone : %w", err)
+		return "", fmt.Errorf("failed get Zone : %w", err)
 	}
 
 	return ExtractionRegion(string(zone))
@@ -124,7 +123,7 @@ func Zone() (string, error) {
 	}
 	zone, err := getMetadata("zone")
 	if err != nil {
-		return "", xerrors.Errorf("failed get Zone : %w", err)
+		return "", fmt.Errorf("failed get Zone : %w", err)
 	}
 
 	return ExtractionZone(string(zone))
@@ -161,7 +160,7 @@ func InstanceID() (string, error) {
 	}
 	id, err := getMetadata("id")
 	if err != nil {
-		return "", xerrors.Errorf("failed get instance id : %w", err)
+		return "", fmt.Errorf("failed get instance id : %w", err)
 	}
 	return string(id), nil
 }
@@ -174,7 +173,7 @@ func ServiceAccountDefaultToken() (string, error) {
 	}
 	v, err := getMetadata("service-accounts/default/token")
 	if err != nil {
-		return "", xerrors.Errorf("failed get service account default token : %w", err)
+		return "", fmt.Errorf("failed get service account default token : %w", err)
 	}
 	return string(v), nil
 }
@@ -210,19 +209,19 @@ func GetProjectAttribute(key string) (string, error) {
 func getMetadata(path string) ([]byte, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://metadata.google.internal/computeMetadata/v1/instance/%s", path), nil)
 	if err != nil {
-		return nil, xerrors.Errorf("failed http.NewRequest. path=%s : %w", path, err)
+		return nil, fmt.Errorf("failed http.NewRequest. path=%s : %w", path, err)
 	}
 	req.Header.Set("Metadata-Flavor", "Google")
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, xerrors.Errorf("failed http.SendReq. path=%s : %w", path, err)
+		return nil, fmt.Errorf("failed http.SendReq. path=%s : %w", path, err)
 	}
-	b, err := ioutil.ReadAll(res.Body)
+	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return nil, xerrors.Errorf("failed read response.Body. path=%s : %w", path, err)
+		return nil, fmt.Errorf("failed read response.Body. path=%s : %w", path, err)
 	}
 	if res.StatusCode != http.StatusOK {
-		return nil, xerrors.Errorf("metadata server response is %v:%v", res.StatusCode, string(b))
+		return nil, fmt.Errorf("metadata server response is %v:%v", res.StatusCode, string(b))
 	}
 
 	return b, nil

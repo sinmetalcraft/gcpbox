@@ -2,14 +2,13 @@ package appengine_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
 
 	cloudtasks "cloud.google.com/go/cloudtasks/apiv2"
 	"github.com/google/uuid"
-	"golang.org/x/xerrors"
-
 	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks/appengine"
 )
 
@@ -208,7 +207,7 @@ func TestService_CreateTaskMultiRetry(t *testing.T) {
 		t.Fatal("err is nothing...")
 	}
 	merr := &tasksbox.MultiError{}
-	if xerrors.As(err, &merr) {
+	if errors.As(err, &merr) {
 		for _, ierr := range merr.Errors {
 			index, ok := ierr.KV["index"].(int)
 			if !ok {

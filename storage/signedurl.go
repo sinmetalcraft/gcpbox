@@ -10,7 +10,6 @@ import (
 
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
 	"cloud.google.com/go/storage"
-	"golang.org/x/xerrors"
 	"google.golang.org/api/iam/v1"
 	credentialspb "google.golang.org/genproto/googleapis/iam/credentials/v1"
 )
@@ -47,7 +46,7 @@ func NewStorageSignedURLService(ctx context.Context, serviceAccountEmail string,
 func (s *StorageSignedURLService) CreatePutObjectURL(ctx context.Context, bucket string, object string, contentType string, expires time.Time) (string, error) {
 	u, err := s.CreateSignedURL(ctx, bucket, object, http.MethodPut, contentType, []string{}, url.Values{}, expires)
 	if err != nil {
-		return "", xerrors.Errorf("failed CreatePutObjectURL: %w", err)
+		return "", fmt.Errorf("failed CreatePutObjectURL: %w", err)
 	}
 	return u, nil
 }
@@ -87,7 +86,7 @@ func (s *StorageSignedURLService) CreateDownloadURL(ctx context.Context, bucket 
 	}
 	u, err := s.CreateSignedURL(ctx, bucket, object, http.MethodGet, "", []string{}, qp, expires)
 	if err != nil {
-		return "", xerrors.Errorf("failed CreateDownloadURL: %w", err)
+		return "", fmt.Errorf("failed CreateDownloadURL: %w", err)
 	}
 	return u, nil
 }
@@ -116,7 +115,7 @@ func (s *StorageSignedURLService) CreateSignedURL(ctx context.Context, bucket st
 	}
 	u, err := storage.SignedURL(bucket, object, opt)
 	if err != nil {
-		return "", xerrors.Errorf("failed createSignedURL: sa=%s,bucket=%s,object=%s : %w", s.ServiceAccountEmail, bucket, object, err)
+		return "", fmt.Errorf("failed createSignedURL: sa=%s,bucket=%s,object=%s : %w", s.ServiceAccountEmail, bucket, object, err)
 	}
 	return u, nil
 }

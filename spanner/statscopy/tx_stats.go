@@ -1,11 +1,11 @@
 package statscopy
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"cloud.google.com/go/bigquery"
-	"golang.org/x/xerrors"
 )
 
 const txStatsTopMinute = `
@@ -71,7 +71,7 @@ type TxStat struct {
 func (s *TxStat) Save() (map[string]bigquery.Value, string, error) {
 	insertID, err := s.InsertID()
 	if err != nil {
-		return nil, "", xerrors.Errorf("failed InsertID() : %w", err)
+		return nil, "", fmt.Errorf("failed InsertID() : %w", err)
 	}
 	return map[string]bigquery.Value{
 		"interval_end":                     s.IntervalEnd,
@@ -93,10 +93,10 @@ func (s *TxStat) Save() (map[string]bigquery.Value, string, error) {
 // InsertID is 同じデータをBigQueryになるべく入れないようにデータからInsertIDを作成する
 func (s *TxStat) InsertID() (string, error) {
 	if s.IntervalEnd.IsZero() {
-		return "", xerrors.New("IntervalEnd is required.")
+		return "", errors.New("IntervalEnd is required")
 	}
 	if s.Fprint == 0 {
-		return "", xerrors.New("Fprint is required.")
+		return "", errors.New("fprint is required")
 	}
 	return fmt.Sprintf("GCPBOX_SpannerTxStat-_-%d-_-%d", s.IntervalEnd.Unix(), s.Fprint), nil
 }

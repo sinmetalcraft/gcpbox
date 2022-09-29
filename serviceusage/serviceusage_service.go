@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"golang.org/x/xerrors"
 	crmv1 "google.golang.org/api/cloudresourcemanager/v1"
 	"google.golang.org/api/serviceusage/v1"
 )
@@ -69,12 +69,12 @@ type ServiceDiff struct {
 func (s *ServiceUsageService) ListByDiff(ctx context.Context, baseProjectID string, targetProjectID string) ([]*ServiceDiff, error) {
 	baseList, err := s.ListAll(ctx, baseProjectID)
 	if err != nil {
-		return nil, xerrors.Errorf("failed List ServiceUsage. projectID:%s : %w", baseProjectID, err)
+		return nil, fmt.Errorf("failed List ServiceUsage. projectID:%s : %w", baseProjectID, err)
 	}
 
 	target, err := s.ListAll(ctx, targetProjectID)
 	if err != nil {
-		return nil, xerrors.Errorf("failed List ServiceUsage. projectID:%s : %w", targetProjectID, err)
+		return nil, fmt.Errorf("failed List ServiceUsage. projectID:%s : %w", targetProjectID, err)
 	}
 	targetMap := map[string]*Service{}
 	for _, v := range target {
@@ -118,6 +118,7 @@ func (s *ServiceUsageService) list(ctx context.Context, projectID string, state 
 		}
 		if nextPageToken != "" {
 			call.PageToken(nextPageToken)
+			time.Sleep(1 * time.Second) // requests per minute 60 に引っかからないように少し待つ
 		}
 		resp, err := call.Do()
 		if err != nil {
@@ -158,7 +159,7 @@ func (s *ServiceUsageService) SetState(ctx context.Context, name string, state s
 		return NewUnsupportedState(state)
 	}
 	if err != nil {
-		return xerrors.Errorf("failed SetState. name:%s,state:%s : %w", name, state, err)
+		return fmt.Errorf("failed SetState. name:%s,state:%s : %w", name, state, err)
 	}
 	opeName := ope.Name
 	for {
@@ -167,11 +168,11 @@ func (s *ServiceUsageService) SetState(ctx context.Context, name string, state s
 		}
 		ope, err = s.client.Operations.Get(opeName).Context(ctx).Do()
 		if err != nil {
-			return xerrors.Errorf("failed GetOperation. opeName:%s,name:%s,state:%s : %w", opeName, name, state, err)
+			return fmt.Errorf("failed GetOperation. opeName:%s,name:%s,state:%s : %w", opeName, name, state, err)
 		}
 	}
 	if ope.Error != nil {
-		return xerrors.Errorf("failed SetState. operation error. name:%s,state:%s : %v", name, state, ope.Error)
+		return fmt.Errorf("failed SetState. operation error. name:%s,state:%s : %v", name, state, ope.Error)
 	}
 	return nil
 }
@@ -179,7 +180,7 @@ func (s *ServiceUsageService) SetState(ctx context.Context, name string, state s
 func (s *ServiceUsageService) getProject(ctx context.Context, projectID string) (*crmv1.Project, error) {
 	p, err := s.crmv1Client.Projects.Get(projectID).Context(ctx).Do()
 	if err != nil {
-		return nil, xerrors.Errorf("failed get project. projectID:%s : %w", projectID, err)
+		return nil, fmt.Errorf("failed get project. projectID:%s : %w", projectID, err)
 	}
 	return p, nil
 }
