@@ -96,7 +96,7 @@ func (s *TxStat) InsertID() (string, error) {
 		return "", errors.New("IntervalEnd is required")
 	}
 	if s.Fprint == 0 {
-		return "", errors.New("Fprint is required")
+		return "", errors.New("fprint is required")
 	}
 	return fmt.Sprintf("GCPBOX_SpannerTxStat-_-%d-_-%d", s.IntervalEnd.Unix(), s.Fprint), nil
 }
