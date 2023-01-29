@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"testing"
 
+	taskspb "cloud.google.com/go/cloudtasks/apiv2/cloudtaskspb"
 	tasksbox "github.com/sinmetalcraft/gcpbox/cloudtasks/appengine"
 	tasksfaker "github.com/sinmetalcraft/gcpfaker/cloudtasks"
 	"google.golang.org/api/option"
-	taskspb "google.golang.org/genproto/googleapis/cloud/tasks/v2"
 	"google.golang.org/protobuf/proto"
 )
 

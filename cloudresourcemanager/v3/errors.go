@@ -1,6 +1,7 @@
 package cloudresourcemanager
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 )
@@ -25,7 +26,12 @@ func (e *Error) Error() string {
 	if e.KV == nil || len(e.KV) < 1 {
 		return fmt.Sprintf("%s: %s", e.Code, e.Message)
 	}
-	return fmt.Sprintf("%s: %s: attribute:%+v", e.Code, e.Message, e.KV)
+
+	v, err := json.Marshal(e.KV)
+	if err != nil {
+		return fmt.Sprintf("%s: %s: failed attribute marshal.err=%s. internal err=%s", e.Code, e.Message, err, e.err)
+	}
+	return fmt.Sprintf("%s:%s attribute:%+v internal err=%s", e.Code, e.Message, string(v), e.err)
 }
 
 // Is is err equal check
