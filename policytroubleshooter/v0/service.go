@@ -4,8 +4,8 @@ import (
 	"context"
 
 	pt "cloud.google.com/go/policytroubleshooter/apiv1"
+	ptpb "cloud.google.com/go/policytroubleshooter/apiv1/policytroubleshooterpb"
 	"github.com/sinmetalcraft/gcpbox/internal/trace"
-	ptpb "google.golang.org/genproto/googleapis/cloud/policytroubleshooter/v1"
 )
 
 type Service struct {

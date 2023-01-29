@@ -13,12 +13,12 @@ import (
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/spanner"
 	sadDatabase "cloud.google.com/go/spanner/admin/database/apiv1"
+	"cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	sadInstance "cloud.google.com/go/spanner/admin/instance/apiv1"
+	"cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
 	"github.com/dgryski/go-farm"
 	spabox "github.com/sinmetalcraft/gcpbox/spanner"
 	"google.golang.org/api/googleapi"
-	sdbproto "google.golang.org/genproto/googleapis/spanner/admin/database/v1"
-	protoInstance "google.golang.org/genproto/googleapis/spanner/admin/instance/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -992,10 +992,10 @@ func newSpannerDatabase(t *testing.T, project string, instance string, createSta
 		}
 	}()
 
-	_, err = spannerInstanceAdminClient.CreateInstance(ctx, &protoInstance.CreateInstanceRequest{
+	_, err = spannerInstanceAdminClient.CreateInstance(ctx, &instancepb.CreateInstanceRequest{
 		Parent:     fmt.Sprintf("projects/%s", project),
 		InstanceId: instance,
-		Instance: &protoInstance.Instance{
+		Instance: &instancepb.Instance{
 			Name:      fmt.Sprintf("projects/%s/instances/%s", project, instance),
 			NodeCount: 1,
 		},
@@ -1007,7 +1007,7 @@ func newSpannerDatabase(t *testing.T, project string, instance string, createSta
 			t.Fatal(err)
 		}
 	}
-	_, err = spannerDatabaseAdminClient.CreateDatabase(ctx, &sdbproto.CreateDatabaseRequest{
+	_, err = spannerDatabaseAdminClient.CreateDatabase(ctx, &databasepb.CreateDatabaseRequest{
 		Parent:          fmt.Sprintf("projects/%s/instances/%s", project, instance),
 		CreateStatement: createStatement,
 		ExtraStatements: extraStatements,

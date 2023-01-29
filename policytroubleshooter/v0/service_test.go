@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	pt "cloud.google.com/go/policytroubleshooter/apiv1"
+	ptpb "cloud.google.com/go/policytroubleshooter/apiv1/policytroubleshooterpb"
 	"google.golang.org/api/option"
-	ptpb "google.golang.org/genproto/googleapis/cloud/policytroubleshooter/v1"
 
 	policytroubleshooterbox "github.com/sinmetalcraft/gcpbox/policytroubleshooter/v0"
 )

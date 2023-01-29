@@ -9,9 +9,9 @@ import (
 	"time"
 
 	credentials "cloud.google.com/go/iam/credentials/apiv1"
+	"cloud.google.com/go/iam/credentials/apiv1/credentialspb"
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iam/v1"
-	credentialspb "google.golang.org/genproto/googleapis/iam/credentials/v1"
 )
 
 // StorageSignedURLService is Storage Signed URL Util Service
