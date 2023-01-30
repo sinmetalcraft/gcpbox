@@ -7,6 +7,7 @@ require (
 	cloud.google.com/go/cloudtasks v1.9.0
 	cloud.google.com/go/compute/metadata v0.2.3
 	cloud.google.com/go/iam v0.10.0
+	cloud.google.com/go/monitoring v1.8.0
 	cloud.google.com/go/policytroubleshooter v1.5.0
 	cloud.google.com/go/spanner v1.43.0
 	cloud.google.com/go/storage v1.29.0

@@ -34,5 +34,12 @@ steps:
       - 'GOBIN=/workspace/build-cmd'
       - 'SPANNER_EMULATOR_HOST=spanner-emulator:9010'
       - 'GCPBOX_CI_PROJECT=$PROJECT_ID'
+    secretEnv: ['GCPBOX_ORGANIZATION', 'GCPBOX_SCOPING_PROJECT']
     waitFor: ['spanner-emulator', 'setup']
+availableSecrets:
+  secretManager:
+  - versionName: projects/$PROJECT_ID/secrets/GCPBOX_ORGANIZATION/versions/1
+    env: 'GCPBOX_ORGANIZATION'
+  - versionName: projects/$PROJECT_ID/secrets/GCPBOX_SCOPING_PROJECT/versions/1
+    env: 'GCPBOX_SCOPING_PROJECT'
 
