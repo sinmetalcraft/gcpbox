@@ -54,7 +54,7 @@ func TestService_CreateMonitoredProject(t *testing.T) {
 
 	s := newService(t)
 
-	const monitoredProject = "sinmetal-ci"
+	const monitoredProject = "sinmetal"
 	got, err := s.CreateMonitoredProject(ctx, project, monitoredProject)
 	if err != nil {
 		t.Fatal(err)
