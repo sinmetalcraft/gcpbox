@@ -23,10 +23,16 @@ func TestService_ListMetricsScopesByMonitoredProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(got) != 1 {
+		// 1件だけ返ってくる
+		t.Errorf("want 1 but got %d", len(got))
+	}
 	for _, v := range got {
 		t.Logf("%s\n", v.GetName())
+		// locations/global/metricsScopes/ID
 		for _, p := range v.GetMonitoredProjects() {
 			t.Logf("\t%s\n", p.GetName())
+
 		}
 	}
 }
@@ -42,8 +48,10 @@ func TestService_GetMetricsScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// metrics scopeを作っている場合、いっぱい返ってくる
 	for _, v := range got.MonitoredProjects {
 		t.Logf("%s\n", v.GetName())
+		// locations/global/metricsScopes/{ScopingProjectNumber}/projects/{MonitoringProjectNumber}
 	}
 }
 

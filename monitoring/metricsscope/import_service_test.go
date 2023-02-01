@@ -2,6 +2,7 @@ package metricsscope_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	metricsscope "cloud.google.com/go/monitoring/metricsscope/apiv1"
@@ -18,11 +19,33 @@ func TestService_ImportMonitoredProjects(t *testing.T) {
 
 	s := newTestImportService(t)
 
-	count, err := s.ImportMonitoredProjects(ctx, project, &crmbox.ResourceID{ID: getOrganizationID(t), Type: "organization"})
+	skipFolder := &crmbox.ResourceID{ID: "277206386593", Type: crmbox.ResourceTypeFolder}
+	const excludeProjectNumber = "608153103826" // skipFolderの中のProject
+
+	// すでに入ってると、Importしなくても、すでにある状態になってしまうので、削除する
+	if err := s.MetricsScopesService.DeleteMonitoredProject(ctx, project, excludeProjectNumber); err != nil {
+		t.Fatal(err)
+	}
+
+	count, err := s.ImportMonitoredProjects(ctx, project, &crmbox.ResourceID{ID: getOrganizationID(t), Type: crmbox.ResourceTypeOrganization},
+		metricsscopebox.WithSkipResources(skipFolder))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Logf("Import MonitoredProject Count %d\n", count)
+
+	ms, err := s.MetricsScopesService.GetMetricsScope(ctx, project)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, p := range ms.GetMonitoredProjects() {
+		l := strings.Split(p.GetName(), "/")
+
+		if l[5] == excludeProjectNumber {
+			t.Errorf("%s is exclude project", excludeProjectNumber)
+		}
+	}
 }
 
 func newTestImportService(t *testing.T) *metricsscopebox.ImportService {
