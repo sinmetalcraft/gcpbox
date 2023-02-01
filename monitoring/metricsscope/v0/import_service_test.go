@@ -7,9 +7,8 @@ import (
 
 	metricsscope "cloud.google.com/go/monitoring/metricsscope/apiv1"
 	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
+	metricsscopebox "github.com/sinmetalcraft/gcpbox/monitoring/metricsscope/v0"
 	"google.golang.org/api/cloudresourcemanager/v3"
-
-	metricsscopebox "github.com/sinmetalcraft/gcpbox/monitoring/metricsscope"
 )
 
 func TestService_ImportMonitoredProjects(t *testing.T) {

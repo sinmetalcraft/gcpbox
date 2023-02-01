@@ -6,10 +6,9 @@ import (
 	"testing"
 
 	metricsscope "cloud.google.com/go/monitoring/metricsscope/apiv1"
+	metricsscopebox "github.com/sinmetalcraft/gcpbox/monitoring/metricsscope/v0"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-
-	metricsscopebox "github.com/sinmetalcraft/gcpbox/monitoring/metricsscope"
 )
 
 func TestService_ListMetricsScopesByMonitoredProject(t *testing.T) {
