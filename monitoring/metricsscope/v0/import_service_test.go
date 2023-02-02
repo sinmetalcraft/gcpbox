@@ -2,7 +2,6 @@ package metricsscope_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	metricsscope "cloud.google.com/go/monitoring/metricsscope/apiv1"
@@ -38,10 +37,13 @@ func TestService_ImportMonitoredProjects(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for _, p := range ms.GetMonitoredProjects() {
-		l := strings.Split(p.GetName(), "/")
+	for _, p := range ms.MonitoredProjects {
+		monitoredProject, err := p.MonitoredProjectIDOrNumber()
+		if err != nil {
+			t.Fatal(err)
+		}
 
-		if l[5] == excludeProjectNumber {
+		if monitoredProject == excludeProjectNumber {
 			t.Errorf("%s is exclude project", excludeProjectNumber)
 		}
 	}

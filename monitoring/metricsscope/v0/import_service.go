@@ -35,14 +35,13 @@ func (s *ImportService) ImportMonitoredProjects(ctx context.Context, scopingProj
 	if err != nil {
 		return 0, fmt.Errorf("failed MetricsScopesService.GetMetricsScope. scopingProject=%s,parentResourceID=%v : %w", scopingProject, parentResourceID, err)
 	}
-	existsMonitoredProjects := make(map[string]bool, len(scope.GetMonitoredProjects()))
-	for _, v := range scope.GetMonitoredProjects() {
-		// locations/global/metricsScopes/{ScopingProjectNumber}/projects/{MonitoredProjectNumber}
-		l := strings.Split(v.GetName(), "/")
-		if len(l) != 6 {
-			return 0, fmt.Errorf("invalid MonitoredProjects format. %s", v.GetName())
+	existsMonitoredProjects := make(map[string]bool, len(scope.MonitoredProjects))
+	for _, v := range scope.MonitoredProjects {
+		monitoredProjectNumber, err := v.MonitoredProjectIDOrNumber()
+		if err != nil {
+			return 0, fmt.Errorf("failed MonitoredProjectIDOrNumber. resource=%s : %w", v.Name, err)
 		}
-		existsMonitoredProjects[l[5]] = true
+		existsMonitoredProjects[monitoredProjectNumber] = true
 	}
 
 	l, err := s.ResourceManagerService.GetRelatedProject(ctx, parentResourceID, crmbox.WithSkipResources(opt.skipResources...))
@@ -66,7 +65,7 @@ func (s *ImportService) ImportMonitoredProjects(ctx context.Context, scopingProj
 			fmt.Printf("failed CreateMonitoredProject: %s(%s). %s\n", v.ProjectId, projectNumber, err)
 			continue
 		}
-		fmt.Printf("created MonitoredProject: %s (%s)\n", ret.GetName(), v.ProjectId)
+		fmt.Printf("created MonitoredProject: %s (%s)\n", ret.Name, v.ProjectId)
 		createdCount++
 	}
 	return createdCount, nil

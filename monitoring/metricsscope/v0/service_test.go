@@ -2,7 +2,9 @@ package metricsscope_test
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	metricsscope "cloud.google.com/go/monitoring/metricsscope/apiv1"
@@ -27,10 +29,10 @@ func TestService_ListMetricsScopesByMonitoredProject(t *testing.T) {
 		t.Errorf("want 1 but got %d", len(got))
 	}
 	for _, v := range got {
-		t.Logf("%s\n", v.GetName())
+		t.Logf("%s\n", v.Name)
 		// locations/global/metricsScopes/ID
-		for _, p := range v.GetMonitoredProjects() {
-			t.Logf("\t%s\n", p.GetName())
+		for _, p := range v.MonitoredProjects {
+			t.Logf("\t%s\n", p.Name)
 
 		}
 	}
@@ -40,6 +42,7 @@ func TestService_GetMetricsScope(t *testing.T) {
 	ctx := context.Background()
 
 	project := getScopingProjectID(t)
+	scopingProjectNumber := getScopingProjectNumber(t)
 
 	s := newService(t)
 
@@ -47,10 +50,43 @@ func TestService_GetMetricsScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	gotScopingProjectNumber, err := got.ScopingProjectIDOrNumber()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e, g := scopingProjectNumber, gotScopingProjectNumber; e != g {
+		t.Errorf("want %s but got %s", e, g)
+	}
+
+	const sinmetalCIProjectNumber = "401580979819"
+
 	// metrics scopeを作っている場合、いっぱい返ってくる
 	for _, v := range got.MonitoredProjects {
-		t.Logf("%s\n", v.GetName())
+		t.Logf("%s\n", v.Name)
 		// locations/global/metricsScopes/{ScopingProjectNumber}/projects/{MonitoringProjectNumber}
+
+		// ScopingProjectOrNumber check
+		if strings.Contains(v.Name, fmt.Sprintf("metricsScopes/%s/", project)) {
+			scopingProjectIDOrNumber, err := v.ScopingProjectIDOrNumber()
+			if err != nil {
+				t.Fatalf("failed ScopingProjectIDOrNumber(). %s. name is %s", err, v.Name)
+			}
+			if e, g := project, scopingProjectIDOrNumber; e != g {
+				t.Errorf("want %s but got %s", e, g)
+			}
+		}
+
+		// MonitoredProjectIDOrNumber check
+		if strings.Contains(v.Name, fmt.Sprintf("/projects/%s", sinmetalCIProjectNumber)) {
+			monitoredProjectIDOrNumber, err := v.MonitoredProjectIDOrNumber()
+			if err != nil {
+				t.Fatalf("failed MonitoredProjectIDOrNumber(). %s. name is %s", err, v.Name)
+			}
+			if e, g := sinmetalCIProjectNumber, monitoredProjectIDOrNumber; e != g {
+				t.Errorf("want %s but got %s", e, g)
+			}
+		}
 	}
 }
 
@@ -69,7 +105,7 @@ func TestService_CreateMonitoredProject(t *testing.T) {
 	} else if err != nil {
 		t.Fatal(err)
 	} else {
-		t.Logf("got MonitoredProject:%s\n", got.GetName())
+		t.Logf("got MonitoredProject:%s\n", got.Name)
 	}
 
 	// すでに存在する場合はAlreadyExistsが返ってくる
@@ -100,9 +136,17 @@ func newService(t *testing.T) *metricsscopebox.Service {
 }
 
 func getScopingProjectID(t *testing.T) string {
-	v := os.Getenv("GCPBOX_SCOPING_PROJECT")
+	v := os.Getenv("GCPBOX_SCOPING_PROJECT_ID")
 	if v == "" {
-		t.Fatal("required GCPBOX_SCOPING_PROJECT")
+		t.Fatal("required GCPBOX_SCOPING_PROJECT_ID")
+	}
+	return v
+}
+
+func getScopingProjectNumber(t *testing.T) string {
+	v := os.Getenv("GCPBOX_SCOPING_PROJECT_NUMBER")
+	if v == "" {
+		t.Fatal("required GCPBOX_SCOPING_PROJECT_NUMBER")
 	}
 	return v
 }
