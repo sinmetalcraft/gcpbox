@@ -140,22 +140,24 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 	s := newResourceManagerService(t)
 
 	cases := []struct {
-		name         string
-		parent       *crmbox.ResourceID
-		ops          []crmbox.GetRelatedProjectOptions
-		wantCountMin int
-		wantErr      error
+		name                 string
+		parent               *crmbox.ResourceID
+		ops                  []crmbox.GetRelatedProjectOptions
+		wantCountMin         int
+		wantExcludeProjectID map[string]bool //このProjectIDは取得できてはダメ
+		wantErr              error
 	}{
-		{"正常系 folder", crmbox.NewResourceID(crmbox.ResourceTypeFolder, metalTileFolder), []crmbox.GetRelatedProjectOptions{}, 2, nil},
-		{"正常系 organization", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg), []crmbox.GetRelatedProjectOptions{}, 10, nil},
-		{"権限がないparent", crmbox.NewResourceID(crmbox.ResourceTypeFolder, "105058807061166"), []crmbox.GetRelatedProjectOptions{}, 0, crmbox.ErrPermissionDenied},
-		{"WithAPICallInterval", crmbox.NewResourceID(crmbox.ResourceTypeFolder, metalTileFolder), []crmbox.GetRelatedProjectOptions{crmbox.WithAPICallInterval(1, 10*time.Microsecond)}, 2, nil},
+		{"正常系 folder", crmbox.NewResourceID(crmbox.ResourceTypeFolder, metalTileFolder), []crmbox.GetRelatedProjectOptions{}, 2, map[string]bool{}, nil},
+		{"正常系 organization", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg), []crmbox.GetRelatedProjectOptions{}, 10, map[string]bool{}, nil},
+		{"gcpbox/exclude-metrics-scope", crmbox.NewResourceID(crmbox.ResourceTypeOrganization, sinmetalcraftJPOrg), []crmbox.GetRelatedProjectOptions{crmbox.WithSkipResources(&crmbox.ResourceID{ID: "277206386593", Type: crmbox.ResourceTypeFolder})}, 10, map[string]bool{"firebase-deploy-20230110": true}, nil},
+		{"権限がないparent", crmbox.NewResourceID(crmbox.ResourceTypeFolder, "105058807061166"), []crmbox.GetRelatedProjectOptions{}, 0, map[string]bool{}, crmbox.ErrPermissionDenied},
+		{"WithAPICallInterval", crmbox.NewResourceID(crmbox.ResourceTypeFolder, metalTileFolder), []crmbox.GetRelatedProjectOptions{crmbox.WithAPICallInterval(1, 10*time.Microsecond)}, 2, map[string]bool{}, nil},
 	}
 
 	for _, tt := range cases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.GetRelatedProject(ctx, tt.parent)
+			got, err := s.GetRelatedProject(ctx, tt.parent, tt.ops...)
 			if tt.wantErr != nil {
 				if e, g := tt.wantErr, err; !errors.Is(g, e) {
 					t.Errorf("want error %T but got %T", e, g)
@@ -166,12 +168,18 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 						t.Errorf("ErrPermissionDenied.Target is empty...")
 					}
 				}
-			} else {
-				if err != nil {
-					t.Fatal(err)
-				}
-				if e, g := tt.wantCountMin, len(got); e > g {
-					t.Errorf("want %d but got %d", e, g)
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if e, g := tt.wantCountMin, len(got); e > g {
+				t.Errorf("want %d but got %d", e, g)
+			}
+			for _, project := range got {
+				_, ok := tt.wantExcludeProjectID[project.ProjectId]
+				if ok {
+					t.Errorf("hit exclude project!? %s", project.ProjectId)
 				}
 			}
 		})
@@ -257,8 +265,8 @@ func TestResourceManagerService_ExistsMemberInGCPProjectWithInherit(t *testing.T
 		{"Projectが存在して権限を持っていない", "gcpug-public-spanner", "hoge@example.com", nil, false, crmbox.ErrPermissionDenied},
 		{"Projectが存在していない", "adoi893lda3fd1", "hoge@example.com", nil, false, crmbox.ErrPermissionDenied},
 		{"Projectが存在して、Projectが所属している祖父のFolderの権限を持っているメンバーが存在しているが、step数的に届かない", "gcpbox-ci", "gcpbox-iam-test-1@sinmetal-ci.iam.gserviceaccount.com", []crmbox.ExistsMemberInheritOptions{crmbox.WithStep(1)}, false, nil},
-		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っているメンバーが存在しているが、手前のfolderをtopで終わる", "gcpbox-ci", "gcpbox-iam-test-2@sinmetal-ci.iam.gserviceaccount.com", []crmbox.ExistsMemberInheritOptions{crmbox.WithTopNodes([]*crmbox.ResourceID{&crmbox.ResourceID{Type: "folder", ID: "484650900491"}})}, false, nil},
-		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っているメンバーが存在しているが、Organizationの権限チェックは打ち切る", "gcpbox-ci", "gcpbox-iam-test-2@sinmetal-ci.iam.gserviceaccount.com", []crmbox.ExistsMemberInheritOptions{crmbox.WithCensoredNodes([]*crmbox.ResourceID{&crmbox.ResourceID{Type: "organization", ID: sinmetalcraftJPOrg}})}, false, nil},
+		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っているメンバーが存在しているが、手前のfolderをtopで終わる", "gcpbox-ci", "gcpbox-iam-test-2@sinmetal-ci.iam.gserviceaccount.com", []crmbox.ExistsMemberInheritOptions{crmbox.WithTopNodes(&crmbox.ResourceID{Type: "folder", ID: "484650900491"})}, false, nil},
+		{"Projectが存在して、Projectが所属しているOrganizationの権限を持っているメンバーが存在しているが、Organizationの権限チェックは打ち切る", "gcpbox-ci", "gcpbox-iam-test-2@sinmetal-ci.iam.gserviceaccount.com", []crmbox.ExistsMemberInheritOptions{crmbox.WithCensoredNodes(&crmbox.ResourceID{Type: "organization", ID: sinmetalcraftJPOrg})}, false, nil},
 		{"Projectが存在して権限を持っており、メンバーが存在しているが指定されたRoleではない", "sinmetal-ci", "sinmetal@sinmetalcraft.jp", []crmbox.ExistsMemberInheritOptions{crmbox.WithRolesHaveOne("roles/Owner")}, false, nil},
 	}
 

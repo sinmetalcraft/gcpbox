@@ -477,7 +477,7 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 
 	opt := getRelatedProjectOptions{}
 	for _, o := range ops {
-		o.applyGetRelatedProject(&opt)
+		o(&opt)
 	}
 
 	// 直下のProjectを取得
@@ -486,7 +486,14 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 		if err != nil {
 			return nil, fmt.Errorf("failed get projects. parent=%v: %w", parent, err)
 		}
-		projects = append(projects, ps...)
+		for _, p := range ps {
+			resourceID := &ResourceID{ID: p.ProjectId, Type: "project"}
+			_, ok := opt.skipResources[resourceID.Name()]
+			if ok {
+				continue
+			}
+			projects = append(projects, p)
+		}
 	}
 
 	// 配下の全Folderを取得して、その中のProjectを全部引っ張ってくる
@@ -505,6 +512,11 @@ func (s *ResourceManagerService) GetRelatedProject(ctx context.Context, parent *
 		fn, err := ConvertResourceID(folder.Name)
 		if err != nil {
 			return nil, fmt.Errorf("invalid folder.Name. name=%s : %w", folder.Name, err)
+		}
+
+		_, ok := opt.skipResources[fn.Name()]
+		if ok {
+			continue
 		}
 
 		// CloudResourceManagerAPIはQuotaが低いので、QuotaErrorが返ってきたら、しばらく待ってから再度実行してみる
