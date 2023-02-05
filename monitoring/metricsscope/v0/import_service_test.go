@@ -2,14 +2,15 @@ package metricsscope_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	metricsscope "cloud.google.com/go/monitoring/metricsscope/apiv1"
+	"github.com/googleapis/gax-go/v2/apierror"
 	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
 	metricsscopebox "github.com/sinmetalcraft/gcpbox/monitoring/metricsscope/v0"
 	"google.golang.org/api/cloudresourcemanager/v3"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestService_ImportMonitoredProjects(t *testing.T) {
@@ -24,8 +25,13 @@ func TestService_ImportMonitoredProjects(t *testing.T) {
 
 	// すでに入ってると、Importしなくても、すでにある状態になってしまうので、削除する
 	if err := s.MetricsScopesService.DeleteMonitoredProject(ctx, project, excludeProjectNumber); err != nil {
-		if status.Code(err) != codes.NotFound {
-			// noop
+		var aerr *apierror.APIError
+		if errors.As(err, &aerr) {
+			if aerr.GRPCStatus().Code() == codes.NotFound {
+				// noop
+			} else {
+				t.Fatal(err)
+			}
 		} else {
 			t.Fatal(err)
 		}
