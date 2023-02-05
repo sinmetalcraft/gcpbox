@@ -8,6 +8,8 @@ import (
 	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
 	metricsscopebox "github.com/sinmetalcraft/gcpbox/monitoring/metricsscope/v0"
 	"google.golang.org/api/cloudresourcemanager/v3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestService_ImportMonitoredProjects(t *testing.T) {
@@ -22,7 +24,11 @@ func TestService_ImportMonitoredProjects(t *testing.T) {
 
 	// すでに入ってると、Importしなくても、すでにある状態になってしまうので、削除する
 	if err := s.MetricsScopesService.DeleteMonitoredProject(ctx, project, excludeProjectNumber); err != nil {
-		t.Fatal(err)
+		if status.Code(err) != codes.NotFound {
+			// noop
+		} else {
+			t.Fatal(err)
+		}
 	}
 
 	count, err := s.ImportMonitoredProjects(ctx, project, &crmbox.ResourceID{ID: getOrganizationID(t), Type: crmbox.ResourceTypeOrganization},
