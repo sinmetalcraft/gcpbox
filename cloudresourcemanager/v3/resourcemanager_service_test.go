@@ -157,7 +157,7 @@ func TestResourceManagerService_GetRelatedProject(t *testing.T) {
 	for _, tt := range cases {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.GetRelatedProject(ctx, tt.parent)
+			got, err := s.GetRelatedProject(ctx, tt.parent, tt.ops...)
 			if tt.wantErr != nil {
 				if e, g := tt.wantErr, err; !errors.Is(g, e) {
 					t.Errorf("want error %T but got %T", e, g)
