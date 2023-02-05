@@ -109,7 +109,7 @@ func SetAttributesKV(ctx context.Context, kv map[string]interface{}) {
 		case float64:
 			span.AddAttributes(trace.Float64Attribute(k, float64(v)))
 		default:
-			trace.StringAttribute(k, fmt.Sprintf("%#v", v))
+			span.AddAttributes(trace.StringAttribute(k, fmt.Sprintf("%#v", v)))
 		}
 	}
 }
