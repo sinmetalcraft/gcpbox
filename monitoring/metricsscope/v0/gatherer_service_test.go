@@ -3,27 +3,28 @@ package metricsscope_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	metricsscope "cloud.google.com/go/monitoring/metricsscope/apiv1"
 	"github.com/googleapis/gax-go/v2/apierror"
-	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
+	assetbox "github.com/sinmetalcraft/gcpbox/asset/v0"
 	metricsscopebox "github.com/sinmetalcraft/gcpbox/monitoring/metricsscope/v0"
-	"google.golang.org/api/cloudresourcemanager/v3"
+	"google.golang.org/api/cloudasset/v1"
 	"google.golang.org/grpc/codes"
 )
 
-func TestService_ImportMonitoredProjects(t *testing.T) {
+func TestGathererService_GatherMonitoredProjects(t *testing.T) {
 	ctx := context.Background()
 
 	project := getScopingProjectID(t)
 
 	s := newTestImportService(t)
 
-	skipFolder := &crmbox.ResourceID{ID: "277206386593", Type: crmbox.ResourceTypeFolder}
+	skipFolder := "277206386593"
 	const excludeProjectNumber = "608153103826" // skipFolderの中のProject
 
-	// すでに入ってると、Importしなくても、すでにある状態になってしまうので、削除する
+	// すでに入ってると、衝突するので、削除する
 	if err := s.MetricsScopesService.DeleteMonitoredProject(ctx, project, excludeProjectNumber); err != nil {
 		var aerr *apierror.APIError
 		if errors.As(err, &aerr) {
@@ -37,12 +38,12 @@ func TestService_ImportMonitoredProjects(t *testing.T) {
 		}
 	}
 
-	count, err := s.ImportMonitoredProjects(ctx, project, &crmbox.ResourceID{ID: getOrganizationID(t), Type: crmbox.ResourceTypeOrganization},
-		metricsscopebox.WithSkipResources(skipFolder))
+	count, err := s.GatherMonitoredProjects(ctx, project, &assetbox.OrganizationScope{Number: getOrganizationID(t)},
+		fmt.Sprintf("NOT folders:folders/%s", skipFolder))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("Import MonitoredProject Count %d\n", count)
+	t.Logf("Gather MonitoredProject Count %d\n", count)
 
 	ms, err := s.MetricsScopesService.GetMetricsScope(ctx, project)
 	if err != nil {
@@ -61,7 +62,7 @@ func TestService_ImportMonitoredProjects(t *testing.T) {
 	}
 }
 
-func newTestImportService(t *testing.T) *metricsscopebox.ImportService {
+func newTestImportService(t *testing.T) *metricsscopebox.GathererService {
 	ctx := context.Background()
 
 	client, err := metricsscope.NewMetricsScopesClient(ctx)
@@ -74,17 +75,17 @@ func newTestImportService(t *testing.T) *metricsscopebox.ImportService {
 		t.Fatal(err)
 	}
 
-	crmService, err := cloudresourcemanager.NewService(ctx)
+	assetService, err := cloudasset.NewService(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	resourceManagerService, err := crmbox.NewResourceManagerService(ctx, crmService)
+	assetBoxService, err := assetbox.NewService(ctx, assetService)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s, err := metricsscopebox.NewImportService(ctx, metricsScopesService, resourceManagerService)
+	s, err := metricsscopebox.NewGathererService(ctx, metricsScopesService, assetBoxService)
 	if err != nil {
 		t.Fatal(err)
 	}
