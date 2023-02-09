@@ -22,6 +22,10 @@ func (s *OrganizationScope) Scope() string {
 	return fmt.Sprintf("organizations/%s", s.Number)
 }
 
+func (s *OrganizationScope) String() string {
+	return s.Scope()
+}
+
 type FolderScope struct {
 	IDOrNumber string
 }
@@ -30,12 +34,20 @@ func (s *FolderScope) Scope() string {
 	return fmt.Sprintf("folders/%s", s.IDOrNumber)
 }
 
+func (s *FolderScope) String() string {
+	return s.Scope()
+}
+
 type ProjectScope struct {
 	IDOrNumber string
 }
 
 func (s *ProjectScope) Scope() string {
 	return fmt.Sprintf("projects/%s", s.IDOrNumber)
+}
+
+func (s *ProjectScope) String() string {
+	return s.Scope()
 }
 
 type Service struct {
@@ -67,26 +79,17 @@ const (
 	OrderByParentFullResourceNameDesc = "parentFullResourceName DESC"
 )
 
-/*
-	{
-	  "name": "//cloudresourcemanager.googleapis.com/projects/sinmetalcraft-monitoring-all1",
-	  "assetType": "cloudresourcemanager.googleapis.com/Project",
-	  "project": "projects/336622473699",
-	  "displayName": "sinmetalcraft-monitoring-all1",
-	  "location": "global",
-	  "additionalAttributes": {
-	    "projectId": "sinmetalcraft-monitoring-all1"
-	  },
-	  "createTime": "2023-01-19T08:30:31Z",
-	  "state": "ACTIVE",
-	  "organization": "organizations/190932998497",
-	  "parentFullResourceName": "//cloudresourcemanager.googleapis.com/organizations/190932998497",
-	  "parentAssetType": "cloudresourcemanager.googleapis.com/Organization"
-	},
-*/
-func (s *Service) ListProject(ctx context.Context, scope Scope, orderBy string) (rets []*Project, err error) {
+func (s *Service) ListProject(ctx context.Context, scope Scope, query string, orderBy string) (rets []*Project, err error) {
 	const assetTypes = "cloudresourcemanager.googleapis.com/Project"
-	resp, err := s.AssetService.V1.SearchAllResources(scope.Scope()).AssetTypes(assetTypes).OrderBy(orderBy).Context(ctx).Do()
+
+	call := s.AssetService.V1.SearchAllResources(scope.Scope()).AssetTypes(assetTypes).Context(ctx)
+	if query != "" {
+		call = call.Query(query)
+	}
+	if orderBy != "" {
+		call = call.OrderBy(orderBy)
+	}
+	resp, err := call.Do()
 	if err != nil {
 		return nil, err
 	}
