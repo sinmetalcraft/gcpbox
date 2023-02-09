@@ -45,15 +45,16 @@ func (s *ImportService) ImportMonitoredProjects(ctx context.Context, scopingProj
 		existsMonitoredProjects[monitoredProjectNumber] = true
 	}
 
+	if query == "" {
+		query = "state=ACTIVE"
+	} else {
+		query = fmt.Sprintf("state=ACTIVE AND %s", query)
+	}
+
 	l, err := s.AssetService.ListProject(ctx, parentScope, query, assetbox.OrderByCreateTimeDesc)
 	if err != nil {
 		return 0, err
 	}
-
-	//l, err := s.ResourceManagerService.GetRelatedProject(ctx, parentResourceID, crmbox.WithSkipResources(opt.skipResources...))
-	//if err != nil {
-	//	return 0, fmt.Errorf("failed ResourceManagerService.GetRelatedProject. scopingProject=%s,parentResourceID=%v : %w", scopingProject, parentResourceID, err)
-	//}
 
 	var createdCount int
 	for _, v := range l {

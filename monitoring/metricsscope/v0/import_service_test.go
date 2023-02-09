@@ -39,7 +39,7 @@ func TestService_ImportMonitoredProjects(t *testing.T) {
 	}
 
 	count, err := s.ImportMonitoredProjects(ctx, project, &assetbox.OrganizationScope{Number: getOrganizationID(t)},
-		fmt.Sprintf("state=ACTIVE NOT folders:folders/%s", skipFolder))
+		fmt.Sprintf("NOT folders:folders/%s", skipFolder))
 	if err != nil {
 		t.Fatal(err)
 	}
