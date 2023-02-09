@@ -3,8 +3,8 @@ package metricsscope
 import (
 	"context"
 	"fmt"
-	"strings"
 
+	assetbox "github.com/sinmetalcraft/gcpbox/asset/v0"
 	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
 	"github.com/sinmetalcraft/gcpbox/internal/trace"
 )
@@ -12,17 +12,18 @@ import (
 type ImportService struct {
 	MetricsScopesService   *Service
 	ResourceManagerService *crmbox.ResourceManagerService
+	AssetService           *assetbox.Service
 }
 
-func NewImportService(ctx context.Context, metricsScopesService *Service, resourceManagerService *crmbox.ResourceManagerService) (*ImportService, error) {
+func NewImportService(ctx context.Context, metricsScopesService *Service, assetService *assetbox.Service) (*ImportService, error) {
 	return &ImportService{
-		MetricsScopesService:   metricsScopesService,
-		ResourceManagerService: resourceManagerService,
+		MetricsScopesService: metricsScopesService,
+		AssetService:         assetService,
 	}, nil
 }
 
 // ImportMonitoredProjects is scopingProjectのMetricsScopeにparentResourceID配下のProjectを追加する
-func (s *ImportService) ImportMonitoredProjects(ctx context.Context, scopingProject string, parentResourceID *crmbox.ResourceID, ops ...ImportServiceOptions) (importCount int, err error) {
+func (s *ImportService) ImportMonitoredProjects(ctx context.Context, scopingProject string, parentScope assetbox.Scope, query string, ops ...ImportServiceOptions) (importCount int, err error) {
 	ctx = trace.StartSpan(ctx, "monitoring.metricsscope.ImportService.ImportMonitoredProjects")
 	defer trace.EndSpan(ctx, err)
 
@@ -33,7 +34,7 @@ func (s *ImportService) ImportMonitoredProjects(ctx context.Context, scopingProj
 
 	scope, err := s.MetricsScopesService.GetMetricsScope(ctx, scopingProject)
 	if err != nil {
-		return 0, fmt.Errorf("failed MetricsScopesService.GetMetricsScope. scopingProject=%s,parentResourceID=%v : %w", scopingProject, parentResourceID, err)
+		return 0, fmt.Errorf("failed MetricsScopesService.GetMetricsScope. scopingProject=%s,parentScope=%v : %w", scopingProject, scope, err)
 	}
 	existsMonitoredProjects := make(map[string]bool, len(scope.MonitoredProjects))
 	for _, v := range scope.MonitoredProjects {
@@ -44,28 +45,32 @@ func (s *ImportService) ImportMonitoredProjects(ctx context.Context, scopingProj
 		existsMonitoredProjects[monitoredProjectNumber] = true
 	}
 
-	l, err := s.ResourceManagerService.GetRelatedProject(ctx, parentResourceID, crmbox.WithSkipResources(opt.skipResources...))
+	l, err := s.AssetService.ListProject(ctx, parentScope, query, assetbox.OrderByCreateTimeDesc)
 	if err != nil {
-		return 0, fmt.Errorf("failed ResourceManagerService.GetRelatedProject. scopingProject=%s,parentResourceID=%v : %w", scopingProject, parentResourceID, err)
+		return 0, err
 	}
+
+	//l, err := s.ResourceManagerService.GetRelatedProject(ctx, parentResourceID, crmbox.WithSkipResources(opt.skipResources...))
+	//if err != nil {
+	//	return 0, fmt.Errorf("failed ResourceManagerService.GetRelatedProject. scopingProject=%s,parentResourceID=%v : %w", scopingProject, parentResourceID, err)
+	//}
 
 	var createdCount int
 	for _, v := range l {
-		projectNumber := strings.ReplaceAll(v.Name, "projects/", "")
-		if projectNumber == scopingProject {
+		if v.ProjectNumber == scopingProject {
 			continue
 		}
-		_, ok := existsMonitoredProjects[projectNumber]
+		_, ok := existsMonitoredProjects[v.ProjectNumber]
 		if ok {
 			continue
 		}
 
-		ret, err := s.MetricsScopesService.CreateMonitoredProject(ctx, scopingProject, projectNumber)
+		ret, err := s.MetricsScopesService.CreateMonitoredProject(ctx, scopingProject, v.ProjectNumber)
 		if err != nil {
-			fmt.Printf("failed CreateMonitoredProject: %s(%s). %s\n", v.ProjectId, projectNumber, err)
+			fmt.Printf("failed CreateMonitoredProject: %s(%s). %s\n", v.ProjectID, v.ProjectNumber, err)
 			continue
 		}
-		fmt.Printf("created MonitoredProject: %s (%s)\n", ret.Name, v.ProjectId)
+		fmt.Printf("created MonitoredProject: %s (%s)\n", ret.Name, v.ProjectID)
 		createdCount++
 	}
 	return createdCount, nil
