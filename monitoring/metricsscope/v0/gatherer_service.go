@@ -5,32 +5,28 @@ import (
 	"fmt"
 
 	assetbox "github.com/sinmetalcraft/gcpbox/asset/v0"
-	crmbox "github.com/sinmetalcraft/gcpbox/cloudresourcemanager/v3"
 	"github.com/sinmetalcraft/gcpbox/internal/trace"
 )
 
-type ImportService struct {
-	MetricsScopesService   *Service
-	ResourceManagerService *crmbox.ResourceManagerService
-	AssetService           *assetbox.Service
+type GathererService struct {
+	MetricsScopesService *Service
+	AssetService         *assetbox.Service
 }
 
-func NewImportService(ctx context.Context, metricsScopesService *Service, assetService *assetbox.Service) (*ImportService, error) {
-	return &ImportService{
+func NewGathererService(ctx context.Context, metricsScopesService *Service, assetService *assetbox.Service) (*GathererService, error) {
+	return &GathererService{
 		MetricsScopesService: metricsScopesService,
 		AssetService:         assetService,
 	}, nil
 }
 
-// ImportMonitoredProjects is scopingProjectのMetricsScopeにparentResourceID配下のProjectを追加する
-func (s *ImportService) ImportMonitoredProjects(ctx context.Context, scopingProject string, parentScope assetbox.Scope, query string, ops ...ImportServiceOptions) (importCount int, err error) {
-	ctx = trace.StartSpan(ctx, "monitoring.metricsscope.ImportService.ImportMonitoredProjects")
+// GatherMonitoredProjects is scopingProjectのMetricsScopeにparentResourceID配下のProjectを追加する
+//
+// すでに存在しているProjectは無視する
+// queryはCloud Asset APIのquery https://cloud.google.com/asset-inventory/docs/searching-resources?hl=ja#how_to_construct_a_query
+func (s *GathererService) GatherMonitoredProjects(ctx context.Context, scopingProject string, parentScope assetbox.Scope, query string) (gatherCount int, err error) {
+	ctx = trace.StartSpan(ctx, "monitoring.metricsscope.GathererService.GatherMonitoredProjects")
 	defer trace.EndSpan(ctx, err)
-
-	opt := importServiceOptions{}
-	for _, o := range ops {
-		o(&opt)
-	}
 
 	scope, err := s.MetricsScopesService.GetMetricsScope(ctx, scopingProject)
 	if err != nil {
