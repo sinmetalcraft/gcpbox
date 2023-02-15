@@ -62,6 +62,28 @@ func TestGathererService_GatherMonitoredProjects(t *testing.T) {
 	}
 }
 
+func TestGathererService_CleanUp(t *testing.T) {
+	ctx := context.Background()
+
+	project := "sinmetalcraft-monitoring-all2"
+
+	s := newTestImportService(t)
+
+	createCount, err := s.GatherMonitoredProjects(ctx, project, &assetbox.OrganizationScope{Number: getOrganizationID(t)}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("Gather MonitoredProject Count %d\n", createCount)
+
+	cleanUpCount, err := s.CleanUp(ctx, project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleanUpCount < 1 {
+		t.Errorf("cleanUpCount is %d", cleanUpCount)
+	}
+}
+
 func newTestImportService(t *testing.T) *metricsscopebox.GathererService {
 	ctx := context.Background()
 

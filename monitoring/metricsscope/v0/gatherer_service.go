@@ -72,3 +72,39 @@ func (s *GathererService) GatherMonitoredProjects(ctx context.Context, scopingPr
 	}
 	return createdCount, nil
 }
+
+// CleanUp is 指定したscopingProjectのmetrics scopeをすべて削除して、初期状態にする
+func (s *GathererService) CleanUp(ctx context.Context, scopingProject string) (cleanUpCount int, err error) {
+	ctx = trace.StartSpan(ctx, "monitoring.metricsscope.GathererService.CleanUp")
+	defer trace.EndSpan(ctx, err)
+
+	scope, err := s.MetricsScopesService.GetMetricsScope(ctx, scopingProject)
+	if err != nil {
+		return 0, fmt.Errorf("failed MetricsScopesService.GetMetricsScope. scopingProject=%s : %w", scopingProject, err)
+	}
+
+	var count int
+	for _, v := range scope.MonitoredProjects {
+		scopingProject, err := v.ScopingProjectIDOrNumber()
+		if err != nil {
+			return count, fmt.Errorf("failed ScopingProjectIDOrNumber name=%s : %w", v.Name, err)
+		}
+
+		monitoredProject, err := v.MonitoredProjectIDOrNumber()
+		if err != nil {
+			return count, fmt.Errorf("failed MonitoredProjectIDOrNumber name=%s : %w", v.Name, err)
+		}
+
+		if scopingProject == monitoredProject {
+			// 自分は削除できないので、skip
+			continue
+		}
+
+		if err := s.MetricsScopesService.DeleteMonitoredProjectByMonitoredProjectName(ctx, v.Name); err != nil {
+			return count, fmt.Errorf("failed GathererService.DeleteMonitoredProjectByMonitoredProjectName. name=%s : %w", v.Name, err)
+		} else {
+			count++
+		}
+	}
+	return count, err
+}
