@@ -89,30 +89,41 @@ func (s *Service) ListProject(ctx context.Context, scope Scope, query string, or
 	if orderBy != "" {
 		call = call.OrderBy(orderBy)
 	}
-	resp, err := call.Do()
-	if err != nil {
-		return nil, err
-	}
-	for _, v := range resp.Results {
-		attributes := map[string]interface{}{}
-		if err := json.Unmarshal(v.AdditionalAttributes, &attributes); err != nil {
-			return nil, fmt.Errorf("failed parse AdditionalAttributes %s: %w", v.AdditionalAttributes, err)
+	var nextPageToken string
+	for {
+		if nextPageToken != "" {
+			call.PageToken(nextPageToken)
 		}
-		projectNumber := strings.ReplaceAll(v.Project, "projects/", "")
-		orgNumber := strings.ReplaceAll(v.Organization, "organizations/", "")
-		createTime, err := time.Parse(time.RFC3339, v.CreateTime)
+		resp, err := call.Do()
 		if err != nil {
-			return nil, fmt.Errorf("failed parse CreateTime %s: %w", v.CreateTime, err)
+			return nil, err
 		}
-		rets = append(rets, &Project{
-			ProjectID:              attributes["projectId"].(string),
-			ProjectNumber:          projectNumber,
-			DisplayName:            v.DisplayName,
-			State:                  v.State,
-			OrganizationNumber:     orgNumber,
-			ParentFullResourceName: v.ParentFullResourceName,
-			CreateTime:             createTime,
-		})
+		nextPageToken = resp.NextPageToken
+		for _, v := range resp.Results {
+			attributes := map[string]interface{}{}
+			if err := json.Unmarshal(v.AdditionalAttributes, &attributes); err != nil {
+				return nil, fmt.Errorf("failed parse AdditionalAttributes %s: %w", v.AdditionalAttributes, err)
+			}
+			projectNumber := strings.ReplaceAll(v.Project, "projects/", "")
+			orgNumber := strings.ReplaceAll(v.Organization, "organizations/", "")
+			createTime, err := time.Parse(time.RFC3339, v.CreateTime)
+			if err != nil {
+				return nil, fmt.Errorf("failed parse CreateTime %s: %w", v.CreateTime, err)
+			}
+			rets = append(rets, &Project{
+				ProjectID:              attributes["projectId"].(string),
+				ProjectNumber:          projectNumber,
+				DisplayName:            v.DisplayName,
+				State:                  v.State,
+				OrganizationNumber:     orgNumber,
+				ParentFullResourceName: v.ParentFullResourceName,
+				CreateTime:             createTime,
+			})
+		}
+		if nextPageToken == "" {
+			break
+		}
 	}
+
 	return rets, nil
 }
