@@ -21,7 +21,7 @@ func TestService_ListProject(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rets, err := assetBoxService.ListProject(ctx, &assetbox.OrganizationScope{Number: "190932998497"}, "NOT folders:folders/277206386593", assetbox.OrderByCreateTimeDesc)
+	rets, err := assetBoxService.ListProject(ctx, &assetbox.OrganizationScope{ID: "190932998497"}, "NOT folders:folders/277206386593", assetbox.OrderByCreateTimeDesc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,8 +38,8 @@ func TestService_ListProject(t *testing.T) {
 		if v.State == "" {
 			t.Errorf("State is empty")
 		}
-		if v.OrganizationNumber == "" {
-			t.Errorf("OrganizationNumber is empty")
+		if v.OrganizationID == "" {
+			t.Errorf("OrganizationID is empty")
 		}
 		if v.ParentFullResourceName == "" {
 			t.Errorf("ParentFullResourceName is empty")

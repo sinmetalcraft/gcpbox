@@ -15,11 +15,11 @@ type Scope interface {
 }
 
 type OrganizationScope struct {
-	Number string
+	ID string
 }
 
 func (s *OrganizationScope) Scope() string {
-	return fmt.Sprintf("organizations/%s", s.Number)
+	return fmt.Sprintf("organizations/%s", s.ID)
 }
 
 func (s *OrganizationScope) String() string {
@@ -27,11 +27,11 @@ func (s *OrganizationScope) String() string {
 }
 
 type FolderScope struct {
-	IDOrNumber string
+	ID string
 }
 
 func (s *FolderScope) Scope() string {
-	return fmt.Sprintf("folders/%s", s.IDOrNumber)
+	return fmt.Sprintf("folders/%s", s.ID)
 }
 
 func (s *FolderScope) String() string {
@@ -65,7 +65,7 @@ type Project struct {
 	ProjectNumber          string    `json:"projectNumber"`
 	DisplayName            string    `json:"displayName"`
 	State                  string    `json:"state"`
-	OrganizationNumber     string    `json:"organizationNumber"`
+	OrganizationID         string    `json:"organizationID"`
 	ParentFullResourceName string    `json:"parentFullResourceName"`
 	CreateTime             time.Time `json:"createTime"`
 }
@@ -105,7 +105,7 @@ func (s *Service) ListProject(ctx context.Context, scope Scope, query string, or
 				return nil, fmt.Errorf("failed parse AdditionalAttributes %s: %w", v.AdditionalAttributes, err)
 			}
 			projectNumber := strings.ReplaceAll(v.Project, "projects/", "")
-			orgNumber := strings.ReplaceAll(v.Organization, "organizations/", "")
+			orgID := strings.ReplaceAll(v.Organization, "organizations/", "")
 			createTime, err := time.Parse(time.RFC3339, v.CreateTime)
 			if err != nil {
 				return nil, fmt.Errorf("failed parse CreateTime %s: %w", v.CreateTime, err)
@@ -115,7 +115,7 @@ func (s *Service) ListProject(ctx context.Context, scope Scope, query string, or
 				ProjectNumber:          projectNumber,
 				DisplayName:            v.DisplayName,
 				State:                  v.State,
-				OrganizationNumber:     orgNumber,
+				OrganizationID:         orgID,
 				ParentFullResourceName: v.ParentFullResourceName,
 				CreateTime:             createTime,
 			})

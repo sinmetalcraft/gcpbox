@@ -38,7 +38,7 @@ func TestGathererService_GatherMonitoredProjects(t *testing.T) {
 		}
 	}
 
-	count, err := s.GatherMonitoredProjects(ctx, project, &assetbox.OrganizationScope{Number: getOrganizationID(t)},
+	count, err := s.GatherMonitoredProjects(ctx, project, &assetbox.OrganizationScope{ID: getOrganizationID(t)},
 		fmt.Sprintf("NOT folders:folders/%s", skipFolder))
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +69,7 @@ func TestGathererService_CleanUp(t *testing.T) {
 
 	s := newTestImportService(t)
 
-	createCount, err := s.GatherMonitoredProjects(ctx, project, &assetbox.OrganizationScope{Number: getOrganizationID(t)}, "")
+	createCount, err := s.GatherMonitoredProjects(ctx, project, &assetbox.OrganizationScope{ID: getOrganizationID(t)}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
