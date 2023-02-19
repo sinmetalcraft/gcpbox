@@ -3,6 +3,7 @@ module github.com/sinmetalcraft/gcpbox
 go 1.19
 
 require (
+	cloud.google.com/go/asset v1.11.1
 	cloud.google.com/go/bigquery v1.45.0
 	cloud.google.com/go/cloudtasks v1.9.0
 	cloud.google.com/go/compute/metadata v0.2.3
@@ -30,8 +31,10 @@ require (
 
 require (
 	cloud.google.com/go v0.109.0 // indirect
+	cloud.google.com/go/accesscontextmanager v1.4.0 // indirect
 	cloud.google.com/go/compute v1.18.0 // indirect
 	cloud.google.com/go/longrunning v0.3.0 // indirect
+	cloud.google.com/go/osconfig v1.10.0 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cncf/udpa/go v0.0.0-20220112060539-c52dc94e7fbe // indirect

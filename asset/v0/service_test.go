@@ -4,19 +4,19 @@ import (
 	"context"
 	"testing"
 
+	cloudasset "cloud.google.com/go/asset/apiv1"
 	assetbox "github.com/sinmetalcraft/gcpbox/asset/v0"
-	"google.golang.org/api/cloudasset/v1"
 )
 
 func TestService_ListProject(t *testing.T) {
 	ctx := context.Background()
 
-	assetService, err := cloudasset.NewService(ctx)
+	assetClient, err := cloudasset.NewClient(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assetBoxService, err := assetbox.NewService(ctx, assetService)
+	assetBoxService, err := assetbox.NewService(ctx, assetClient)
 	if err != nil {
 		t.Fatal(err)
 	}

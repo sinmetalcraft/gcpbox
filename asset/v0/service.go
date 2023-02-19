@@ -2,12 +2,13 @@ package asset
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"google.golang.org/api/cloudasset/v1"
+	cloudasset "cloud.google.com/go/asset/apiv1"
+	assetpb "cloud.google.com/go/asset/apiv1/assetpb"
+	"google.golang.org/api/iterator"
 )
 
 type Scope interface {
@@ -51,12 +52,12 @@ func (s *ProjectScope) String() string {
 }
 
 type Service struct {
-	AssetService *cloudasset.Service
+	AssetClient *cloudasset.Client
 }
 
-func NewService(ctx context.Context, assetService *cloudasset.Service) (*Service, error) {
+func NewService(ctx context.Context, assetClient *cloudasset.Client) (*Service, error) {
 	return &Service{
-		AssetService: assetService,
+		AssetClient: assetClient,
 	}, nil
 }
 
@@ -80,49 +81,34 @@ const (
 )
 
 func (s *Service) ListProject(ctx context.Context, scope Scope, query string, orderBy string) (rets []*Project, err error) {
-	const assetTypes = "cloudresourcemanager.googleapis.com/Project"
+	const projectAssetType = "cloudresourcemanager.googleapis.com/Project"
 
-	call := s.AssetService.V1.SearchAllResources(scope.Scope()).AssetTypes(assetTypes).Context(ctx)
-	if query != "" {
-		call = call.Query(query)
+	req := &assetpb.SearchAllResourcesRequest{
+		Scope:      scope.Scope(),
+		AssetTypes: []string{projectAssetType},
+		Query:      query,
+		OrderBy:    orderBy,
 	}
-	if orderBy != "" {
-		call = call.OrderBy(orderBy)
-	}
-	var nextPageToken string
+
+	iter := s.AssetClient.SearchAllResources(ctx, req)
 	for {
-		if nextPageToken != "" {
-			call.PageToken(nextPageToken)
-		}
-		resp, err := call.Do()
-		if err != nil {
-			return nil, err
-		}
-		nextPageToken = resp.NextPageToken
-		for _, v := range resp.Results {
-			attributes := map[string]interface{}{}
-			if err := json.Unmarshal(v.AdditionalAttributes, &attributes); err != nil {
-				return nil, fmt.Errorf("failed parse AdditionalAttributes %s: %w", v.AdditionalAttributes, err)
-			}
-			projectNumber := strings.ReplaceAll(v.Project, "projects/", "")
-			orgID := strings.ReplaceAll(v.Organization, "organizations/", "")
-			createTime, err := time.Parse(time.RFC3339, v.CreateTime)
-			if err != nil {
-				return nil, fmt.Errorf("failed parse CreateTime %s: %w", v.CreateTime, err)
-			}
-			rets = append(rets, &Project{
-				ProjectID:              attributes["projectId"].(string),
-				ProjectNumber:          projectNumber,
-				DisplayName:            v.DisplayName,
-				State:                  v.State,
-				OrganizationID:         orgID,
-				ParentFullResourceName: v.ParentFullResourceName,
-				CreateTime:             createTime,
-			})
-		}
-		if nextPageToken == "" {
+		ret, err := iter.Next()
+		if err == iterator.Done {
 			break
 		}
+
+		projectNumber := strings.ReplaceAll(ret.GetProject(), "projects/", "")
+		orgID := strings.ReplaceAll(ret.GetOrganization(), "organizations/", "")
+		createTime := ret.GetCreateTime().AsTime()
+		rets = append(rets, &Project{
+			ProjectID:              ret.GetAdditionalAttributes().GetFields()["projectId"].GetStringValue(),
+			ProjectNumber:          projectNumber,
+			DisplayName:            ret.GetDisplayName(),
+			State:                  ret.GetState(),
+			OrganizationID:         orgID,
+			ParentFullResourceName: ret.GetParentFullResourceName(),
+			CreateTime:             createTime,
+		})
 	}
 
 	return rets, nil
