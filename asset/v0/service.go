@@ -96,6 +96,9 @@ func (s *Service) ListProject(ctx context.Context, scope Scope, query string, or
 		if err == iterator.Done {
 			break
 		}
+		if err != nil {
+			return nil, err
+		}
 
 		projectNumber := strings.ReplaceAll(ret.GetProject(), "projects/", "")
 		orgID := strings.ReplaceAll(ret.GetOrganization(), "organizations/", "")
