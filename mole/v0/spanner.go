@@ -16,6 +16,10 @@ func (s *SpannerService) Get(ctx context.Context, key string) (*Item, error) {
 	return nil, fmt.Errorf("unimplemented")
 }
 
+func (s *SpannerService) GetBySurrogateKey(ctx context.Context, surrogateKey string) ([]*Item, error) {
+	return nil, fmt.Errorf("unimplemented")
+}
+
 func (s *SpannerService) GetMulti(ctx context.Context, keys []string) (map[string]*Item, error) {
 	return nil, fmt.Errorf("unimplemented")
 }
@@ -32,7 +36,15 @@ func (s *SpannerService) Delete(ctx context.Context, key string) error {
 	return fmt.Errorf("unimplemented")
 }
 
+func (s *SpannerService) DeleteBySurrogateKey(ctx context.Context, surrogateKey string) error {
+	return fmt.Errorf("unimplemented")
+}
+
 func (s *SpannerService) DeleteMulti(ctx context.Context, keys []string) error {
+	return fmt.Errorf("unimplemented")
+}
+
+func (s *SpannerService) DeleteMultiBySurrogateKey(ctx context.Context, surrogateKeys []string) error {
 	return fmt.Errorf("unimplemented")
 }
 
