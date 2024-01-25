@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/apstndb/adcplus"
 	adts "github.com/apstndb/adcplus/tokensource"
 	groupbox "github.com/sinmetalcraft/gcpbox/group/v0"
 	admin "google.golang.org/api/admin/directory/v1"
@@ -13,7 +14,7 @@ import (
 func TestService_HasMember(t *testing.T) {
 	ctx := context.Background()
 
-	ts, err := adts.SmartAccessTokenSource(ctx)
+	ts, err := adts.SmartAccessTokenSource(ctx, adcplus.WithScopes(groupbox.Scopes...))
 	if err != nil {
 		t.Fatal(err)
 	}
