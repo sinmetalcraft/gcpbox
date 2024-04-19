@@ -165,6 +165,19 @@ func InstanceID() (string, error) {
 	return string(id), nil
 }
 
+// Hostname is Metadata ServerからHostnameを取得する
+// /computeMetadata/v1/hostname
+func Hostname() (string, error) {
+	if !OnGCP() {
+		return os.Getenv("HOSTNAME"), nil
+	}
+	id, err := getMetadata("hostname")
+	if err != nil {
+		return "", fmt.Errorf("failed get hostname : %w", err)
+	}
+	return string(id), nil
+}
+
 // ServiceAccountDefaultToken is Metadata ServerからServiceAccountDefaultTokenを取得する
 // /computeMetadata/v1/instance/service-accounts/default/token
 func ServiceAccountDefaultToken() (string, error) {
