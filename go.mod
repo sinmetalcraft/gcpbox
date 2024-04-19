@@ -1,8 +1,8 @@
 module github.com/sinmetalcraft/gcpbox
 
-go 1.20
+go 1.21
 
-toolchain go1.20.0
+toolchain go1.22.0
 
 require (
 	cloud.google.com/go/asset v1.19.0
