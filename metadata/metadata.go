@@ -154,6 +154,7 @@ func ExtractionZone(metaZone string) (string, error) {
 
 // InstanceID is Metadata ServerからInstanceIDを取得する
 // /computeMetadata/v1/instance/id
+// Compute Engineが生成したVMを識別するための数値が返ってくる
 func InstanceID() (string, error) {
 	if !OnGCP() {
 		return os.Getenv("INSTANCE_ID"), nil
@@ -165,8 +166,23 @@ func InstanceID() (string, error) {
 	return string(id), nil
 }
 
+// InstanceName is Metadata ServerからInstanceNameを取得する
+// /computeMetadata/v1/name
+// Instance作成時に自分で着けたInstanceNameが返ってくる
+func InstanceName() (string, error) {
+	if !OnGCP() {
+		return os.Getenv("INSTANCE_NAME"), nil
+	}
+	id, err := getMetadata("name")
+	if err != nil {
+		return "", fmt.Errorf("failed get instance name : %w", err)
+	}
+	return string(id), nil
+}
+
 // Hostname is Metadata ServerからHostnameを取得する
 // /computeMetadata/v1/hostname
+// {InstanceName}.{Zone}.c.{ProjectID}.internal
 func Hostname() (string, error) {
 	if !OnGCP() {
 		return os.Getenv("HOSTNAME"), nil
