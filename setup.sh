@@ -9,6 +9,3 @@ rm -rf build-cmd/
 mkdir build-cmd
 
 export GOBIN=`pwd -P`/build-cmd
-
-go install github.com/sinmetalcraft/gcpbox/_cmd/myvet@latest
-go install honnef.co/go/tools/cmd/staticcheck@latest
