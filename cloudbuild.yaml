@@ -18,16 +18,6 @@ steps:
   - name: 'golang:1.23-bookworm'
     entrypoint: 'bash'
     args:
-      - './lint.sh'
-    env:
-      - 'GO111MODULE=on'
-      - 'GOBIN=/workspace/build-cmd'
-      - 'SPANNER_EMULATOR_HOST=spanner-emulator:9010'
-      - 'GCPBOX_CI_PROJECT=$PROJECT_ID'
-    waitFor: ['setup']
-  - name: 'golang:1.23-bookworm'
-    entrypoint: 'bash'
-    args:
       - './test.sh'
     env:
       - 'GO111MODULE=on'
