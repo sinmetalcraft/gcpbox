@@ -19,12 +19,9 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.14.0
-	github.com/gostaticanalysis/vetgen v0.1.0
-	github.com/gostaticanalysis/wraperrfmt v0.0.0-20240719130650-49e514389db6
 	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/sinmetalcraft/gcpfaker v0.4.0
 	go.opencensus.io v0.24.0
-	golang.org/x/tools v0.27.0
 	google.golang.org/api v0.207.0
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241118233622-e639e219e697
 	google.golang.org/grpc v1.68.0
@@ -58,19 +55,6 @@ require (
 	github.com/google/flatbuffers v24.3.25+incompatible // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
-	github.com/gostaticanalysis/analysisutil v0.7.1 // indirect
-	github.com/gostaticanalysis/comment v1.5.0 // indirect
-	github.com/gostaticanalysis/ctxfield v0.2.2 // indirect
-	github.com/gostaticanalysis/dupimport v0.0.0-20190626051117-37d4ab484168 // indirect
-	github.com/gostaticanalysis/forcetypeassert v0.1.0 // indirect
-	github.com/gostaticanalysis/ident v0.0.1 // indirect
-	github.com/gostaticanalysis/importgroup v0.0.0-20200207005533-c968b39b7641 // indirect
-	github.com/gostaticanalysis/nilerr v0.1.1 // indirect
-	github.com/gostaticanalysis/nofmt v0.0.0-20190308162339-35b38e0c7b48 // indirect
-	github.com/gostaticanalysis/notest v0.0.0-20190308173254-8cf418819436 // indirect
-	github.com/gostaticanalysis/readonly v0.0.0-20190308111141-902245d4df63 // indirect
-	github.com/gostaticanalysis/unitconst v0.1.3 // indirect
-	github.com/gostaticanalysis/unused v0.0.5 // indirect
 	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
@@ -96,6 +80,7 @@ require (
 	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
+	golang.org/x/tools v0.27.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241118233622-e639e219e697 // indirect
