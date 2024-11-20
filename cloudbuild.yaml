@@ -25,7 +25,7 @@ steps:
       - 'SPANNER_EMULATOR_HOST=spanner-emulator:9010'
       - 'GCPBOX_CI_PROJECT=$PROJECT_ID'
     waitFor: ['setup']
-  - name: 'golang:1.19-buster'
+  - name: 'golang:1.23-bookworm'
     entrypoint: 'bash'
     args:
       - './test.sh'
