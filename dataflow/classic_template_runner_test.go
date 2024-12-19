@@ -11,6 +11,8 @@ import (
 )
 
 func TestClassicTemplateRunner_LaunchTemplateJob(t *testing.T) {
+	t.SkipNow() // 時間と金がかかるので、CIでは実行しない
+
 	ctx := context.Background()
 
 	templatesCli, err := dataflow.NewTemplatesClient(ctx)
