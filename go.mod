@@ -9,6 +9,7 @@ require (
 	cloud.google.com/go/bigquery v1.64.0
 	cloud.google.com/go/cloudtasks v1.13.2
 	cloud.google.com/go/compute/metadata v0.5.2
+	cloud.google.com/go/dataflow v0.10.2
 	cloud.google.com/go/iam v1.2.2
 	cloud.google.com/go/monitoring v1.21.2
 	cloud.google.com/go/policytroubleshooter v1.11.2
