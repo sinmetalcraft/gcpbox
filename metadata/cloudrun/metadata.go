@@ -87,7 +87,7 @@ func Region() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return metadatabox.ExtractionRegion(v)
+	return v, nil
 }
 
 // InstanceID is Cloud Runが動いているWorkerのIDを返す
