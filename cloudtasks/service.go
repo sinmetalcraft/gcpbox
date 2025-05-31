@@ -317,7 +317,7 @@ func (s *Service) CreateGetTask(ctx context.Context, queue *Queue, task *GetTask
 				Audience:            task.Audience,
 			},
 		},
-	}, task.ScheduledTime, task.Deadline, ops...)
+	}, task.ScheduleTime, task.Deadline, ops...)
 	if err != nil {
 		return "", fmt.Errorf("failed CreateJsonPostTask(). queue=%+v, url=%s : %w", queue, task.RelativeURI, err)
 	}
